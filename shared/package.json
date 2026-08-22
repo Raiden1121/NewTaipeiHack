@@ -1,0 +1,6 @@
+{
+  "name": "@newtaipei-youth/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared TypeScript types for frontend, backend, and AI service"
+}

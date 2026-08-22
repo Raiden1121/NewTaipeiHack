@@ -51,7 +51,6 @@ button {
 
 .page-header h1,
 .card-heading h2,
-.info-card h2,
 .state-panel h2 {
   margin: 0;
   color: inherit;
@@ -93,16 +92,7 @@ button {
   box-shadow: 0 0 0 5px rgba(116, 219, 180, 0.12);
 }
 
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 0.75fr);
-  align-items: start;
-  gap: 20px;
-}
-
 .map-card,
-.info-card,
-.list-card,
 .state-panel {
   border: 1px solid #dce5ef;
   border-radius: 24px;
@@ -128,14 +118,12 @@ button {
 }
 
 .card-heading h2,
-.info-card h2,
 .state-panel h2 {
   color: #10233f;
   font-size: 1.4rem;
 }
 
-.card-heading .section-kicker,
-.info-card .section-kicker {
+.card-heading .section-kicker {
   margin-bottom: 7px;
 }
 
@@ -228,136 +216,6 @@ button {
   background: #ffad5a;
 }
 
-.side-panel {
-  display: grid;
-  gap: 20px;
-  min-width: 0;
-}
-
-.info-card,
-.list-card {
-  padding: 24px;
-}
-
-.info-card {
-  min-height: 184px;
-  background: linear-gradient(140deg, #f8fbff, #eaf4ff);
-}
-
-.info-card--empty {
-  background: #f8fbff;
-}
-
-.info-card__topline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.selected-mark {
-  width: 13px;
-  height: 13px;
-  border: 3px solid #f8fbff;
-  border-radius: 50%;
-  background: #ffad5a;
-  box-shadow: 0 0 0 2px #bc6326;
-}
-
-.info-card h2 {
-  margin-top: 20px;
-  font-size: 2rem;
-}
-
-.info-card p:last-child {
-  margin: 16px 0 0;
-  color: #6f849d;
-  line-height: 1.65;
-}
-
-.info-details {
-  display: flex;
-  gap: 26px;
-  margin: 22px 0 0;
-}
-
-.info-details div {
-  display: grid;
-  gap: 4px;
-}
-
-.info-details dt {
-  color: #7890aa;
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.info-details dd {
-  margin: 0;
-  color: #233e60;
-  font-size: 0.92rem;
-  font-weight: 800;
-}
-
-.list-card {
-  min-height: 390px;
-}
-
-.town-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  max-height: 490px;
-  overflow-y: auto;
-  padding-right: 3px;
-}
-
-.town-list__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 0;
-  gap: 8px;
-  padding: 10px 11px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: #eef4fa;
-  color: #3e5d7e;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
-}
-
-.town-list__item:hover {
-  border-color: #b8cee3;
-  background: #e5eff8;
-  transform: translateY(-1px);
-}
-
-.town-list__item.is-selected {
-  border-color: #e9a45c;
-  background: #fff1df;
-  color: #9a5526;
-}
-
-.town-list__name {
-  overflow: hidden;
-  font-size: 0.86rem;
-  font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.town-list__id {
-  flex-shrink: 0;
-  color: #86a0ba;
-  font-size: 0.65rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.town-list__item.is-selected .town-list__id {
-  color: #bd7b47;
-}
-
 .state-panel {
   display: flex;
   align-items: center;
@@ -446,10 +304,6 @@ button {
     gap: 20px;
   }
 
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-
   .town-map {
     min-height: 420px;
   }
@@ -461,9 +315,7 @@ button {
     padding: 25px 0 44px;
   }
 
-  .map-card,
-  .info-card,
-  .list-card {
+  .map-card {
     padding: 18px;
     border-radius: 18px;
   }
@@ -471,10 +323,6 @@ button {
   .town-map {
     min-height: 300px;
     padding: 5px;
-  }
-
-  .town-list {
-    grid-template-columns: 1fr;
   }
 
   .state-panel {

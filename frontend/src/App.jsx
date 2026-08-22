@@ -1,66 +1,66 @@
-import { useEffect, useState } from 'react'
-import { feature } from 'topojson-client'
-import TownMap from './components/TownMap'
+import { useEffect, useState } from "react";
+import { feature } from "topojson-client";
+import TownMap from "./components/TownMap";
 
-const DATA_URL = '/taiwan-towns-65000.topo.json'
+const DATA_URL = "/Map_NewTaipei.json";
 
 function getErrorMessage(error) {
   if (error instanceof Error && error.message) {
-    return error.message
+    return error.message;
   }
 
-  return '行政區資料載入失敗，請稍後再試。'
+  return "行政區資料載入失敗，請稍後再試。";
 }
 
 export default function App() {
-  const [features, setFeatures] = useState([])
-  const [selectedTownId, setSelectedTownId] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [reloadKey, setReloadKey] = useState(0)
+  const [features, setFeatures] = useState([]);
+  const [selectedTownId, setSelectedTownId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    const controller = new AbortController()
+    const controller = new AbortController();
 
     async function loadTopology() {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
       try {
-        const response = await fetch(DATA_URL, { signal: controller.signal })
+        const response = await fetch(DATA_URL, { signal: controller.signal });
         if (!response.ok) {
-          throw new Error(`資料請求失敗（HTTP ${response.status}）`)
+          throw new Error(`資料請求失敗（HTTP ${response.status}）`);
         }
 
-        const topology = await response.json()
-        const mapObject = topology?.objects?.map
+        const topology = await response.json();
+        const mapObject = topology?.objects?.map;
         if (!mapObject) {
-          throw new Error('TopoJSON 缺少 objects.map 資料。')
+          throw new Error("TopoJSON 缺少 objects.map 資料。");
         }
 
-        const collection = feature(topology, mapObject)
-        const nextFeatures = collection.features ?? []
-        setFeatures(nextFeatures)
-        setSelectedTownId(nextFeatures[0]?.properties?.id ?? null)
+        const collection = feature(topology, mapObject);
+        const nextFeatures = collection.features ?? [];
+        setFeatures(nextFeatures);
+        setSelectedTownId(nextFeatures[0]?.properties?.id ?? null);
       } catch (loadError) {
-        if (loadError.name !== 'AbortError') {
-          setFeatures([])
-          setSelectedTownId(null)
-          setError(getErrorMessage(loadError))
+        if (loadError.name !== "AbortError") {
+          setFeatures([]);
+          setSelectedTownId(null);
+          setError(getErrorMessage(loadError));
         }
       } finally {
         if (!controller.signal.aborted) {
-          setLoading(false)
+          setLoading(false);
         }
       }
     }
 
-    loadTopology()
+    loadTopology();
 
-    return () => controller.abort()
-  }, [reloadKey])
+    return () => controller.abort();
+  }, [reloadKey]);
 
-  const showEmptyState = !loading && !error && features.length === 0
+  const showEmptyState = !loading && !error && features.length === 0;
 
   return (
     <main className="app-shell">
@@ -72,9 +72,12 @@ export default function App() {
             以 TopoJSON 呈現新北市 29 個行政區的邊界資料。
           </p>
         </div>
-        <div className="data-badge" aria-label={`目前載入 ${features.length} 個行政區`}>
+        <div
+          className="data-badge"
+          aria-label={`目前載入 ${features.length} 個行政區`}
+        >
           <span className="data-badge__dot" />
-          <span>{features.length || '--'} 個行政區</span>
+          <span>{features.length || "--"} 個行政區</span>
         </div>
       </header>
 
@@ -90,7 +93,9 @@ export default function App() {
 
       {error && (
         <section className="state-panel state-panel--error" role="alert">
-          <span className="state-icon" aria-hidden="true">!</span>
+          <span className="state-icon" aria-hidden="true">
+            !
+          </span>
           <div>
             <h2>地圖資料載入失敗</h2>
             <p>{error}</p>
@@ -107,7 +112,9 @@ export default function App() {
 
       {showEmptyState && (
         <section className="state-panel" role="status">
-          <span className="state-icon" aria-hidden="true">∅</span>
+          <span className="state-icon" aria-hidden="true">
+            ∅
+          </span>
           <div>
             <h2>找不到行政區資料</h2>
             <p>目前的 TopoJSON 沒有可顯示的 Polygon。</p>
@@ -116,7 +123,10 @@ export default function App() {
       )}
 
       {!loading && !error && features.length > 0 && (
-        <section className="map-card map-card--solo" aria-labelledby="map-title">
+        <section
+          className="map-card map-card--solo"
+          aria-labelledby="map-title"
+        >
           <div className="card-heading">
             <div>
               <p className="section-kicker">INTERACTIVE MAP</p>
@@ -132,5 +142,5 @@ export default function App() {
         </section>
       )}
     </main>
-  )
+  );
 }

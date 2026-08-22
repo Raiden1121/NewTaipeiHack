@@ -1,0 +1,6 @@
+{
+  "name": "@newtaipei-youth/backend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "TypeScript and Node.js Lambda REST API boundary"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "@newtaipei-youth/ai-service",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Amazon Bedrock, AI response, and RAG service boundary"
+}

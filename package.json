@@ -1,0 +1,13 @@
+{
+  "name": "newtaipei-youth",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "ai-service",
+    "shared",
+    "infrastructure"
+  ],
+  "description": "New Taipei Youth monorepo workspace scaffold"
+}
