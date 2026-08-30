@@ -3,22 +3,23 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Callable
 from typing import Any
-from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
-
-TOKEN_URL = (
-    "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
+from .tdx_client import (
+    TOKEN_URL,
+    TdxClient,
+    TdxClientError,
+    resolve_tdx_client,
 )
+
+
 API_URL_TEMPLATE = "https://tdx.transportdata.tw/api/basic/{version}/Bus/{resource}/City/{city}"
 DEFAULT_CITY = "NewTaipei"
 DEFAULT_VERSION = "v2"
 DEFAULT_PAGE_SIZE = 1000
-REQUEST_TIMEOUT_SECONDS = 30
 SUPPORTED_VERSIONS = frozenset({"v2", "v3"})
 
 OpenURL = Callable[..., Any]
@@ -36,7 +37,10 @@ def fetch_bus_stops(
     *,
     access_token: str | None = None,
     page_size: int = DEFAULT_PAGE_SIZE,
+    max_records: int | None = None,
+    include_operators: bool = True,
     open_url: OpenURL = urlopen,
+    tdx_client: TdxClient | None = None,
 ) -> list[dict[str, Any]]:
     """Fetch city bus stops and attach operators from route-stop data.
 
@@ -49,11 +53,19 @@ def fetch_bus_stops(
     Point-in-polygon assignment is intentionally left to the transform layer.
     """
 
-    _validate_inputs(city=city, version=version, page_size=page_size)
+    _validate_inputs(
+        city=city,
+        version=version,
+        page_size=page_size,
+        max_records=max_records,
+        include_operators=include_operators,
+    )
+    client = resolve_tdx_client(open_url=open_url, tdx_client=tdx_client)
     token = access_token or _get_access_token(
         client_id=client_id,
         client_secret=client_secret,
         open_url=open_url,
+        tdx_client=client,
     )
 
     stop_records = _fetch_all(
@@ -62,15 +74,23 @@ def fetch_bus_stops(
         version=version,
         access_token=token,
         page_size=page_size,
+        max_records=max_records,
+        tdx_client=client,
         open_url=open_url,
     )
-    route_records = _fetch_all(
-        resource="StopOfRoute",
-        city=city,
-        version=version,
-        access_token=token,
-        page_size=page_size,
-        open_url=open_url,
+    route_records = (
+        _fetch_all(
+            resource="StopOfRoute",
+            city=city,
+            version=version,
+            access_token=token,
+            page_size=page_size,
+            max_records=None,
+            tdx_client=client,
+            open_url=open_url,
+        )
+        if include_operators
+        else []
     )
 
     operators_by_stop = _build_operator_index(route_records)
@@ -78,16 +98,24 @@ def fetch_bus_stops(
     for record in stop_records:
         _validate_stop_record(record)
         enriched = dict(record)
-        enriched["Operators"] = [
-            dict(operator)
-            for operator in operators_by_stop.get(record["StopUID"], [])
-        ]
+        if include_operators:
+            enriched["Operators"] = [
+                dict(operator)
+                for operator in operators_by_stop.get(record["StopUID"], [])
+            ]
         enriched_records.append(enriched)
 
     return enriched_records
 
 
-def _validate_inputs(*, city: str, version: str, page_size: int) -> None:
+def _validate_inputs(
+    *,
+    city: str,
+    version: str,
+    page_size: int,
+    max_records: int | None,
+    include_operators: bool,
+) -> None:
     if not isinstance(city, str) or not city.strip():
         raise BusStopCollectorError("city must be a non-empty string")
     if version not in SUPPORTED_VERSIONS:
@@ -95,6 +123,14 @@ def _validate_inputs(*, city: str, version: str, page_size: int) -> None:
         raise BusStopCollectorError(f"version must be one of: {supported}")
     if not isinstance(page_size, int) or isinstance(page_size, bool) or page_size < 1:
         raise BusStopCollectorError("page_size must be a positive integer")
+    if max_records is not None and (
+        not isinstance(max_records, int)
+        or isinstance(max_records, bool)
+        or max_records < 1
+    ):
+        raise BusStopCollectorError("max_records must be a positive integer or None")
+    if not isinstance(include_operators, bool):
+        raise BusStopCollectorError("include_operators must be a boolean")
 
 
 def _get_access_token(
@@ -102,42 +138,16 @@ def _get_access_token(
     client_id: str | None,
     client_secret: str | None,
     open_url: OpenURL,
+    tdx_client: TdxClient | None = None,
 ) -> str:
-    resolved_client_id = client_id or os.getenv("TDX_CLIENT_ID")
-    resolved_client_secret = client_secret or os.getenv("TDX_CLIENT_SECRET")
-    if not resolved_client_id or not resolved_client_secret:
-        raise BusStopCollectorError(
-            "TDX credentials are required; pass client_id/client_secret or set "
-            "TDX_CLIENT_ID and TDX_CLIENT_SECRET"
+    client = resolve_tdx_client(open_url=open_url, tdx_client=tdx_client)
+    try:
+        return client.get_access_token(
+            client_id=client_id,
+            client_secret=client_secret,
         )
-
-    body = urlencode(
-        {
-            "grant_type": "client_credentials",
-            "client_id": resolved_client_id,
-            "client_secret": resolved_client_secret,
-        }
-    ).encode("utf-8")
-    request = Request(
-        TOKEN_URL,
-        data=body,
-        headers={
-            "Accept": "application/json",
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-        method="POST",
-    )
-
-    payload = _request_json(
-        request,
-        open_url=open_url,
-        context="TDX access token",
-    )
-    if not isinstance(payload, dict) or not isinstance(
-        payload.get("access_token"), str
-    ):
-        raise BusStopCollectorError("TDX token response has no access_token")
-    return payload["access_token"]
+    except TdxClientError as exc:
+        raise BusStopCollectorError(str(exc)) from exc
 
 
 def _fetch_all(
@@ -147,15 +157,23 @@ def _fetch_all(
     version: str,
     access_token: str,
     page_size: int,
+    max_records: int | None,
+    tdx_client: TdxClient,
     open_url: OpenURL,
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     skip = 0
 
     while True:
+        remaining = None if max_records is None else max_records - len(records)
+        if remaining == 0:
+            break
+        request_page_size = (
+            page_size if remaining is None else min(page_size, remaining)
+        )
         query = urlencode(
             {
-                "$top": page_size,
+                "$top": request_page_size,
                 "$skip": skip,
                 "$format": "JSON",
             }
@@ -176,20 +194,24 @@ def _fetch_all(
             request,
             open_url=open_url,
             context=f"TDX {version} Bus/{resource}/City/{city} skip={skip}",
+            tdx_client=tdx_client,
         )
         page_records, total_count = _parse_items(
             payload,
             version=version,
             context=f"Bus/{resource}/City/{city} skip={skip}",
         )
-        records.extend(page_records)
+        if remaining is None:
+            records.extend(page_records)
+        else:
+            records.extend(page_records[:remaining])
 
-        if not page_records:
+        if not page_records or (max_records is not None and len(records) >= max_records):
             break
         skip += len(page_records)
         if total_count is not None and skip >= total_count:
             break
-        if len(page_records) < page_size:
+        if len(page_records) < request_page_size:
             break
 
     return records
@@ -200,16 +222,13 @@ def _request_json(
     *,
     open_url: OpenURL,
     context: str,
+    tdx_client: TdxClient | None = None,
 ) -> Any:
+    client = resolve_tdx_client(open_url=open_url, tdx_client=tdx_client)
     try:
-        with open_url(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        raise BusStopCollectorError(f"{context} HTTP error: {exc.code}") from exc
-    except (URLError, TimeoutError, OSError) as exc:
-        raise BusStopCollectorError(f"{context} request failed: {exc}") from exc
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise BusStopCollectorError(f"{context} returned invalid JSON") from exc
+        return client.request_json(request, context=context)
+    except TdxClientError as exc:
+        raise BusStopCollectorError(str(exc)) from exc
 
 
 def _parse_items(
