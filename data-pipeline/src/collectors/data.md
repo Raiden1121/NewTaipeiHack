@@ -497,3 +497,173 @@ API 回傳 `success`、`updateTime` 與 `result.records`；collector 保留 reco
 | 五股區 | 248 | 五權路17號4樓 | 156243 | 3D 立體設計與AI繪圖應用(五股) | 2 |
 | 五股區 | 248 | 五權路17號4樓 | 156244 | 3D 立體設計與列印(五股) | 1 |
 | 泰山區 | 243 | 致遠新村55-1號 | 156309 | 網路規劃架設(泰山) | 2 |
+
+## 9. training_nums.py
+
+### 1. 怎麼 call API
+
+使用資料集 59296 的勞動部 REST API，預設只抓新北市，並以 `limit`／`offset` 分頁：
+
+```python
+from collectors.training_nums import fetch_training_numbers, sum_training_people
+
+records = fetch_training_numbers()                 # 縣市別辦訓地=新北市
+training_people = sum_training_people(records)     # 加總訓練人次
+records = fetch_training_numbers(county=None)      # 抓全台
+```
+
+API：`https://apiservice.mol.gov.tw/OdService/rest/datastore/A17000000J-030190-lfV`
+
+### 2. API 回傳格式
+
+回傳 `success`、`updateTime`、`result.records`；collector 保留勞動部原始欄位：
+
+```json
+{
+  "success": true,
+  "updateTime": "20260831T...",
+  "result": {
+    "resource_id": "A17000000J-030190-lfV",
+    "records": [
+      {
+        "訓練單位名稱": "中華民國全競利促進協會",
+        "縣市別辦訓地": "新北市",
+        "課程代碼": "172991",
+        "課程名稱": "新多益聽力與閱讀能力培訓班",
+        "訓練時數": "47",
+        "訓練人次": "22",
+        "每人訓練費用": "9180",
+        "開訓日期": "20260823",
+        "結訓日期": "20261018"
+      }
+    ]
+  }
+}
+```
+
+目前資料只有 `縣市別辦訓地`，因此 collector 只能產出「新北市」縣市層級，不能拆成新北市 29 區；若需要區級資料，需另找含地址或訓練區域的資料源。
+
+### 3. 前 5 筆資料
+
+以下為 API 實測 `fetch_training_numbers()` 結果：87 筆，`訓練人次` 加總 2,104。
+
+| 訓練單位名稱 | 課程代碼 | 課程名稱 | 訓練人次 | 開訓日期 | 結訓日期 |
+|---|---:|---|---:|---|---|
+| 中華民國全競利促進協會 | 172991 | 新多益聽力與閱讀能力培訓班 | 22 | 20260823 | 20261018 |
+| 中華民國幸福城市營造發展協會 | 173075 | 貴金屬成型銼焊與精緻飾品設計實務班 | 25 | 20260825 | 20261013 |
+| 中華民國幸福城市營造發展協會 | 173092 | 永生花藝與香氛石文創商品設計實務班 | 20 | 20260830 | 20261108 |
+| 中華民國指甲彩繪美容職業工會聯合會 | 173309 | 沙龍凝膠彩繪美甲設計班 | 25 | 20260823 | 20261129 |
+| 中華民國勞動災害防止協會附設台北職業訓練中心 | 172979 | 甲種職業安全衛生業務主管教育訓練班 | 16 | 20260903 | 20260929 |
+
+## 10. birth_nums.py
+
+### 1. 怎麼 call API
+
+使用 101883 的戶政司 ODRP056 API，預設抓新北市並依 `totalPage` 分頁：
+
+```python
+from collectors.birth_nums import aggregate_young_births, fetch_birth_numbers
+
+records = fetch_birth_numbers("114")       # 預設只保留新北市各區
+young_births = aggregate_young_births(records)
+records = fetch_birth_numbers("114", county=None)  # 抓全台
+```
+
+API：`https://www.ris.gov.tw/rs-opendata/api/v1/datastore/ODRP056/{yyy}`
+
+### 2. API 回傳格式
+
+API 回傳 `responseCode`、`totalPage`、`pageDataSize` 與 `responseData`。每筆資料包含統計年度、區域、生母單一年齡、出生者性別與出生數；collector 保留原始欄位與字串值。
+
+```json
+{
+  "responseCode": "OD-0101-S",
+  "responseMessage": "處理完成",
+  "totalPage": "14",
+  "totalDataSize": "27232",
+  "page": "1",
+  "pageDataSize": "2000",
+  "responseData": [
+    {
+      "statistic_yyy": "114",
+      "according": "按發生日期分",
+      "site_id": "新北市板橋區",
+      "mother_age": "18歲",
+      "birth_sex": "男",
+      "birth_count": "2"
+    }
+  ]
+}
+```
+
+`aggregate_young_births()` 會精準篩選生母 `18歲` 至 `35歲`，再依 `site_id` 加總男、女出生數；若 API 提供 `總計`／`合計`性別列，則優先使用該列，避免重複計算。資料口徑為「按發生日期分」，不再使用 32945 或 102762 的五歲年齡組資料。
+
+資料品質檢查包含：確認 API 成功碼、所有分頁的年度一致、必要欄位存在、出生數為非負整數，以及同一區域／年齡／性別不重複。
+
+### 3. 前 5 筆資料
+
+以下為 ODRP056/114 第一頁實測前 5 筆：
+
+| 統計年度 | 區域 | 生母年齡 | 出生者性別 | 出生數 |
+|---:|---|---|---|---:|
+| 114 | 新北市板橋區 | 未滿15歲 | 男 | 0 |
+| 114 | 新北市板橋區 | 15歲 | 男 | 0 |
+| 114 | 新北市板橋區 | 16歲 | 男 | 0 |
+| 114 | 新北市板橋區 | 17歲 | 男 | 0 |
+| 114 | 新北市板橋區 | 18歲 | 男 | 2 |
+
+## 11. marriage_nums.py
+
+### 1. 怎麼 call API
+
+使用 32970 的戶政司 ODRP003 API。API 是月資料，collector 會自動呼叫指定民國年度的 12 個月份；預設抓新北市：
+
+```python
+from collectors.marriage_nums import aggregate_marriage_pairs, fetch_marriage_numbers
+
+records = fetch_marriage_numbers("114")
+annual_pairs = aggregate_marriage_pairs(records)  # 依新北市各區加總
+
+# 指定單一行政區；county=None 可抓全台
+records = fetch_marriage_numbers("114", town="板橋區")
+```
+
+API：`https://www.ris.gov.tw/rs-opendata/api/v1/datastore/ODRP003/{yyymm}`
+
+### 2. API 回傳格式
+
+API 回傳 `responseCode`、`totalPage`、`pageDataSize` 與 `responseData`。資料粒度是村里，collector 保留所有原始欄位；`aggregate_marriage_pairs()` 再將每月村里 `marry_pair` 彙整為年度區級結婚對數。
+
+```json
+{
+  "responseCode": "OD-0101-S",
+  "responseMessage": "處理完成",
+  "totalPage": "4",
+  "totalDataSize": "7851",
+  "page": "1",
+  "pageDataSize": "2000",
+  "responseData": [
+    {
+      "statistic_yyymm": "10601",
+      "site_id": "新北市板橋區",
+      "village": "留侯里",
+      "marry_pair": "2",
+      "divorce_pair": "2"
+    }
+  ]
+}
+```
+
+資料是一般人口的結婚對數，不是青年專屬結婚數；只能作為生育前導背景指標，不宜直接當作 E1 青年結婚數。
+
+### 3. 前 5 筆資料
+
+以下為 ODRP003/10601 第一頁實測前 5 筆：
+
+| 統計年月 | 區域 | 村里 | 結婚對數 | 離婚對數 |
+|---:|---|---|---:|---:|
+| 10601 | 新北市板橋區 | 留侯里 | 2 | 2 |
+| 10601 | 新北市板橋區 | 流芳里 | 0 | 1 |
+| 10601 | 新北市板橋區 | 赤松里 | 0 | 0 |
+| 10601 | 新北市板橋區 | 黃石里 | 1 | 0 |
+| 10601 | 新北市板橋區 | 挹秀里 | 1 | 0 |
