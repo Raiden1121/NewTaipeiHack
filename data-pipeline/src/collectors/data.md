@@ -667,3 +667,365 @@ API 回傳 `responseCode`、`totalPage`、`pageDataSize` 與 `responseData`。�
 | 10601 | 新北市板橋區 | 赤松里 | 0 | 0 |
 | 10601 | 新北市板橋區 | 黃石里 | 1 | 0 |
 | 10601 | 新北市板橋區 | 挹秀里 | 1 | 0 |
+
+## 12. job_vacancy.py
+
+### 1. 怎麼 call API
+
+```python
+from collectors.job_vacancy import (
+    count_job_vacancies_by_district,
+    fetch_new_taipei_job_vacancies,
+    sum_job_person_by_district,
+)
+
+# 預設依郵遞區號抓新北市 29 區
+records = fetch_new_taipei_job_vacancies()
+vacancy_counts = count_job_vacancies_by_district(records)
+position_counts = sum_job_person_by_district(records)
+```
+
+單一行政區 API：
+
+```text
+https://free.taiwanjobs.gov.tw/webservice_taipei/webservice.ashx?city=31&zipno=220&count=1000&T=CSV
+```
+
+`city=31` 是新北市，`zipno` 使用 3 碼郵遞區號，`count` 最多 1,000；collector 會依查詢郵遞區號加入 `query_zipno` 與 `district`。
+
+### 2. API 回傳格式
+
+API 回傳 CSV。欄位名稱實際為「代碼＋中文說明」，例如：
+
+```csv
+"OCCU_DESC（職務名稱）","JOB_PERSON（雇用人數）","CITYNAME（工作地點）",...
+```
+
+collector 保留所有原始欄位，並補上：
+
+- `query_zipno`：本次查詢使用的郵遞區號
+- `district`：郵遞區號對應的行政區
+- `query_truncated`：回傳筆數達到 `count` 時為 `true`，表示可能超過 API 上限
+
+職缺筆數使用 API 回傳筆數；`JOB_PERSON` 加總則代表職缺名額。每萬名青年職缺數為「區域職缺筆數 ÷ 區域 18–35 歲人口 × 10,000」。
+
+### 3. 前 5 筆資料
+
+以下為 `fetch_job_vacancies("220", district="板橋區", count=5)` 的 live 回傳前 5 筆（2026-08-31）：
+
+| 職務名稱 | 雇用人數 | 工作地點 | 應徵截止日期 | 職缺更新日期 |
+|---|---:|---|---|---|
+| 資訊安全管理顧問 | 1 | 新北市板橋區 | 20261231 | 20260828 |
+| 資訊安全程式設計顧問 | 1 | 新北市板橋區 | 20261231 | 20260828 |
+| 資安管理助理顧問 | 1 | 新北市板橋區 | 20261231 | 20260828 |
+| 【台北】地區專員 | 1 | 新北市板橋區 | 額滿為止 | 20260824 |
+| 【台北】專案部專員 | 1 | 新北市板橋區 | 額滿為止 | 20260824 |
+
+這次查詢設定 `count=5`，因此 5 筆資料的 `query_truncated` 會是 `true`；正式計算應使用 `count=1000` 並監控是否達到上限。
+
+44062 是目前刊登中的職缺清單，API 沒有 `year`、`yyyymm` 或歷史日期查詢參數，無法直接取得前幾年的逐筆職缺資料；若要建立歷史趨勢，需從現在開始定期保存快照。
+
+## 13. talent_demand.py
+
+### 1. 怎麼 call API
+
+使用勞動部資料集 146549 的 JSON resource `A17000000J-030281-nQF`：
+
+```python
+from collectors.talent_demand import fetch_talent_demand
+
+# 抓取 API 提供的全部歷史統計期
+records = fetch_talent_demand()
+
+# 只抓指定統計期
+records_102 = fetch_talent_demand("102年")
+```
+
+API：
+
+```text
+https://apiservice.mol.gov.tw/OdService/rest/datastore/A17000000J-030281-nQF
+```
+
+collector 使用 `limit`／`offset` 自動分頁，預設每頁 100 筆；可用 `period` 指定 `統計期`。資料是全國／職業別，不提供新北市 29 區篩選。
+
+### 2. API 回傳格式
+
+API 回傳 `success`、`updateTime` 與 `result.records`。目前實際回應可能沒有 `result.total`，collector 會以短頁或空頁停止分頁；原始欄位與數值字串會保留：
+
+```json
+{
+  "success": true,
+  "updateTime": "20260616T104021",
+  "result": {
+    "resource_id": "A17000000J-030281-nQF",
+    "records": [
+      {
+        "統計期": "102年",
+        "職業別": "專業人員",
+        "新登記求才人數（人次）": "118899",
+        "新登記求才僱用人數（人次）": "20222",
+        "有效求才僱用人數（人次）": "58297"
+      }
+    ]
+  }
+}
+```
+
+### 3. 前 5 筆資料
+
+以 `page_size=1000` 實際呼叫 collector 共取得 117 筆；以下為 `limit=5&offset=0` 的 API 前 5 筆：
+
+| 統計期 | 職業別 | 新登記求才人數 | 新登記求才僱用人數 | 有效求才僱用人數 |
+|---|---|---:|---:|---:|
+| 102年 | 民意代表、主管及經理人員 | 14989 | 2457 | 7243 |
+| 102年 | 專業人員 | 118899 | 20222 | 58297 |
+| 102年 | 技術員及助理專業人員 | 367366 | 90907 | 219061 |
+| 102年 | 事務支援人員 | 100277 | 25018 | 56095 |
+| 102年 | 服務及銷售工作人員 | 273045 | 59743 | 170511 |
+
+此資料可用於全國職業別的歷史趨勢；若要分析新北市 29 區，仍需使用 `job_vacancy.py` 保存每日職缺快照或另找具區域欄位的資料源。
+
+## 14. wage.py
+
+### 1. 怎麼取得資料
+
+`wage.py` 會先 GET [主計總處表6下載頁](https://www.stat.gov.tw/News_Content.aspx?n=4580&s=232642)，動態找到最新的 XLSX；找不到或解析失敗時改用 ODS。這是年度檔案下載，不是 REST API。
+
+```python
+from collectors.wage import fetch_wage
+
+records = fetch_wage()                    # 預設新北市、最新工作表
+records = fetch_wage(county=None)         # 全台
+records = fetch_wage(year="112年")        # 指定歷史年度
+```
+
+檔案以 SHA-256 快取；檔案雜湊未變更時不重新解析 XLSX／ODS。
+
+### 2. 回傳格式
+
+```json
+{
+  "records": [
+    {
+      "資料年度": "113年",
+      "縣市別": "新北市",
+      "統計方式": "平均數",
+      "年齡別": "未滿25歲",
+      "薪資": 48.3,
+      "單位": "萬元",
+      "原始欄位": "平均數／未滿25歲"
+    }
+  ],
+  "metadata": {
+    "fetched_at": "2026-09-01T06:15:28+00:00",
+    "published_year": "113年",
+    "source_url": "官方表6 XLSX 連結",
+    "file_hash": "sha256:..."
+  }
+}
+```
+
+### 3. 前 5 筆資料
+
+113年 XLSX 實際呼叫結果（新北市共 16 筆）：
+
+| 資料年度 | 縣市別 | 統計方式 | 年齡別 | 薪資 | 單位 |
+|---|---|---|---|---:|---|
+| 113年 | 新北市 | 平均數 | 總計 | 71.1 | 萬元 |
+| 113年 | 新北市 | 平均數 | 未滿30歲 | 56.7 | 萬元 |
+| 113年 | 新北市 | 平均數 | 未滿25歲 | 48.3 | 萬元 |
+| 113年 | 新北市 | 平均數 | 25-29歲 | 59.9 | 萬元 |
+| 113年 | 新北市 | 平均數 | 30-39歲 | 69 | 萬元 |
+
+資料目前只有縣市層級、年度資料，無法取得新北市 29 區薪資；官方也沒有精確的 18–35 歲分組，因此 collector 保留官方年齡組，不自行估算。
+
+## 15. job_vacancy_salary.py
+
+### 1. 怎麼 call API
+
+此 collector 重用 `job_vacancy.py`，依新北市 29 區郵遞區號呼叫台灣就業通 CSV，再在本地篩選 `SALARYCD=月薪`：
+
+```python
+from collectors.job_vacancy_salary import (
+    fetch_job_posted_salaries,
+    summarize_posted_salary_by_district,
+)
+
+# 預設抓新北市 29 區，每區最多 1,000 筆
+records = fetch_job_posted_salaries(count=1000)
+summary = summarize_posted_salary_by_district(records)
+
+# 測試單一行政區
+records = fetch_job_posted_salaries(
+    zip_codes={"板橋區": "220"},
+    count=10,
+)
+```
+
+單一行政區 API 格式：
+
+```text
+https://free.taiwanjobs.gov.tw/webservice_taipei/webservice.ashx?city=31&zipno=220&count=1000&T=CSV
+```
+
+### 2. 回傳格式
+
+API 原始格式為 CSV；collector 保留原始欄位，並加入：
+
+```json
+{
+  "CITYNAME（工作地點）": "新北市板橋區",
+  "SALARYCD（核薪方式）": "月薪",
+  "NT_L（薪資範圍下限）": "35000",
+  "NT_U（薪資範圍上限）": "40000",
+  "district": "板橋區",
+  "query_zipno": "220",
+  "query_truncated": false,
+  "salary_type": "月薪",
+  "salary_lower": 35000,
+  "salary_upper": 40000,
+  "salary_midpoint": 37500,
+  "salary_estimate_type": "range_midpoint",
+  "snapshot_fetched_at": "2026-09-01T00:00:00+00:00"
+}
+```
+
+`salary_midpoint` 只有在 `NT_L` 與 `NT_U` 都有數字時才計算；單邊薪資會保留，但不納入區級中位數。`query_truncated=true` 表示該區原始回應可能達到 1,000 筆上限。
+
+### 3. 前 5 筆資料
+
+板橋區 `count=10` 實際呼叫結果：原始職缺 10 筆，篩選月薪後 8 筆。
+
+| 工作地點 | 核薪方式 | 薪資下限 | 薪資上限 | 薪資中點 | 估計類型 |
+|---|---|---:|---:|---:|---|
+| 新北市板橋區 | 月薪 | 35000 | 40000 | 37500 | range_midpoint |
+| 新北市板橋區 | 月薪 | 32000 | 35000 | 33500 | range_midpoint |
+| 新北市板橋區 | 月薪 | 33000 | 38000 | 35500 | range_midpoint |
+| 新北市板橋區 | 月薪 | 32000 | 37000 | 34500 | range_midpoint |
+| 新北市板橋區 | 月薪 | 46000 | 空值 | 空值 | lower_bound |
+
+此資料是目前刊登中的職缺快照，沒有 `year`／`yyyymm` 歷史查詢參數；若要做趨勢，需定期保存 `snapshot_fetched_at`。職缺資料沒有年齡欄位，不等同於 `wage.py` 的青年實際薪資。
+
+## 16. rental_price.py
+
+### 1. 怎麼 call API
+
+預設使用新北市資料開放平台 CSV API，保留完整資料；可依區篩選。預設只保留住宅租賃，排除車位、土地、店面與辦公室類型。
+
+```python
+from collectors.rental_price import fetch_rental_prices
+
+records = fetch_rental_prices()                 # 新北市住宅租賃
+records = fetch_rental_prices(district="板橋區")
+records = fetch_rental_prices(residential_only=False)  # 含非住宅資料
+records = fetch_rental_prices(source_format="json")   # JSON 格式
+```
+
+CSV API：
+
+```text
+https://data.ntpc.gov.tw/api/datasets/18d62577-1d5f-4967-ab9c-d71faba8cde1/csv/file
+```
+
+同資料集的 JSON endpoint 目前實測回傳 30 筆，CSV endpoint 實測回傳 45,932 筆，因此預設使用 CSV，避免把部分資料當成完整樣本。
+
+### 2. 回傳格式
+
+回傳 `list[dict]`，保留原始 `district`、`rps01`～`rps34` 欄位，並加入單筆標準化欄位：
+
+```json
+{
+  "district": "土城區",
+  "rps01": "租賃房屋",
+  "rps07_yyymmddroc": "1140219",
+  "rps15_area": "85.8",
+  "rps22_amountsunitdollars": "23000",
+  "rps23_amountsunitdollars": "268",
+  "rps29": "整棟(戶)出租",
+  "rental_date": "1140219",
+  "rental_period": "11402",
+  "rent_total": 23000,
+  "building_area_sqm": 85.8,
+  "rent_per_sqm": 268,
+  "rent_per_ping": 885.95038,
+  "rental_type": "整戶",
+  "snapshot_fetched_at": "2026-09-01T07:21:42+00:00"
+}
+```
+
+缺漏或「面議」的數值欄位會保留原始值，標準化數值為 `None`；`rent_per_ping` 是單筆換算，不是區級統計。租金中位數、租金／坪中位數、YoY、有效樣本數、缺漏數與極端值數均留到 `analytics` 計算。
+
+### 3. 前 5 筆資料
+
+本次以 CSV 實際呼叫，住宅篩選後取得 41,177 筆、涵蓋 27 區；以下為前 5 筆：
+
+| 區域 | 租賃類型 | 租賃年月日 | 建物面積（平方公尺） | 租金總額 | 租金／平方公尺 | 租金／坪 |
+|---|---|---:|---:|---:|---:|---:|
+| 土城區 | 整戶 | 1140219 | 85.8 | 23000 | 268 | 885.95038 |
+| 板橋區 | 整戶 | 1140221 | 274.35 | 70000 | 255 | 842.975175 |
+| 板橋區 | 整戶 | 1140211 | 109.51 | 18000 | 164 | 542.14874 |
+| 板橋區 | 整戶 | 1140215 | 98.02 | 24000 | 245 | 809.917325 |
+| 土城區 | 整戶 | 1140215 | 61.55 | 21000 | 341 | 1127.272685 |
+
+此資料是定期更新的租賃交易快照；collector 不產生區級彙總或 YoY。若需歷史趨勢，應定期保存每次 `snapshot_fetched_at` 與原始資料。
+
+## 17. house_price.py
+
+### 1. 怎麼 call API
+
+預設使用新北市資料開放平台 CSV API，資料已包含 `district`，不需逐區呼叫。預設只保留住宅買賣，排除土地、車位、純建物、店面與辦公用途。
+
+```python
+from collectors.house_price import fetch_house_prices
+
+records = fetch_house_prices()                      # 新北市住宅買賣
+records = fetch_house_prices(district="板橋區")
+records = fetch_house_prices(residential_only=False)  # 含非住宅交易
+records = fetch_house_prices(source_format="json")   # JSON 格式
+```
+
+CSV API：
+
+```text
+https://data.ntpc.gov.tw/api/datasets/acce802d-58cc-4dff-9e7a-9ecc517f78be/csv/file
+```
+
+### 2. 回傳格式
+
+回傳 `list[dict]`，保留原始 `district`、`rps01`～`rps32` 欄位，並加入單筆標準化欄位：
+
+```json
+{
+  "district": "板橋區",
+  "rps01": "房地(土地+建物)",
+  "rps07_yyymmddroc": "1140521",
+  "rps15_area": "104.73",
+  "rps21_amountsunitdollars": "4200000",
+  "rps22_amountsunitdollars": "40103",
+  "transaction_date": "1140521",
+  "transaction_period": "11405",
+  "total_price": 4200000,
+  "building_area_sqm": 104.73,
+  "price_per_sqm": 40103,
+  "price_per_ping": 132571.895855,
+  "transaction_type": "房地(土地+建物)",
+  "snapshot_fetched_at": "2026-09-01T07:30:00+00:00"
+}
+```
+
+缺漏或「面議」的數值欄位會保留原始值，標準化數值為 `None`；`price_per_ping` 是單筆換算，不是區級統計。房價中位數、房價／m² 中位數、成長率、有效樣本數、缺漏數與極端值數均留到 `analytics` 計算。
+
+### 3. 前 5 筆資料
+
+本次以 CSV 實際呼叫，住宅篩選後取得 43,092 筆、涵蓋 28 區；以下為前 5 筆：
+
+| 區域 | 交易標的 | 交易年月日 | 建物面積（平方公尺） | 總價 | 單價／平方公尺 | 單價／坪 |
+|---|---|---:|---:|---:|---:|---:|
+| 板橋區 | 房地(土地+建物) | 1140521 | 104.73 | 4200000 | 40103 | 132571.895855 |
+| 板橋區 | 房地(土地+建物) | 1140513 | 45.63 | 7450000 | 163270 | 539735.51695 |
+| 新莊區 | 房地(土地+建物)+車位 | 1140507 | 130.68 | 16300000 | 124732 | 412337.17462 |
+| 三芝區 | 房地(土地+建物) | 1140519 | 52.85 | 3200000 | 60549 | 200161.975965 |
+| 淡水區 | 房地(土地+建物)+車位 | 1140510 | 178.3 | 15500000 | 86932 | 287378.50162 |
+
+此資料是定期更新的買賣交易快照；collector 不產生區級彙總、房價中位數或成長率。若需歷史趨勢，應定期保存每次 `snapshot_fetched_at` 與原始資料。
