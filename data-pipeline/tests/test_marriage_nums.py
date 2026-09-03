@@ -9,6 +9,7 @@ SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC_DIR))
 
 from collectors import marriage_nums  # noqa: E402
+from collectors.errors import CollectorNoDataError  # noqa: E402
 
 
 class FakeResponse:
@@ -186,6 +187,29 @@ class TestFetchMarriageNumbers(unittest.TestCase):
                     )
                 ),
             )
+
+    def test_unavailable_required_month_stops_without_incomplete_annual_record(self):
+        def open_url(request, timeout):
+            yyyymm = urlsplit(request.full_url).path.rsplit("/", 1)[-1]
+            if yyyymm == "11402":
+                return FakeResponse(
+                    {
+                        "responseCode": "OD-0102-S",
+                        "responseMessage": "查無資料",
+                    }
+                )
+            return FakeResponse(
+                page_payload(
+                    [marriage_record(yyyymm)],
+                    total_page=1,
+                    page=1,
+                )
+            )
+
+        with self.assertRaises(CollectorNoDataError) as error:
+            self._fetch("114", open_url=open_url)
+
+        self.assertNotIn("annual data would be incomplete", str(error.exception))
 
     def test_rejects_record_with_mismatched_month(self):
         with self.assertRaisesRegex(

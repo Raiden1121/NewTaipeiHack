@@ -12,6 +12,7 @@ from collectors.moving_in import (  # noqa: E402
     PopulationMovementCollectorError,
     fetch_moving,
 )
+from collectors.errors import CollectorNoDataError  # noqa: E402
 
 
 class FakeResponse:
@@ -126,7 +127,7 @@ class TestFetchMoving(unittest.TestCase):
                 with self.assertRaises(PopulationMovementCollectorError):
                     fetch_moving(yyyymm, open_url=fake_open_url({}))
 
-    def test_raises_for_unsuccessful_api_response(self):
+    def test_reports_no_data_separately(self):
         responses = {
             1: {
                 "responseCode": "OD-0102-S",
@@ -134,7 +135,7 @@ class TestFetchMoving(unittest.TestCase):
             }
         }
 
-        with self.assertRaises(PopulationMovementCollectorError):
+        with self.assertRaises(CollectorNoDataError):
             fetch_moving("11507", open_url=fake_open_url(responses))
 
     def test_raises_when_response_data_is_not_a_list(self):

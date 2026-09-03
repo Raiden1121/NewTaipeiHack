@@ -12,6 +12,7 @@ from collectors.population_collector import (  # noqa: E402
     PopulationCollectorError,
     fetch_population,
 )
+from collectors.errors import CollectorNoDataError  # noqa: E402
 
 
 class FakeResponse:
@@ -114,7 +115,7 @@ class TestFetchPopulation(unittest.TestCase):
                 with self.assertRaises(PopulationCollectorError):
                     fetch_population(yyyymm, open_url=fake_open_url({}))
 
-    def test_raises_for_unsuccessful_api_response(self):
+    def test_reports_no_data_separately(self):
         responses = {
             1: {
                 "responseCode": "OD-0102-S",
@@ -122,7 +123,7 @@ class TestFetchPopulation(unittest.TestCase):
             }
         }
 
-        with self.assertRaises(PopulationCollectorError):
+        with self.assertRaises(CollectorNoDataError):
             fetch_population("11507", open_url=fake_open_url(responses))
 
     def test_raises_when_response_data_is_not_a_list(self):

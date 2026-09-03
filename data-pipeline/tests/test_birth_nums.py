@@ -9,6 +9,7 @@ SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC_DIR))
 
 from collectors import birth_nums  # noqa: E402
+from collectors.errors import CollectorNoDataError  # noqa: E402
 
 
 class FakeResponse:
@@ -101,6 +102,66 @@ class TestFetchBirthNumbers(unittest.TestCase):
 
         self.assertEqual(records, all_records)
 
+    def test_accepts_113_chinese_source_fields_and_adds_canonical_aliases(self):
+        source = {
+            "統計年度": "113",
+            "按照別": "按發生日期分",
+            "區域別": "新北市板橋區",
+            "生母年齡": "18歲",
+            "出生者性別": "男",
+            "嬰兒出生數": "2",
+        }
+
+        records = self._fetch(
+            "113",
+            open_url=lambda request, timeout: FakeResponse(
+                page_payload([source], total_page=1, page=1)
+            ),
+        )
+
+        self.assertEqual(records[0]["statistic_yyy"], "113")
+        self.assertEqual(records[0]["according"], "按發生日期分")
+        self.assertEqual(records[0]["site_id"], "新北市板橋區")
+        self.assertEqual(records[0]["mother_age"], "18歲")
+        self.assertEqual(records[0]["birth_sex"], "男")
+        self.assertEqual(records[0]["birth_count"], "2")
+        self.assertEqual(records[0]["統計年度"], "113")
+        self.assertEqual(records[0]["按照別"], "按發生日期分")
+        self.assertEqual(records[0]["區域別"], "新北市板橋區")
+        self.assertEqual(records[0]["生母年齡"], "18歲")
+        self.assertEqual(records[0]["出生者性別"], "男")
+        self.assertEqual(records[0]["嬰兒出生數"], "2")
+
+    def test_existing_canonical_fields_take_precedence_over_chinese_aliases(self):
+        source = {
+            "statistic_yyy": "113",
+            "according": "canonical according",
+            "site_id": "新北市板橋區",
+            "mother_age": "18歲",
+            "birth_sex": "男",
+            "birth_count": "2",
+            "統計年度": "999",
+            "按照別": "localized according",
+            "區域別": "新北市永和區",
+            "生母年齡": "35歲",
+            "出生者性別": "女",
+            "嬰兒出生數": "9",
+        }
+
+        records = self._fetch(
+            "113",
+            open_url=lambda request, timeout: FakeResponse(
+                page_payload([source], total_page=1, page=1)
+            ),
+        )
+
+        self.assertEqual(records[0]["statistic_yyy"], "113")
+        self.assertEqual(records[0]["according"], "canonical according")
+        self.assertEqual(records[0]["site_id"], "新北市板橋區")
+        self.assertEqual(records[0]["mother_age"], "18歲")
+        self.assertEqual(records[0]["birth_sex"], "男")
+        self.assertEqual(records[0]["birth_count"], "2")
+
     def test_aggregates_exact_18_to_35_single_ages_by_district(self):
         records = [
             birth_record("新北市板橋區", age="18歲", birth_sex="男", count="2"),
@@ -142,6 +203,18 @@ class TestFetchBirthNumbers(unittest.TestCase):
                 "114",
                 open_url=lambda request, timeout: FakeResponse(
                     page_payload([], total_page=1, page=1, response_code="OD-0101-F")
+                ),
+            )
+
+    def test_reports_no_data_separately(self):
+        with self.assertRaises(CollectorNoDataError):
+            self._fetch(
+                "114",
+                open_url=lambda request, timeout: FakeResponse(
+                    {
+                        "responseCode": "OD-0102-S",
+                        "responseMessage": "查無資料",
+                    }
                 ),
             )
 

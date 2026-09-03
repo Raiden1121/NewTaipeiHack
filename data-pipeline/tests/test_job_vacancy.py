@@ -152,6 +152,151 @@ class TestJobVacancyCollector(unittest.TestCase):
                 ),
             )
 
+    def test_filters_cross_county_contamination_and_marks_retained_rows(self):
+        try:
+            records = job_vacancy.fetch_job_vacancies(
+                "235",
+                district="中和區",
+                open_url=lambda request, timeout: FakeResponse(
+                    csv_payload(
+                        {
+                            "OCCU_DESC": "新北測試職缺",
+                            "JOB_PERSON": "1",
+                            "CITYNAME": "新北市中和區",
+                            "URL_QUERY": "https://example.test/job/new-taipei",
+                        },
+                        {
+                            "OCCU_DESC": "跨縣市污染職缺",
+                            "JOB_PERSON": "1",
+                            "CITYNAME": "台北市南港區",
+                            "URL_QUERY": "https://example.test/job/taipei",
+                        },
+                    )
+                ),
+            )
+        except job_vacancy.JobVacancyCollectorError as exc:
+            self.fail(f"partial contamination must be filtered: {exc}")
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["CITYNAME"], "新北市中和區")
+        self.assertEqual(records[0]["district"], "中和區")
+        self.assertEqual(records[0]["query_filtered_row_count"], 1)
+        self.assertEqual(
+            records[0]["query_warnings"],
+            ["cross_county_cityname_filtered"],
+        )
+
+    def test_same_named_district_in_other_county_is_not_accepted(self):
+        records = job_vacancy.fetch_job_vacancies(
+            "235",
+            district="中和區",
+            open_url=lambda request, timeout: FakeResponse(
+                csv_payload(
+                    {
+                        "OCCU_DESC": "新北測試職缺",
+                        "JOB_PERSON": "1",
+                        "CITYNAME": "新北市中和區",
+                        "URL_QUERY": "https://example.test/job/new-taipei",
+                    },
+                    {
+                        "OCCU_DESC": "外縣市同名區職缺",
+                        "JOB_PERSON": "1",
+                        "CITYNAME": "台北市中和區",
+                        "URL_QUERY": "https://example.test/job/taipei",
+                    },
+                )
+            ),
+        )
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["CITYNAME"], "新北市中和區")
+        self.assertEqual(
+            records[0]["query_warnings"],
+            ["cross_county_cityname_filtered"],
+        )
+
+    def test_rejects_cityname_with_district_name_in_unknown_format(self):
+        with self.assertRaisesRegex(
+            job_vacancy.JobVacancyCollectorError,
+            "CITYNAME.*中和區",
+        ):
+            job_vacancy.fetch_job_vacancies(
+                "235",
+                district="中和區",
+                open_url=lambda request, timeout: FakeResponse(
+                    csv_payload(
+                        {
+                            "OCCU_DESC": "新北測試職缺",
+                            "JOB_PERSON": "1",
+                            "CITYNAME": "新北市中和區",
+                            "URL_QUERY": "https://example.test/job/new-taipei",
+                        },
+                        {
+                            "OCCU_DESC": "格式錯誤職缺",
+                            "JOB_PERSON": "1",
+                            "CITYNAME": "未知-中和區-資料",
+                            "URL_QUERY": "https://example.test/job/malformed",
+                        },
+                    )
+                ),
+            )
+
+    def test_filters_other_new_taipei_district_from_mixed_response(self):
+        records = job_vacancy.fetch_job_vacancies(
+            "242",
+            district="新莊區",
+            open_url=lambda request, timeout: FakeResponse(
+                csv_payload(
+                    {
+                        "OCCU_DESC": "新莊測試職缺",
+                        "JOB_PERSON": "1",
+                        "CITYNAME": "新北市新莊區",
+                        "URL_QUERY": "https://example.test/job/xinzhuang",
+                    },
+                    {
+                        "OCCU_DESC": "板橋污染職缺",
+                        "JOB_PERSON": "1",
+                        "CITYNAME": "新北市板橋區",
+                        "URL_QUERY": "https://example.test/job/banqiao",
+                    },
+                )
+            ),
+        )
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["CITYNAME"], "新北市新莊區")
+        self.assertEqual(records[0]["query_filtered_row_count"], 1)
+        self.assertEqual(
+            records[0]["query_warnings"],
+            ["query_district_mismatch_filtered"],
+        )
+
+    def test_rejects_malformed_cityname_in_mixed_response(self):
+        with self.assertRaisesRegex(
+            job_vacancy.JobVacancyCollectorError,
+            "CITYNAME.*中和區",
+        ):
+            job_vacancy.fetch_job_vacancies(
+                "235",
+                district="中和區",
+                open_url=lambda request, timeout: FakeResponse(
+                    csv_payload(
+                        {
+                            "OCCU_DESC": "新北測試職缺",
+                            "JOB_PERSON": "1",
+                            "CITYNAME": "新北市中和區",
+                            "URL_QUERY": "https://example.test/job/new-taipei",
+                        },
+                        {
+                            "OCCU_DESC": "格式錯誤職缺",
+                            "JOB_PERSON": "1",
+                            "CITYNAME": "",
+                            "URL_QUERY": "https://example.test/job/malformed",
+                        },
+                    )
+                ),
+            )
+
     def test_fetches_multiple_districts_with_explicit_mapping(self):
         requests = []
         district_to_zip = {"板橋區": "220", "中和區": "235"}
@@ -191,6 +336,79 @@ class TestJobVacancyCollector(unittest.TestCase):
                 for request in requests
             ],
             ["220", "235"],
+        )
+
+    def test_deduplicates_county_wide_rows_returned_for_multiple_zips(self):
+        district_to_zip = {"板橋區": "220", "中和區": "235"}
+
+        records = job_vacancy.fetch_new_taipei_job_vacancies(
+            zip_codes=district_to_zip,
+            count=10,
+            open_url=lambda request, timeout: FakeResponse(
+                csv_payload(
+                    {
+                        "OCCU_DESC": "全市測試職缺",
+                        "JOB_PERSON": "1",
+                        "CITYNAME": "新北市不限",
+                        "URL_QUERY": "https://example.test/job/county",
+                    }
+                )
+            ),
+        )
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["geo_scope"], "county")
+        self.assertEqual(records[0]["district"], "")
+
+    def test_county_dedup_merges_query_provenance_and_warnings(self):
+        district_to_zip = {"板橋區": "220", "中和區": "235"}
+
+        def open_url(request, timeout):
+            zipno = parse_qs(urlsplit(request.full_url).query)["zipno"][0]
+            contaminated_city = (
+                "台北市南港區" if zipno == "220" else "新北市板橋區"
+            )
+            return FakeResponse(
+                csv_payload(
+                    {
+                        "OCCU_DESC": "全市測試職缺",
+                        "JOB_PERSON": "1",
+                        "CITYNAME": "新北市不限",
+                        "URL_QUERY": "https://example.test/job/county",
+                    },
+                    {
+                        "OCCU_DESC": "污染職缺",
+                        "JOB_PERSON": "1",
+                        "CITYNAME": contaminated_city,
+                        "URL_QUERY": f"https://example.test/job/bad/{zipno}",
+                    },
+                )
+            )
+
+        records = job_vacancy.fetch_new_taipei_job_vacancies(
+            zip_codes=district_to_zip,
+            count=2,
+            open_url=open_url,
+        )
+
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertTrue(record["query_truncated"])
+        self.assertEqual(record["query_filtered_row_count"], 2)
+        self.assertCountEqual(
+            record["query_warnings"],
+            [
+                "cross_county_cityname_filtered",
+                "query_district_mismatch_filtered",
+            ],
+        )
+        self.assertEqual(
+            [item["query_zipno"] for item in record["query_observations"]],
+            ["220", "235"],
+        )
+        self.assertEqual(
+            [item["query_filtered_row_count"] for item in record["query_observations"]],
+            [1, 1],
         )
 
     def test_counts_rows_and_sums_job_people_by_district(self):

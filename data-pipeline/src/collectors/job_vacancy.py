@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
+import json
 import re
 import ssl
 from collections.abc import Callable, Iterable, Mapping
@@ -24,6 +26,28 @@ REQUEST_TIMEOUT_SECONDS = 60
 CITYNAME_FIELD = "CITYNAME"
 JOB_PERSON_FIELD = "JOB_PERSON"
 REQUIRED_SOURCE_FIELDS = frozenset({CITYNAME_FIELD, JOB_PERSON_FIELD})
+COUNTY_CITYNAMES = frozenset({"新北市不限", "新北市"})
+COUNTY_DEDUPLICATION_EXCLUDED_FIELDS = frozenset(
+    {
+        "query_zipno",
+        "district",
+        "query_truncated",
+        "query_filtered_row_count",
+        "query_warnings",
+        "query_observations",
+        "geo_scope",
+    }
+)
+CROSS_COUNTY_CITYNAME_WARNING = "cross_county_cityname_filtered"
+DISTRICT_MISMATCH_WARNING = "query_district_mismatch_filtered"
+OTHER_COUNTY_CITYNAME_PREFIXES = frozenset(
+    {
+        "臺北市", "台北市", "桃園市", "臺中市", "台中市", "臺南市", "台南市",
+        "高雄市", "基隆市", "新竹市", "嘉義市", "新竹縣", "苗栗縣", "彰化縣",
+        "南投縣", "雲林縣", "嘉義縣", "屏東縣", "宜蘭縣", "花蓮縣",
+        "臺東縣", "台東縣", "澎湖縣", "金門縣", "連江縣",
+    }
+)
 
 # The API accepts the first three digits of the postal code.  The mapping is
 # kept here because the response contains CITYNAME but does not return ZIPNO.
@@ -95,8 +119,9 @@ def fetch_job_vacancies(
     """Fetch current vacancy rows for one three-digit postal-code area.
 
     Original API columns and values are preserved.  The collector adds
-    ``query_zipno``, ``district`` and ``query_truncated`` metadata so later
-    aggregation can identify the query scope and a possible 1,000-row cap.
+    ``query_zipno``, ``district``, ``geo_scope`` and ``query_truncated``
+    metadata so later aggregation can identify query provenance, geography,
+    and a possible 1,000-row cap.
     """
 
     _validate_inputs(zipno=zipno, city=city, district=district, count=count)
@@ -131,19 +156,51 @@ def fetch_job_vacancies(
     records = _parse_csv(raw_payload)
     query_truncated = len(records) >= count
     enriched_records: list[dict[str, Any]] = []
+    cityname_errors: list[tuple[JobVacancyCollectorError, str]] = []
     for index, record in enumerate(records):
+        geo_scope = "district"
         if expected_district is not None:
-            _validate_cityname(
-                _get_source_value(record, CITYNAME_FIELD, index=index),
-                expected_district=expected_district,
+            cityname_value = _get_source_value(
+                record,
+                CITYNAME_FIELD,
                 index=index,
             )
+            try:
+                geo_scope = _validate_cityname(
+                    cityname_value,
+                    expected_district=expected_district,
+                    index=index,
+                )
+            except JobVacancyCollectorError as exc:
+                warning = _filtered_cityname_warning(cityname_value)
+                if warning is None:
+                    raise
+                cityname_errors.append((exc, warning))
+                continue
 
         enriched = dict(record)
         enriched["query_zipno"] = zipno
-        enriched["district"] = expected_district or ""
+        enriched["district"] = expected_district if geo_scope == "district" else ""
+        enriched["geo_scope"] = geo_scope
         enriched["query_truncated"] = query_truncated
         enriched_records.append(enriched)
+
+    if records and not enriched_records and cityname_errors:
+        raise cityname_errors[0][0]
+
+    filtered_row_count = len(cityname_errors)
+    query_warnings = list(dict.fromkeys(warning for _, warning in cityname_errors))
+    for enriched in enriched_records:
+        enriched["query_filtered_row_count"] = filtered_row_count
+        enriched["query_warnings"] = list(query_warnings)
+        enriched["query_observations"] = [
+            {
+                "query_zipno": zipno,
+                "query_filtered_row_count": filtered_row_count,
+                "query_warnings": list(query_warnings),
+                "query_truncated": query_truncated,
+            }
+        ]
 
     return enriched_records
 
@@ -170,7 +227,7 @@ def fetch_new_taipei_job_vacancies(
                 open_url=open_url,
             )
         )
-    return records
+    return _deduplicate_county_rows(records)
 
 
 def count_job_vacancies(records: Iterable[Mapping[str, Any]]) -> int:
@@ -324,12 +381,113 @@ def _validate_cityname(
     *,
     expected_district: str,
     index: int,
-) -> None:
-    if not isinstance(value, str) or expected_district not in value:
+) -> str:
+    if not isinstance(value, str):
         raise JobVacancyCollectorError(
             f"TaiwanJobs API CITYNAME at row {index} does not match "
             f"district {expected_district!r}: {value!r}"
         )
+    cityname = value.strip()
+    if cityname in COUNTY_CITYNAMES:
+        return "county"
+    if cityname == f"新北市{expected_district}":
+        return "district"
+    raise JobVacancyCollectorError(
+        f"TaiwanJobs API CITYNAME at row {index} does not match "
+        f"district {expected_district!r}: {value!r}"
+    )
+
+
+def _filtered_cityname_warning(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cityname = value.strip()
+    if any(
+        cityname.startswith(prefix)
+        for prefix in OTHER_COUNTY_CITYNAME_PREFIXES
+    ):
+        return CROSS_COUNTY_CITYNAME_WARNING
+    if cityname in {
+        f"新北市{district}"
+        for district in NEW_TAIPEI_ZIP_CODES
+    }:
+        return DISTRICT_MISMATCH_WARNING
+    return None
+
+
+def _deduplicate_county_rows(
+    records: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    deduplicated: list[dict[str, Any]] = []
+    county_records_by_key: dict[str, dict[str, Any]] = {}
+    for record in records:
+        if record.get("geo_scope") != "county":
+            deduplicated.append(record)
+            continue
+        record_key = _county_record_key(record)
+        existing = county_records_by_key.get(record_key)
+        if existing is None:
+            county_records_by_key[record_key] = record
+            deduplicated.append(record)
+            continue
+        _merge_county_query_metadata(existing, record)
+    return deduplicated
+
+
+def _merge_county_query_metadata(
+    target: dict[str, Any],
+    duplicate: Mapping[str, Any],
+) -> None:
+    observations = target.setdefault("query_observations", [])
+    incoming = duplicate.get("query_observations", [])
+    if not isinstance(observations, list) or not isinstance(incoming, list):
+        raise JobVacancyCollectorError("county query observations must be lists")
+
+    seen = {
+        json.dumps(item, ensure_ascii=False, sort_keys=True, default=str)
+        for item in observations
+    }
+    for item in incoming:
+        serialized = json.dumps(item, ensure_ascii=False, sort_keys=True, default=str)
+        if serialized not in seen:
+            observations.append(item)
+            seen.add(serialized)
+
+    target["query_truncated"] = any(
+        bool(item.get("query_truncated", False))
+        for item in observations
+        if isinstance(item, Mapping)
+    )
+    target["query_filtered_row_count"] = sum(
+        int(item.get("query_filtered_row_count", 0))
+        for item in observations
+        if isinstance(item, Mapping)
+    )
+    target["query_warnings"] = list(
+        dict.fromkeys(
+            warning
+            for item in observations
+            if isinstance(item, Mapping)
+            for warning in item.get("query_warnings", [])
+            if isinstance(warning, str)
+        )
+    )
+
+
+def _county_record_key(record: Mapping[str, Any]) -> str:
+    source_fields = {
+        field: value
+        for field, value in record.items()
+        if field not in COUNTY_DEDUPLICATION_EXCLUDED_FIELDS
+    }
+    serialized = json.dumps(
+        source_fields,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def _has_source_field(fields: Iterable[Any], canonical_name: str) -> bool:

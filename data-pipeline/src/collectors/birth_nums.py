@@ -10,6 +10,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from collectors.errors import CollectorNoDataError
+
 
 API_URL_TEMPLATE = (
     "https://www.ris.gov.tw/rs-opendata/api/v1/datastore/ODRP056/{yyy}"
@@ -31,6 +33,14 @@ REQUIRED_FIELDS = frozenset(
         "birth_count",
     }
 )
+FIELD_ALIASES = {
+    "statistic_yyy": "統計年度",
+    "according": "按照別",
+    "site_id": "區域別",
+    "mother_age": "生母年齡",
+    "birth_sex": "出生者性別",
+    "birth_count": "嬰兒出生數",
+}
 OPEN_ENDED_AGE_LABELS = frozenset({"未滿15歲", "50歲以上"})
 
 OpenURL = Callable[..., Any]
@@ -249,6 +259,11 @@ def _parse_page(
         )
 
     response_code = payload.get("responseCode")
+    if response_code == "OD-0102-S":
+        message = payload.get("responseMessage", "unknown API error")
+        raise CollectorNoDataError(
+            f"ODRP056 has no data for {yyy} page {page}: {message}"
+        )
     if response_code != SUCCESS_RESPONSE_CODE:
         message = payload.get("responseMessage", "unknown API error")
         raise BirthNumsCollectorError(
@@ -273,6 +288,7 @@ def _parse_page(
             f"ODRP056 responseData must be a list for {yyy} page {page}"
         )
 
+    enriched_records: list[dict[str, str]] = []
     for index, record in enumerate(records):
         if not isinstance(record, dict) or not all(
             isinstance(key, str) and isinstance(value, str)
@@ -283,16 +299,25 @@ def _parse_page(
                 f"for {yyy} page {page} record {index}"
             )
 
-        missing_fields = REQUIRED_FIELDS.difference(record)
+        enriched_record = dict(record)
+        for canonical_field, source_field in FIELD_ALIASES.items():
+            if source_field in enriched_record:
+                enriched_record.setdefault(
+                    canonical_field,
+                    enriched_record[source_field],
+                )
+
+        missing_fields = REQUIRED_FIELDS.difference(enriched_record)
         if missing_fields:
             raise BirthNumsCollectorError(
                 "ODRP056 responseData record is missing fields "
                 f"{sorted(missing_fields)} for {yyy} page {page}"
             )
-        if record["statistic_yyy"] != yyy:
+        if enriched_record["statistic_yyy"] != yyy:
             raise BirthNumsCollectorError(
                 "ODRP056 responseData record statistic_yyy does not match "
-                f"requested year {yyy}: {record['statistic_yyy']!r}"
+                f"requested year {yyy}: {enriched_record['statistic_yyy']!r}"
             )
+        enriched_records.append(enriched_record)
 
-    return total_pages, records
+    return total_pages, enriched_records

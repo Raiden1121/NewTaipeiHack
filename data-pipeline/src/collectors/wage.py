@@ -26,6 +26,8 @@ from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
 
+from collectors.errors import CollectorNoDataError
+
 
 TABLE6_PAGE_URL = "https://www.stat.gov.tw/News_Content.aspx?n=4580&s=232642"
 DEFAULT_COUNTY = "新北市"
@@ -235,6 +237,8 @@ def fetch_wage(
                     "file_hash": file_hash,
                 },
             }
+        except CollectorNoDataError:
+            raise
         except WageCollectorError as exc:
             errors.append(str(exc))
 
@@ -513,7 +517,7 @@ def _select_sheet(
             if year == requested_year:
                 return name, year
         available = ", ".join(year for _, _, year in sorted(sheet_years))
-        raise WageCollectorError(
+        raise CollectorNoDataError(
             f"Table 6 does not contain year {requested_year}; available years: {available}"
         )
 

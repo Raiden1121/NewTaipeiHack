@@ -10,6 +10,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from collectors.errors import CollectorNoDataError
+
 
 API_URL_TEMPLATE = (
     "https://www.ris.gov.tw/rs-opendata/api/v1/datastore/ODRP003/{yyyymm}"
@@ -233,6 +235,11 @@ def _parse_page(
         )
 
     response_code = payload.get("responseCode")
+    if response_code == "OD-0102-S":
+        message = payload.get("responseMessage", "unknown API error")
+        raise CollectorNoDataError(
+            f"ODRP003 has no data for {yyyymm} page {page}: {message}"
+        )
     if response_code != SUCCESS_RESPONSE_CODE:
         message = payload.get("responseMessage", "unknown API error")
         raise MarriageNumsCollectorError(

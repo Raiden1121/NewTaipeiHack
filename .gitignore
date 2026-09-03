@@ -35,3 +35,9 @@ output/playwright/
 
 # macOS
 .DS_Store
+
+#data
+/data-pipeline/data/curated
+/data-pipeline/data/quality
+/data-pipeline/data/quarantine
+/data-pipeline/data/raw

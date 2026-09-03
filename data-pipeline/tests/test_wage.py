@@ -15,6 +15,7 @@ SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC_DIR))
 
 from collectors import wage  # noqa: E402
+from collectors.errors import CollectorNoDataError  # noqa: E402
 
 
 class FakeResponse:
@@ -188,6 +189,18 @@ def _page(*links: tuple[str, str]) -> bytes:
     return f"<html><body>{anchors}</body></html>".encode()
 
 
+def fake_table6_source(calls: list[str]):
+    xlsx = make_xlsx("113年")
+
+    def open_url(request, timeout):
+        if urlsplit(request.full_url).path.endswith(".xlsx"):
+            calls.append("spreadsheet")
+            return FakeResponse(xlsx)
+        return FakeResponse(_page(("https://example.test/table6.xlsx", "表6 XLSX")))
+
+    return open_url
+
+
 class TestWageCollector(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
@@ -339,6 +352,18 @@ class TestWageCollector(unittest.TestCase):
                 cache_dir=self.cache_path("invalid"),
                 open_url=lambda request, timeout: FakeResponse(b"<html></html>"),
             )
+
+    def test_missing_requested_year_stops_without_trying_fallback_format(self):
+        calls = []
+
+        with self.assertRaises(CollectorNoDataError):
+            wage.fetch_wage(
+                year="115",
+                cache_dir=None,
+                open_url=fake_table6_source(calls),
+            )
+
+        self.assertEqual(calls.count("spreadsheet"), 1)
 
 
 if __name__ == "__main__":
