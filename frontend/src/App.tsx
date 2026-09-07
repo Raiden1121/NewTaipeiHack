@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { feature } from "topojson-client";
-import TownMap from "./components/TownMap";
+import TownMap, { type TownFeature } from "./components/TownMap";
 
 const DATA_URL = "/Map_NewTaipei.json";
 
-function getErrorMessage(error) {
+function getErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) {
     return error.message;
   }
@@ -13,10 +13,10 @@ function getErrorMessage(error) {
 }
 
 export default function App() {
-  const [features, setFeatures] = useState([]);
-  const [selectedTownId, setSelectedTownId] = useState(null);
+  const [features, setFeatures] = useState<TownFeature[]>([]);
+  const [selectedTownId, setSelectedTownId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -38,12 +38,14 @@ export default function App() {
           throw new Error("TopoJSON 缺少 objects.map 資料。");
         }
 
-        const collection = feature(topology, mapObject);
+        const collection = feature(topology, mapObject) as unknown as {
+          features: TownFeature[];
+        };
         const nextFeatures = collection.features ?? [];
         setFeatures(nextFeatures);
         setSelectedTownId(nextFeatures[0]?.properties?.id ?? null);
       } catch (loadError) {
-        if (loadError.name !== "AbortError") {
+        if ((loadError as Error).name !== "AbortError") {
           setFeatures([]);
           setSelectedTownId(null);
           setError(getErrorMessage(loadError));

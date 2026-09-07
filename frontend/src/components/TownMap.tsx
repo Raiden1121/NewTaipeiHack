@@ -1,45 +1,68 @@
-import { useMemo, useState } from 'react'
-import { geoCentroid, geoMercator, geoPath } from 'd3-geo'
+import { useMemo, useState } from "react";
+import { geoMercator, geoPath } from "d3-geo";
 
-const MAP_WIDTH = 760
-const MAP_HEIGHT = 560
-const TOWN_COLORS = [
-  '#bde0fe',
-  '#a2d2ff',
-  '#cdeac0',
-  '#f9d5a7',
-  '#f7c8e0',
-  '#d9c2f0',
-]
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max)
+export interface TownFeatureProperties {
+  id: string;
+  name: string;
 }
 
-export default function TownMap({ features, selectedTownId, onSelectTown }) {
-  const [hoveredTownId, setHoveredTownId] = useState(null)
+export interface TownFeature {
+  type: "Feature";
+  properties: TownFeatureProperties;
+  geometry: { type: string; coordinates: unknown };
+}
+
+const MAP_WIDTH = 760;
+const MAP_HEIGHT = 560;
+const TOWN_COLORS = [
+  "#bde0fe",
+  "#a2d2ff",
+  "#cdeac0",
+  "#f9d5a7",
+  "#f7c8e0",
+  "#d9c2f0",
+];
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+interface TownMapProps {
+  features: TownFeature[];
+  selectedTownId: string | null;
+  onSelectTown: (townId: string) => void;
+}
+
+export default function TownMap({
+  features,
+  selectedTownId,
+  onSelectTown,
+}: TownMapProps) {
+  const [hoveredTownId, setHoveredTownId] = useState<string | null>(null);
 
   const collection = useMemo(
-    () => ({ type: 'FeatureCollection', features }),
+    () => ({ type: "FeatureCollection" as const, features }),
     [features],
-  )
+  );
 
   const projection = useMemo(
-    () => geoMercator().fitSize([MAP_WIDTH, MAP_HEIGHT], collection),
+    () => geoMercator().fitSize([MAP_WIDTH, MAP_HEIGHT], collection as never),
     [collection],
-  )
+  );
 
-  const pathGenerator = useMemo(() => geoPath(projection), [projection])
+  const pathGenerator = useMemo(() => geoPath(projection), [projection]);
   const hoveredTown = features.find(
     (town) => town.properties?.id === hoveredTownId,
-  )
-  const tooltipPoint = hoveredTown ? pathGenerator.centroid(hoveredTown) : null
+  );
+  const tooltipPoint = hoveredTown
+    ? pathGenerator.centroid(hoveredTown as never)
+    : null;
   const tooltipX = tooltipPoint
     ? clamp(tooltipPoint[0] - 54, 12, MAP_WIDTH - 132)
-    : 0
+    : 0;
   const tooltipY = tooltipPoint
     ? clamp(tooltipPoint[1] - 42, 12, MAP_HEIGHT - 48)
-    : 0
+    : 0;
 
   return (
     <div className="map-stage">
@@ -56,31 +79,35 @@ export default function TownMap({ features, selectedTownId, onSelectTown }) {
         </defs>
         <g filter="url(#map-shadow)">
           {features.map((town, index) => {
-            const id = town.properties?.id
-            const name = town.properties?.name ?? '未命名行政區'
+            const id = town.properties?.id;
+            const name = town.properties?.name ?? "未命名行政區";
             const className = [
-              'town-path',
-              id === selectedTownId ? 'is-selected' : '',
-              id === hoveredTownId ? 'is-hovered' : '',
+              "town-path",
+              id === selectedTownId ? "is-selected" : "",
+              id === hoveredTownId ? "is-hovered" : "",
             ]
               .filter(Boolean)
-              .join(' ')
+              .join(" ");
 
             return (
               <path
                 className={className}
-                d={pathGenerator(town)}
+                d={pathGenerator(town as never) ?? undefined}
                 key={id}
                 aria-label={name}
                 data-town-id={id}
-                style={{ '--town-fill': TOWN_COLORS[index % TOWN_COLORS.length] }}
+                style={
+                  {
+                    "--town-fill": TOWN_COLORS[index % TOWN_COLORS.length],
+                  } as React.CSSProperties
+                }
                 onMouseEnter={() => setHoveredTownId(id)}
                 onMouseLeave={() => setHoveredTownId(null)}
                 onClick={() => onSelectTown(id)}
               >
                 <title>{name}</title>
               </path>
-            )
+            );
           })}
         </g>
         {hoveredTown && tooltipPoint && (
@@ -91,7 +118,7 @@ export default function TownMap({ features, selectedTownId, onSelectTown }) {
           >
             <rect width="132" height="36" rx="9" />
             <text x="66" y="23" textAnchor="middle">
-              {hoveredTown.properties?.name ?? '未命名行政區'}
+              {hoveredTown.properties?.name ?? "未命名行政區"}
             </text>
           </g>
         )}
@@ -103,5 +130,5 @@ export default function TownMap({ features, selectedTownId, onSelectTown }) {
         <span>目前選取</span>
       </div>
     </div>
-  )
+  );
 }
