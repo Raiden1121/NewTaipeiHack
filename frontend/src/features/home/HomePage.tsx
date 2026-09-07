@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { feature } from "topojson-client";
-import TownMap, { type TownFeature } from "./components/TownMap";
+import TownMap, { type TownFeature } from "@/components/TownMap";
 
 const DATA_URL = "/Map_NewTaipei.json";
 
@@ -12,7 +12,7 @@ function getErrorMessage(error: unknown) {
   return "行政區資料載入失敗，請稍後再試。";
 }
 
-export default function App() {
+export default function HomePage() {
   const [features, setFeatures] = useState<TownFeature[]>([]);
   const [selectedTownId, setSelectedTownId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
