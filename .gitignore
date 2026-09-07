@@ -40,5 +40,11 @@ output/playwright/
 CLAUDE.md
 **/CLAUDE.md
 
-# Local planning notes (keep local, do not commit)
+# Local planning notes
 frontend/prd.md
+
+#data
+/data-pipeline/data/curated
+/data-pipeline/data/quality
+/data-pipeline/data/quarantine
+/data-pipeline/data/raw

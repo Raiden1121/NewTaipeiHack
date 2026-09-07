@@ -1,0 +1,155 @@
+import json
+import sys
+import unittest
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+
+SRC_DIR = Path(__file__).resolve().parents[1] / "src"
+sys.path.insert(0, str(SRC_DIR))
+
+from collectors.moving_in import (  # noqa: E402
+    PopulationMovementCollectorError,
+    fetch_moving,
+)
+from collectors.errors import CollectorNoDataError  # noqa: E402
+
+
+class FakeResponse:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
+    def read(self):
+        return json.dumps(self._payload, ensure_ascii=False).encode("utf-8")
+
+
+def success_page(total_page, records):
+    return {
+        "responseCode": "OD-0101-S",
+        "responseMessage": "處理完成",
+        "totalPage": str(total_page),
+        "responseData": records,
+    }
+
+
+def fake_open_url(responses, requests=None):
+    def open_url(request, timeout):
+        if requests is not None:
+            requests.append(request)
+
+        page = parse_qs(urlparse(request.full_url).query)["PAGE"][0]
+        return FakeResponse(responses[int(page)])
+
+    return open_url
+
+
+class TestFetchMoving(unittest.TestCase):
+    def test_merges_all_pages_and_preserves_movement_fields(self):
+        responses = {
+            1: success_page(
+                total_page=2,
+                records=[
+                    {
+                        "site_id": "新北市板橋區",
+                        "village": "留侯里",
+                        "in_total_m": "2",
+                        "out_total_m": "5",
+                        "in_tp_m": "1",
+                        "out_tp_m": "2",
+                    }
+                ],
+            ),
+            2: success_page(
+                total_page=2,
+                records=[
+                    {
+                        "site_id": "新北市板橋區",
+                        "village": "流芳里",
+                        "in_total_m": "3",
+                        "out_total_m": "1",
+                        "in_tp_m": "0",
+                        "out_tp_m": "1",
+                    }
+                ],
+            ),
+        }
+
+        records = fetch_moving("11507", open_url=fake_open_url(responses))
+
+        self.assertEqual(
+            records,
+            [
+                {
+                    "site_id": "新北市板橋區",
+                    "village": "留侯里",
+                    "in_total_m": "2",
+                    "out_total_m": "5",
+                    "in_tp_m": "1",
+                    "out_tp_m": "2",
+                },
+                {
+                    "site_id": "新北市板橋區",
+                    "village": "流芳里",
+                    "in_total_m": "3",
+                    "out_total_m": "1",
+                    "in_tp_m": "0",
+                    "out_tp_m": "1",
+                },
+            ],
+        )
+
+    def test_sends_county_and_optional_town_query_parameters(self):
+        requests = []
+        responses = {1: success_page(total_page=1, records=[])}
+
+        records = fetch_moving(
+            "11507",
+            county="新北市",
+            town="板橋區",
+            open_url=fake_open_url(responses, requests),
+        )
+
+        params = parse_qs(urlparse(requests[0].full_url).query)
+        self.assertEqual(records, [])
+        self.assertEqual(params["PAGE"], ["1"])
+        self.assertEqual(params["COUNTY"], ["新北市"])
+        self.assertEqual(params["TOWN"], ["板橋區"])
+
+    def test_rejects_invalid_roc_month(self):
+        for yyyymm in ("202607", "11500", "11513"):
+            with self.subTest(yyyymm=yyyymm):
+                with self.assertRaises(PopulationMovementCollectorError):
+                    fetch_moving(yyyymm, open_url=fake_open_url({}))
+
+    def test_reports_no_data_separately(self):
+        responses = {
+            1: {
+                "responseCode": "OD-0102-S",
+                "responseMessage": "查無資料",
+            }
+        }
+
+        with self.assertRaises(CollectorNoDataError):
+            fetch_moving("11507", open_url=fake_open_url(responses))
+
+    def test_raises_when_response_data_is_not_a_list(self):
+        responses = {
+            1: {
+                "responseCode": "OD-0101-S",
+                "totalPage": "1",
+                "responseData": {},
+            }
+        }
+
+        with self.assertRaises(PopulationMovementCollectorError):
+            fetch_moving("11507", open_url=fake_open_url(responses))
+
+
+if __name__ == "__main__":
+    unittest.main()
