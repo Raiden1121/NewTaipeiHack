@@ -35,3 +35,10 @@ output/playwright/
 
 # macOS
 .DS_Store
+
+# Local AI assistant instructions
+CLAUDE.md
+**/CLAUDE.md
+
+# Local planning notes (keep local, do not commit)
+frontend/prd.md
