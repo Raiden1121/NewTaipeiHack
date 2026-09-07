@@ -1,148 +1,35 @@
-import { useEffect, useState } from "react";
-import { feature } from "topojson-client";
-import TownMap, { type TownFeature } from "@/components/TownMap";
-
-const DATA_URL = "/Map_NewTaipei.json";
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return "行政區資料載入失敗，請稍後再試。";
-}
+import { ErrorBoundary } from "react-error-boundary";
+import { useQueryErrorResetBoundary } from "@tanstack/react-query";
+import DistrictChoroplethMap from "./components/DistrictChoroplethMap";
+import KpiSummaryRow from "./components/KpiSummaryRow";
+import SectionEntryCards from "./components/SectionEntryCards";
+import SectionErrorFallback from "@/components/shared/SectionErrorFallback";
 
 export default function HomePage() {
-  const [features, setFeatures] = useState<TownFeature[]>([]);
-  const [selectedTownId, setSelectedTownId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadTopology() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch(DATA_URL, { signal: controller.signal });
-        if (!response.ok) {
-          throw new Error(`資料請求失敗（HTTP ${response.status}）`);
-        }
-
-        const topology = await response.json();
-        const mapObject = topology?.objects?.map;
-        if (!mapObject) {
-          throw new Error("TopoJSON 缺少 objects.map 資料。");
-        }
-
-        const collection = feature(topology, mapObject) as unknown as {
-          features: TownFeature[];
-        };
-        const nextFeatures = collection.features ?? [];
-        setFeatures(nextFeatures);
-        setSelectedTownId(nextFeatures[0]?.properties?.id ?? null);
-      } catch (loadError) {
-        if ((loadError as Error).name !== "AbortError") {
-          setFeatures([]);
-          setSelectedTownId(null);
-          setError(getErrorMessage(loadError));
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadTopology();
-
-    return () => controller.abort();
-  }, [reloadKey]);
-
-  const showEmptyState = !loading && !error && features.length === 0;
+  const { reset } = useQueryErrorResetBoundary();
 
   return (
-    <main className="app-shell">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">NEW TAIPEI · DATA VIEW</p>
-          <h1>新北市行政區地圖</h1>
-          <p className="page-subtitle">
-            以 TopoJSON 呈現新北市 29 個行政區的邊界資料。
-          </p>
-        </div>
-        <div
-          className="data-badge"
-          aria-label={`目前載入 ${features.length} 個行政區`}
-        >
-          <span className="data-badge__dot" />
-          <span>{features.length || "--"} 個行政區</span>
-        </div>
+    <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-6 py-10">
+      <header>
+        <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
+          NEW TAIPEI · YOUTH OPPORTUNITY MAP
+        </p>
+        <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">
+          新北青年機會地圖
+        </h1>
       </header>
 
-      {loading && (
-        <section className="state-panel" aria-live="polite">
-          <span className="loader" aria-hidden="true" />
-          <div>
-            <h2>正在載入地圖資料</h2>
-            <p>正在解析 650000 行政區 TopoJSON。</p>
-          </div>
-        </section>
-      )}
+      <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
+        <KpiSummaryRow />
+      </ErrorBoundary>
 
-      {error && (
-        <section className="state-panel state-panel--error" role="alert">
-          <span className="state-icon" aria-hidden="true">
-            !
-          </span>
-          <div>
-            <h2>地圖資料載入失敗</h2>
-            <p>{error}</p>
-            <button
-              className="button button--light"
-              type="button"
-              onClick={() => setReloadKey((value) => value + 1)}
-            >
-              重新載入
-            </button>
-          </div>
-        </section>
-      )}
+      <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
+        <DistrictChoroplethMap />
+      </ErrorBoundary>
 
-      {showEmptyState && (
-        <section className="state-panel" role="status">
-          <span className="state-icon" aria-hidden="true">
-            ∅
-          </span>
-          <div>
-            <h2>找不到行政區資料</h2>
-            <p>目前的 TopoJSON 沒有可顯示的 Polygon。</p>
-          </div>
-        </section>
-      )}
-
-      {!loading && !error && features.length > 0 && (
-        <section
-          className="map-card map-card--solo"
-          aria-labelledby="map-title"
-        >
-          <div className="card-heading">
-            <div>
-              <p className="section-kicker">INTERACTIVE MAP</p>
-              <h2 id="map-title">行政區分布</h2>
-            </div>
-            <span className="card-hint">Hover / Click</span>
-          </div>
-          <TownMap
-            features={features}
-            selectedTownId={selectedTownId}
-            onSelectTown={setSelectedTownId}
-          />
-        </section>
-      )}
+      <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
+        <SectionEntryCards />
+      </ErrorBoundary>
     </main>
   );
 }
