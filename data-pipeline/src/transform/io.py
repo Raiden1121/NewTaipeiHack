@@ -121,6 +121,17 @@ def write_period_range_report(
     return path
 
 
+def write_refresh_report(
+    report: Mapping[str, Any], *, profile: str, output_dir: str | Path
+) -> Path:
+    """Persist the summary for a wall-clock refresh run."""
+
+    _validate_path_component(profile, field="refresh profile")
+    path = Path(output_dir) / "quality" / f"refresh_{profile}.json"
+    _atomic_json_write(path, dict(report))
+    return path
+
+
 def write_dataset_index(
     entries: list[Mapping[str, Any]], *, output_dir: str | Path
 ) -> Path:

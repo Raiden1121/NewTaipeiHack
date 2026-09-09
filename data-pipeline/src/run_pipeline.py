@@ -30,6 +30,11 @@ from collectors.contracts import CollectedPayload
 from collectors.youth_budget import fetch_youth_budgets
 from collectors.errors import CollectorNoDataError
 from orchestration.contracts import CollectorSpec, ExecutionUnit, PeriodStrategy
+from orchestration.refresh import (
+    build_refresh_units,
+    datasets_for_profile,
+    load_refresh_profiles,
+)
 from orchestration.retry import collect_with_retry
 from orchestration.schedule import build_execution_units
 from orchestration.state import (
@@ -38,6 +43,9 @@ from orchestration.state import (
     ResumeAction,
     choose_resume_action,
     find_latest_raw,
+    load_refresh_state,
+    refresh_state_key,
+    write_refresh_state,
 )
 from transform.geography import DistrictResolver
 from transform.io import (
@@ -45,6 +53,7 @@ from transform.io import (
     write_curated,
     write_dataset_index,
     write_period_range_report,
+    write_refresh_report,
     write_raw,
     write_source_artifacts,
 )
@@ -556,9 +565,177 @@ def run_period_range(
     return range_report
 
 
+def run_refresh(
+    profile: str,
+    *,
+    output_dir: str | Path,
+    config_dir: str | Path,
+    include_tdx: bool = False,
+    strict: bool = False,
+    datasets: Sequence[str] | None = None,
+    failed_only: bool = False,
+    now: datetime | None = None,
+    refresh_profiles_path: str | Path | None = None,
+    collector_specs: Sequence[CollectorSpec] | None = None,
+    refresh_profiles: Mapping[str, Sequence[str]] | None = None,
+) -> dict[str, Any]:
+    """Run only source-aware execution units due for a wall-clock profile."""
+
+    current = _as_refresh_datetime(now)
+    fetched_at = current.isoformat()
+    if refresh_profiles is None:
+        profile_path = (
+            Path(refresh_profiles_path)
+            if refresh_profiles_path is not None
+            else Path(config_dir) / "refresh_profiles.json"
+        )
+        configured_profiles = load_refresh_profiles(profile_path)
+    else:
+        configured_profiles = refresh_profiles
+
+    selected_datasets = datasets_for_profile(
+        configured_profiles,
+        profile,
+        selected=datasets,
+    )
+    specs = tuple(
+        DEFAULT_COLLECTOR_SPECS if collector_specs is None else collector_specs
+    )
+    if include_tdx and collector_specs is None:
+        specs += TDX_COLLECTOR_SPECS
+
+    state = load_refresh_state(output_dir)
+    units = build_refresh_units(
+        specs,
+        profile,
+        state=state,
+        selected=datasets,
+        failed_only=failed_only,
+        now=current,
+        profiles=configured_profiles,
+    )
+    state_path = write_refresh_state(state, output_dir)
+    execution_statuses: list[dict[str, Any]] = []
+
+    for index, unit in enumerate(units, start=1):
+        _log_unit_start(index, len(units), unit)
+        key = refresh_state_key(unit)
+        state_entry = state["units"].setdefault(key, {})
+        state_entry.update(
+            {
+                "dataset": unit.spec.dataset,
+                "source_period": unit.source_period,
+                "output_key": unit.output_key,
+                "status": "running",
+                "last_started_at": fetched_at,
+            }
+        )
+        state_path = write_refresh_state(state, output_dir)
+
+        status = dict(
+            _run_execution_unit(
+                unit,
+                output_dir=output_dir,
+                config_dir=config_dir,
+                strict=strict,
+                resume=False,
+                force=True,
+                period_partitioned=True,
+            )
+        )
+        status.setdefault("source_period", unit.source_period)
+        status.setdefault("output_key", unit.output_key)
+        status_entry = {
+            "dataset": unit.spec.dataset,
+            **status,
+        }
+        execution_statuses.append(status_entry)
+        _update_refresh_state_entry(
+            state_entry,
+            status,
+            unit=unit,
+            timestamp=fetched_at,
+        )
+        state_path = write_refresh_state(state, output_dir)
+        _log_unit_result(index, len(units), unit.spec.dataset, status)
+
+    errors = {
+        status["dataset"]: status.get("error", "unknown error")
+        for status in execution_statuses
+        if status.get("status") == "error"
+    }
+    report: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "profile": profile,
+        "fetched_at": fetched_at,
+        "strict": strict,
+        "failed_only": failed_only,
+        "selected_datasets": list(selected_datasets),
+        "execution_units": execution_statuses,
+        "status": "error" if errors and strict else "ok",
+        "errors": errors,
+        "state_path": str(state_path),
+    }
+    write_refresh_report(report, profile=profile, output_dir=output_dir)
+    _log_summary(execution_statuses)
+    return report
+
+
+def _update_refresh_state_entry(
+    state_entry: dict[str, Any],
+    status: Mapping[str, Any],
+    *,
+    unit: ExecutionUnit,
+    timestamp: str,
+) -> None:
+    status_name = status.get("status", "error")
+    state_entry.update(
+        {
+            "dataset": unit.spec.dataset,
+            "source_period": status.get("source_period", unit.source_period),
+            "output_key": status.get("output_key", unit.output_key),
+            "status": status_name,
+            "attempts": status.get("attempts", 0),
+            "last_checked_at": timestamp,
+        }
+    )
+    for field in ("error", "source_message"):
+        if field in status:
+            state_entry[field] = status[field]
+        else:
+            state_entry.pop(field, None)
+    if "reason" in status:
+        state_entry["reason"] = status["reason"]
+    else:
+        state_entry.pop("reason", None)
+    if status_name == "ok":
+        state_entry["last_success_at"] = timestamp
+
+
+def _as_refresh_datetime(value: datetime | None) -> datetime:
+    current = value or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        return current.replace(tzinfo=timezone.utc)
+    return current.astimezone(timezone.utc)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", help="Dataset name for local raw replay mode")
+    parser.add_argument(
+        "--refresh-profile",
+        choices=("daily", "weekly", "monthly"),
+        help="Run only datasets due in the selected refresh profile",
+    )
+    parser.add_argument(
+        "--datasets",
+        help="Comma-separated dataset names; only valid with --refresh-profile",
+    )
+    parser.add_argument(
+        "--failed-only",
+        action="store_true",
+        help="With refresh mode, retry only units whose previous status was error",
+    )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--input", help="Previously saved raw JSON file")
     mode.add_argument("--period", help="ROC month, for example 11507, in full pipeline mode")
@@ -577,6 +754,31 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     _configure_terminal_logging()
+
+    refresh_arguments = (
+        args.refresh_profile is not None
+        or args.datasets is not None
+        or args.failed_only
+    )
+    if refresh_arguments and not args.refresh_profile:
+        parser.error("--datasets and --failed-only require --refresh-profile")
+    if args.refresh_profile:
+        if args.input or args.period or args.start_period or args.end_period:
+            parser.error(
+                "--refresh-profile cannot be combined with --input, --period, "
+                "--start-period, or --end-period"
+            )
+        selected_datasets = _parse_refresh_datasets(args.datasets, parser)
+        report = run_refresh(
+            args.refresh_profile,
+            output_dir=args.output_dir,
+            config_dir=args.config_dir,
+            include_tdx=args.include_tdx,
+            strict=args.strict,
+            datasets=selected_datasets,
+            failed_only=args.failed_only,
+        )
+        return 1 if report["status"] == "error" else 0
 
     if args.input:
         if not args.dataset:
@@ -616,6 +818,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         force=args.force,
     )
     return 1 if report["status"] == "error" else 0
+
+
+def _parse_refresh_datasets(
+    value: str | None, parser: argparse.ArgumentParser
+) -> tuple[str, ...] | None:
+    if value is None:
+        return None
+    selected = tuple(item.strip() for item in value.split(","))
+    if not selected or any(not item for item in selected):
+        parser.error("--datasets must contain non-empty comma-separated names")
+    return selected
 
 
 def _run_replay(

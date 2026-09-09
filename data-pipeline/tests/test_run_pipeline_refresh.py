@@ -1,0 +1,215 @@
+import json
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+from orchestration.contracts import CollectorSpec, PeriodStrategy
+from run_pipeline import main, run_refresh
+
+
+class RefreshRunnerTests(unittest.TestCase):
+    def test_refresh_runs_only_due_selected_dataset(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            specs = (
+                CollectorSpec(
+                    "job_vacancies",
+                    lambda period: [],
+                    PeriodStrategy.SNAPSHOT,
+                ),
+            )
+            profiles = {
+                "daily": ("job_vacancies",),
+                "weekly": (),
+                "monthly": (),
+            }
+            status = {
+                "status": "ok",
+                "source_period": "11509",
+                "output_key": "latest",
+                "attempts": 1,
+            }
+            with patch("run_pipeline._run_execution_unit", return_value=status) as execute:
+                report = run_refresh(
+                    "daily",
+                    output_dir=output_dir,
+                    config_dir=output_dir,
+                    collector_specs=specs,
+                    refresh_profiles=profiles,
+                    now=datetime(2026, 9, 9, tzinfo=timezone.utc),
+                )
+
+            self.assertEqual(report["status"], "ok")
+            self.assertEqual(execute.call_count, 1)
+            self.assertEqual(execute.call_args.args[0].source_period, "11509")
+            self.assertTrue((output_dir / "quality" / "refresh_state.json").is_file())
+            self.assertTrue((output_dir / "quality" / "refresh_daily.json").is_file())
+
+    def test_failed_only_does_not_run_successful_unit(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            state_dir = output_dir / "quality"
+            state_dir.mkdir(parents=True)
+            (state_dir / "refresh_state.json").write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "units": {
+                        "job_vacancies:latest": {
+                            "dataset": "job_vacancies",
+                            "output_key": "latest",
+                            "status": "ok",
+                            "last_success_at": "2026-09-09T00:00:00+00:00",
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
+            specs = (
+                CollectorSpec(
+                    "job_vacancies",
+                    lambda period: [],
+                    PeriodStrategy.SNAPSHOT,
+                ),
+            )
+            profiles = {
+                "daily": ("job_vacancies",),
+                "weekly": (),
+                "monthly": (),
+            }
+            with patch("run_pipeline._run_execution_unit") as execute:
+                report = run_refresh(
+                    "daily",
+                    output_dir=output_dir,
+                    config_dir=output_dir,
+                    collector_specs=specs,
+                    refresh_profiles=profiles,
+                    failed_only=True,
+                    now=datetime(2026, 9, 9, 1, tzinfo=timezone.utc),
+                )
+
+            self.assertEqual(report["status"], "ok")
+            execute.assert_not_called()
+
+    def test_refresh_persists_unit_status_and_report(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            specs = (
+                CollectorSpec(
+                    "job_vacancies",
+                    lambda period: [],
+                    PeriodStrategy.SNAPSHOT,
+                ),
+            )
+            profiles = {
+                "daily": ("job_vacancies",),
+                "weekly": (),
+                "monthly": (),
+            }
+            status = {
+                "status": "error",
+                "source_period": "11509",
+                "output_key": "latest",
+                "attempts": 3,
+                "error": "ConnectionResetError: reset",
+            }
+            now = datetime(2026, 9, 9, tzinfo=timezone.utc)
+            with patch("run_pipeline._run_execution_unit", return_value=status):
+                report = run_refresh(
+                    "daily",
+                    output_dir=output_dir,
+                    config_dir=output_dir,
+                    collector_specs=specs,
+                    refresh_profiles=profiles,
+                    strict=True,
+                    now=now,
+                )
+
+            self.assertEqual(report["status"], "error")
+            self.assertEqual(report["errors"], {"job_vacancies": status["error"]})
+            self.assertEqual(report["selected_datasets"], ["job_vacancies"])
+            self.assertEqual(report["execution_units"][0]["dataset"], "job_vacancies")
+            state = json.loads(
+                (output_dir / "quality" / "refresh_state.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            entry = state["units"]["job_vacancies:latest"]
+            self.assertEqual(entry["status"], "error")
+            self.assertEqual(entry["attempts"], 3)
+            self.assertEqual(entry["last_started_at"], now.isoformat())
+            refresh_report = json.loads(
+                (output_dir / "quality" / "refresh_daily.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(refresh_report["state_path"], str(
+                output_dir / "quality" / "refresh_state.json"
+            ))
+
+    def test_empty_due_refresh_is_a_successful_no_op(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            specs = (
+                CollectorSpec(
+                    "job_vacancies",
+                    lambda period: [],
+                    PeriodStrategy.SNAPSHOT,
+                ),
+            )
+            profiles = {
+                "daily": ("job_vacancies",),
+                "weekly": (),
+                "monthly": (),
+            }
+            state_dir = output_dir / "quality"
+            state_dir.mkdir(parents=True)
+            (state_dir / "refresh_state.json").write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "units": {
+                        "job_vacancies:latest": {
+                            "dataset": "job_vacancies",
+                            "output_key": "latest",
+                            "status": "ok",
+                            "last_checked_at": "2026-09-09T00:00:00+00:00",
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
+            with patch("run_pipeline._run_execution_unit") as execute:
+                report = run_refresh(
+                    "daily",
+                    output_dir=output_dir,
+                    config_dir=output_dir,
+                    collector_specs=specs,
+                    refresh_profiles=profiles,
+                    now=datetime(2026, 9, 9, 1, tzinfo=timezone.utc),
+                )
+
+            self.assertEqual(report["status"], "ok")
+            self.assertEqual(report["execution_units"], [])
+            execute.assert_not_called()
+            self.assertTrue((output_dir / "quality" / "refresh_daily.json").is_file())
+
+    def test_cli_rejects_empty_dataset_name_before_refresh(self):
+        with patch("run_pipeline.run_refresh") as execute:
+            with self.assertRaises(SystemExit) as raised:
+                main(["--refresh-profile", "daily", "--datasets", "job_vacancies,"])
+
+        self.assertEqual(raised.exception.code, 2)
+        execute.assert_not_called()
+
+    def test_cli_rejects_datasets_without_refresh_even_when_empty(self):
+        with patch("run_pipeline.run_period_range") as execute:
+            with self.assertRaises(SystemExit) as raised:
+                main(["--datasets", "", "--period", "11509"])
+
+        self.assertEqual(raised.exception.code, 2)
+        execute.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()
