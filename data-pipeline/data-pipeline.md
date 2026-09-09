@@ -93,6 +93,50 @@ python src/run_pipeline.py --period 11507 --include-tdx --output-dir data
 
 單一來源失敗時，預設會記錄到 `data/quality/collection.json` 並繼續其他來源；需要讓失敗回傳非零 exit code 時加上 `--strict`。
 
+## Scheduled Refresh Operations
+
+排程更新使用 `--refresh-profile`。它會讀取 `config/refresh_profiles.json`，依 daily、weekly 或 monthly 的 wall-clock cadence 檢查 `data/quality/refresh_state.json`，只執行已到期的 execution units；同一個 cadence 尚未到期的資料不會呼叫 collector。每次執行會產生對應的 refresh report，並更新 refresh state 與 authoritative `data/quality/dataset_index.json`。
+
+以下命令可由本機手動執行，也可交給外部排程器執行：
+
+```bash
+# 每日職缺更新
+cd data-pipeline
+PYTHONPATH=src .venv/bin/python src/run_pipeline.py \
+  --refresh-profile daily \
+  --output-dir data \
+  --strict
+
+# 每週房價、租金與職訓更新
+PYTHONPATH=src .venv/bin/python src/run_pipeline.py \
+  --refresh-profile weekly \
+  --output-dir data \
+  --strict
+
+# 每月人口、年度資料檢查、青年預算與 TDX 更新
+PYTHONPATH=src .venv/bin/python src/run_pipeline.py \
+  --refresh-profile monthly \
+  --include-tdx \
+  --output-dir data \
+  --strict
+
+# 只重跑 daily profile 中上次失敗的指定資料
+PYTHONPATH=src .venv/bin/python src/run_pipeline.py \
+  --refresh-profile daily \
+  --datasets job_vacancies,job_vacancy_salaries \
+  --failed-only \
+  --output-dir data \
+  --strict
+```
+
+`--refresh-profile` 是 refresh mode，依 refresh state 的到期判斷執行目前應更新的資料；`--datasets` 只能縮小指定 profile 的範圍，`--failed-only` 則只挑選該 profile 上一次狀態為 `error` 的 units。`no_data` 不是永久失敗，annual 資料會在下一個 monthly window 重新檢查。
+
+歷史 range mode 仍使用 `--start-period` 與 `--end-period`，依 `PeriodStrategy` 建立歷史月份、年度、snapshot 或 all-available units；它是補齊或重建指定期間，不等同於 daily、weekly、monthly 的 wall-clock refresh mode。`--period`、`--input`、`--resume` 與 `--force` 仍屬既有的單月或 raw replay／recovery 操作，不應與 `--refresh-profile` 混用。
+
+refresh CLI 本身不包含定時器。外部 cron、GitHub Actions 或 AWS EventBridge Scheduler 只負責在指定時間呼叫上述同一個 CLI；本次 pipeline 不新增 AWS credentials、Lambda、EventBridge、部署資源或其他 AWS infrastructure。若尚未部署外部 scheduler，可以先在本機手動執行並確認 state、report 與 dataset index，再由部署環境設定實際頻率。
+
+`data/data_description.md` 是資料欄位與輸出說明文件，不是排程的真實來源。profile、資料集清單與 cadence 以 `config/refresh_profiles.json`、orchestration code 與 `data/quality/refresh_state.json` 的執行狀態為準。
+
 ## Source-aware recovery / resume
 
 歷史 recovery 的正式指令如下；它會把 monthly/annual 的缺漏單位與 snapshot/all-available 的單一執行單位分開處理，並在 `--strict` 下只要仍有 error 就以非零 exit code 結束。
