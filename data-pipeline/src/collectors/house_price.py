@@ -27,7 +27,9 @@ DEFAULT_SOURCE_FORMAT = "csv"
 SOURCE_FORMATS = frozenset({"csv", "json"})
 REQUEST_TIMEOUT_SECONDS = 60
 PING_SQUARE_METERS = 3.305785
-DEFAULT_RESIDENTIAL_ONLY = True
+# Keep the complete source snapshot by default.  Callers that need the
+# residential-only subset can still pass ``residential_only=True``.
+DEFAULT_RESIDENTIAL_ONLY = False
 
 HOUSE_TRANSACTION_TARGETS = frozenset(
     {

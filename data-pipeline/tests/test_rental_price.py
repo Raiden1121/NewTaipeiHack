@@ -95,7 +95,7 @@ class TestRentalPriceCollector(unittest.TestCase):
         self.assertNotIn("rent_median", normalized)
         self.assertNotIn("rent_yoy", normalized)
 
-    def test_filters_non_residential_rows_and_can_return_them_on_request(self):
+    def test_returns_all_rows_by_default_and_can_filter_to_residential(self):
         rows = [
             rental_record(rps28="residential"),
             rental_record(
@@ -110,10 +110,10 @@ class TestRentalPriceCollector(unittest.TestCase):
             ),
         ]
 
-        residential = rental_price.normalize_rental_records(rows)
-        all_rows = rental_price.normalize_rental_records(
+        all_rows = rental_price.normalize_rental_records(rows)
+        residential = rental_price.normalize_rental_records(
             rows,
-            residential_only=False,
+            residential_only=True,
         )
 
         self.assertEqual([row["rps28"] for row in residential], ["residential"])

@@ -106,7 +106,7 @@ class TestHousePriceCollector(unittest.TestCase):
         self.assertNotIn("price_median", normalized)
         self.assertNotIn("growth_rate", normalized)
 
-    def test_filters_non_residential_rows_and_can_return_them_on_request(self):
+    def test_returns_all_rows_by_default_and_can_filter_to_residential(self):
         rows = [
             house_record(rps27="residential"),
             house_record(
@@ -126,10 +126,10 @@ class TestHousePriceCollector(unittest.TestCase):
             ),
         ]
 
-        residential = house_price.normalize_house_records(rows)
-        all_rows = house_price.normalize_house_records(
+        all_rows = house_price.normalize_house_records(rows)
+        residential = house_price.normalize_house_records(
             rows,
-            residential_only=False,
+            residential_only=True,
         )
 
         self.assertEqual(

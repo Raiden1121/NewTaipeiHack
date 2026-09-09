@@ -27,7 +27,9 @@ DEFAULT_SOURCE_FORMAT = "csv"
 SOURCE_FORMATS = frozenset({"csv", "json"})
 REQUEST_TIMEOUT_SECONDS = 60
 PING_SQUARE_METERS = 3.305785
-DEFAULT_RESIDENTIAL_ONLY = True
+# Keep the complete source snapshot by default.  Callers that need the
+# residential-only subset can still pass ``residential_only=True``.
+DEFAULT_RESIDENTIAL_ONLY = False
 
 RENTAL_TARGETS = frozenset({"租賃房屋", "租賃房屋+車位"})
 RESIDENTIAL_USES = frozenset({"住家用", "集合住宅", "住宅"})
