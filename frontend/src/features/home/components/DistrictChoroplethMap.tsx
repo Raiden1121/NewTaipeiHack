@@ -1,49 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
-import { feature } from "topojson-client";
+import { useMemo, useState } from "react";
 import { geoMercator, geoPath } from "d3-geo";
 import { useDistrictSummary } from "../hooks/useDistrictSummary";
+import { useNewTaipeiTopology } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
+import { opportunityFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const TOPOLOGY_URL = "/Map_NewTaipei.json";
 const MAP_WIDTH = 760;
 const MAP_HEIGHT = 560;
-
-interface DistrictProperties {
-  id: string;
-  name: string;
-}
-
-interface DistrictFeature {
-  type: "Feature";
-  properties: DistrictProperties;
-  geometry: { type: string; coordinates: unknown };
-}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function opportunityFillColor(opportunityIndex: number | undefined) {
-  if (opportunityIndex === undefined) return "#d8e3ee";
-  if (opportunityIndex >= 80) return "#0a5aa8";
-  if (opportunityIndex >= 70) return "#3b82c8";
-  if (opportunityIndex >= 60) return "#7fb0dd";
-  if (opportunityIndex >= 50) return "#b9d4ec";
-  return "#e3edf7";
-}
-
 export default function DistrictChoroplethMap() {
-  const [features, setFeatures] = useState<DistrictFeature[]>([]);
-  const [topologyState, setTopologyState] = useState<
-    "loading" | "ready" | "error"
-  >("loading");
-  const [topologyError, setTopologyError] = useState<string | null>(null);
   const [hoveredDistrictId, setHoveredDistrictId] = useState<string | null>(
     null,
   );
+
+  const {
+    features,
+    status: topologyState,
+    error: topologyError,
+  } = useNewTaipeiTopology();
 
   const {
     data: districts = [],
@@ -52,45 +33,6 @@ export default function DistrictChoroplethMap() {
     error: districtsError,
     refetch,
   } = useDistrictSummary();
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadTopology() {
-      setTopologyState("loading");
-      try {
-        const response = await fetch(TOPOLOGY_URL, {
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          throw new Error(`地圖幾何資料請求失敗（HTTP ${response.status}）`);
-        }
-        const topology = await response.json();
-        const mapObject = topology?.objects?.map;
-        if (!mapObject) {
-          throw new Error("TopoJSON 缺少 objects.map 資料。");
-        }
-        const collection = feature(topology, mapObject) as unknown as {
-          features: DistrictFeature[];
-        };
-        setFeatures(collection.features ?? []);
-        setTopologyState("ready");
-      } catch (loadError) {
-        if ((loadError as Error).name !== "AbortError") {
-          setFeatures([]);
-          setTopologyError(
-            loadError instanceof Error
-              ? loadError.message
-              : "地圖幾何資料載入失敗，請稍後再試。",
-          );
-          setTopologyState("error");
-        }
-      }
-    }
-
-    loadTopology();
-    return () => controller.abort();
-  }, []);
 
   const districtById = useMemo(() => {
     return new Map(districts.map((district) => [district.id, district]));
@@ -206,7 +148,7 @@ export default function DistrictChoroplethMap() {
                   )}
                   style={{
                     fill: isSelected
-                      ? "#ffad5a"
+                      ? SELECTED_DISTRICT_FILL
                       : opportunityFillColor(opportunityIndex),
                   }}
                   onMouseEnter={() => setHoveredDistrictId(id)}
