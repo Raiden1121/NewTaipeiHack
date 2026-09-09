@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "profiles": {
+    "daily": [
+      "job_vacancies",
+      "job_vacancy_salaries"
+    ],
+    "weekly": [
+      "house_prices",
+      "rentals",
+      "vt_courses",
+      "training_numbers"
+    ],
+    "monthly": [
+      "population",
+      "movement",
+      "births",
+      "marriages",
+      "wages",
+      "college_majors",
+      "graduate_majors",
+      "talent_demand",
+      "youth_budgets",
+      "bus_stops",
+      "railway_stops",
+      "bike_stops"
+    ]
+  }
+}
