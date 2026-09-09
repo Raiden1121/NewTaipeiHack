@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from orchestration.contracts import CollectorSpec, PeriodStrategy
-from run_pipeline import main, run_refresh
+from run_pipeline import main, run_period_range, run_refresh
 
 
 class RefreshRunnerTests(unittest.TestCase):
@@ -354,6 +354,107 @@ class RefreshRunnerTests(unittest.TestCase):
 
                 self.assertEqual(raised.exception.code, 2)
                 execute.assert_not_called()
+
+    def test_successful_refresh_prunes_old_partition_and_writes_retention_report(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            old_path = output_dir / "curated" / "population" / "11009.json"
+            current_path = output_dir / "curated" / "population" / "11509.json"
+            old_path.parent.mkdir(parents=True)
+            old_path.write_text("{}", encoding="utf-8")
+            current_path.write_text("{}", encoding="utf-8")
+            specs = (
+                CollectorSpec("population", lambda period: [], PeriodStrategy.MONTHLY),
+            )
+            profiles = {"daily": (), "weekly": (), "monthly": ("population",)}
+            status = {
+                "status": "ok",
+                "source_period": "11509",
+                "output_key": "11509",
+                "curated_path": str(current_path),
+                "attempts": 1,
+            }
+            with patch("run_pipeline._run_execution_unit", return_value=status):
+                report = run_refresh(
+                    "monthly",
+                    output_dir=output_dir,
+                    config_dir=output_dir,
+                    collector_specs=specs,
+                    refresh_profiles=profiles,
+                    now=datetime(2026, 9, 9, tzinfo=timezone.utc),
+                )
+
+            self.assertEqual(report["status"], "ok")
+            self.assertFalse(old_path.exists())
+            self.assertEqual(report["retention"]["deleted_count"], 1)
+            retention = json.loads(
+                (output_dir / "quality" / "retention_report.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(retention["status"], "ok")
+
+    def test_refresh_error_keeps_old_data_and_skips_retention(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            old_path = output_dir / "curated" / "population" / "11009.json"
+            old_path.parent.mkdir(parents=True)
+            old_path.write_text("{}", encoding="utf-8")
+            specs = (
+                CollectorSpec("population", lambda period: [], PeriodStrategy.MONTHLY),
+            )
+            profiles = {"daily": (), "weekly": (), "monthly": ("population",)}
+            status = {
+                "status": "error",
+                "source_period": "11509",
+                "output_key": "11509",
+                "attempts": 3,
+                "error": "TimeoutError: timeout",
+            }
+            with patch("run_pipeline._run_execution_unit", return_value=status):
+                report = run_refresh(
+                    "monthly",
+                    output_dir=output_dir,
+                    config_dir=output_dir,
+                    collector_specs=specs,
+                    refresh_profiles=profiles,
+                    strict=True,
+                    now=datetime(2026, 9, 9, tzinfo=timezone.utc),
+                )
+
+            self.assertEqual(report["status"], "error")
+            self.assertTrue(old_path.exists())
+            self.assertEqual(report["retention"]["status"], "skipped")
+
+    def test_historical_range_applies_retention_after_success(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            old_path = output_dir / "curated" / "population" / "11009.json"
+            current_path = output_dir / "curated" / "population" / "11509.json"
+            old_path.parent.mkdir(parents=True)
+            old_path.write_text("{}", encoding="utf-8")
+            current_path.write_text("{}", encoding="utf-8")
+            specs = (
+                CollectorSpec("population", lambda period: [], PeriodStrategy.MONTHLY),
+            )
+            status = {
+                "status": "ok",
+                "source_period": "11509",
+                "output_key": "11509",
+                "curated_path": str(current_path),
+                "attempts": 1,
+            }
+            with patch("run_pipeline._run_execution_unit", return_value=status):
+                report = run_period_range(
+                    "11509",
+                    "11509",
+                    output_dir=output_dir,
+                    config_dir=output_dir,
+                    collector_specs=specs,
+                )
+
+            self.assertEqual(report["retention"]["status"], "ok")
+            self.assertFalse(old_path.exists())
 
 
 if __name__ == "__main__":

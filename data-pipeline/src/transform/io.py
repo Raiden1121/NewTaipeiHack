@@ -132,6 +132,14 @@ def write_refresh_report(
     return path
 
 
+def write_retention_report(report: Mapping[str, Any], *, output_dir: str | Path) -> Path:
+    """Persist the result of the rolling local-data retention operation."""
+
+    path = Path(output_dir) / "quality" / "retention_report.json"
+    _atomic_json_write(path, dict(report))
+    return path
+
+
 def write_dataset_index(
     entries: list[Mapping[str, Any]], *, output_dir: str | Path
 ) -> Path:

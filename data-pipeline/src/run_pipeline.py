@@ -36,7 +36,8 @@ from orchestration.refresh import (
     load_refresh_profiles,
 )
 from orchestration.retry import collect_with_retry
-from orchestration.schedule import build_execution_units
+from orchestration.retention import prune_local_data
+from orchestration.schedule import build_execution_units, current_roc_period
 from orchestration.state import (
     SCHEMA_VERSION,
     TRANSFORM_VERSION,
@@ -54,6 +55,7 @@ from transform.io import (
     write_dataset_index,
     write_period_range_report,
     write_refresh_report,
+    write_retention_report,
     write_raw,
     write_source_artifacts,
 )
@@ -422,6 +424,7 @@ def run_full_pipeline(
     period_partitioned: bool = False,
     resume: bool = False,
     force: bool = False,
+    retention_years: int = 5,
 ) -> dict[str, Any]:
     """Compatibility wrapper for a single local ROC month execution."""
 
@@ -469,6 +472,17 @@ def run_full_pipeline(
     report["dataset_index_path"] = str(
         _write_authoritative_index(units, unit_statuses, output_dir=output_dir)
     )
+    retention = _run_retention(
+        output_dir=output_dir,
+        specs=specs,
+        statuses=unit_statuses,
+        current_period=current_roc_period(datetime.now(timezone.utc)),
+        retention_years=retention_years,
+    )
+    report["retention"] = retention
+    report["retention_report_path"] = str(
+        write_retention_report(retention, output_dir=output_dir)
+    )
     write_collection_report(
         report,
         output_dir=output_dir,
@@ -489,6 +503,7 @@ def run_period_range(
     collector_specs: Sequence[CollectorSpec] | None = None,
     resume: bool = False,
     force: bool = False,
+    retention_years: int = 5,
 ) -> dict[str, Any]:
     """Run each collector at the cadence supported by its source."""
 
@@ -560,6 +575,17 @@ def run_period_range(
         "dataset_index_path": str(index_path),
         "status": "error" if has_errors and strict else "ok",
     }
+    retention = _run_retention(
+        output_dir=output_dir,
+        specs=specs,
+        statuses=unit_statuses,
+        current_period=current_roc_period(datetime.now(timezone.utc)),
+        retention_years=retention_years,
+    )
+    range_report["retention"] = retention
+    range_report["retention_report_path"] = str(
+        write_retention_report(retention, output_dir=output_dir)
+    )
     write_period_range_report(range_report, output_dir=output_dir)
     _log_summary(unit_statuses)
     return range_report
@@ -578,6 +604,7 @@ def run_refresh(
     refresh_profiles_path: str | Path | None = None,
     collector_specs: Sequence[CollectorSpec] | None = None,
     refresh_profiles: Mapping[str, Sequence[str]] | None = None,
+    retention_years: int = 5,
 ) -> dict[str, Any]:
     """Run only source-aware execution units due for a wall-clock profile."""
 
@@ -669,6 +696,13 @@ def run_refresh(
         for status in execution_statuses
         if status.get("status") == "error"
     }
+    retention = _run_retention(
+        output_dir=output_dir,
+        specs=specs,
+        statuses=execution_statuses,
+        current_period=current_roc_period(current),
+        retention_years=retention_years,
+    )
     report: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "profile": profile,
@@ -681,10 +715,43 @@ def run_refresh(
         "errors": errors,
         "state_path": str(state_path),
         "dataset_index_path": str(index_path),
+        "retention": retention,
     }
+    report["retention_report_path"] = str(
+        write_retention_report(retention, output_dir=output_dir)
+    )
     write_refresh_report(report, profile=profile, output_dir=output_dir)
     _log_summary(execution_statuses)
     return report
+
+
+def _run_retention(
+    *,
+    output_dir: str | Path,
+    specs: Sequence[CollectorSpec],
+    statuses: Sequence[Mapping[str, Any]],
+    current_period: str,
+    retention_years: int,
+) -> dict[str, Any]:
+    """Apply retention only after every collection unit is error-free."""
+
+    if any(status.get("status") == "error" for status in statuses):
+        return {
+            "status": "skipped",
+            "reason": "collection_errors",
+            "retention_years": retention_years,
+            "current_period": current_period,
+        }
+    strategies = {
+        _canonical_dataset_or_name(spec.dataset): spec.period_strategy
+        for spec in specs
+    }
+    return prune_local_data(
+        output_dir,
+        current_period=current_period,
+        period_strategies=strategies,
+        retention_years=retention_years,
+    )
 
 
 def _update_refresh_state_entry(
@@ -751,6 +818,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--config-dir", default=str(Path(__file__).resolve().parents[1] / "config"))
     parser.add_argument("--include-tdx", action="store_true", help="Also collect TDX transport datasets")
     parser.add_argument("--strict", action="store_true", help="Return non-zero if any collector fails")
+    parser.add_argument(
+        "--retention-years",
+        type=int,
+        default=5,
+        help="Keep this many years of local JSON outputs after a successful run",
+    )
     recovery = parser.add_mutually_exclusive_group()
     recovery.add_argument(
         "--resume", action="store_true", help="Reuse current outputs or matching raw data"
@@ -759,6 +832,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--force", action="store_true", help="Download every scheduled execution unit"
     )
     args = parser.parse_args(argv)
+    if args.retention_years <= 0:
+        parser.error("--retention-years must be positive")
     _configure_terminal_logging()
 
     refresh_arguments = (
@@ -788,6 +863,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             strict=args.strict,
             datasets=selected_datasets,
             failed_only=args.failed_only,
+            retention_years=args.retention_years,
         )
         return 1 if report["status"] == "error" else 0
 
@@ -814,6 +890,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             strict=args.strict,
             resume=args.resume,
             force=args.force,
+            retention_years=args.retention_years,
         )
         return 1 if report["status"] == "error" else 0
     if not args.period:
@@ -827,6 +904,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         strict=args.strict,
         resume=args.resume,
         force=args.force,
+        retention_years=args.retention_years,
     )
     return 1 if report["status"] == "error" else 0
 
