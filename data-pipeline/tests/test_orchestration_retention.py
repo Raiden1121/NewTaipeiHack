@@ -12,19 +12,20 @@ from orchestration.retention import (
 
 
 class RetentionWindowTests(unittest.TestCase):
-    def test_five_year_window_keeps_the_current_and_previous_59_months(self):
+    def test_window_keeps_five_completed_years_plus_current_year(self):
         window = build_retention_window("11509", years=5)
 
-        self.assertEqual(window.monthly_cutoff, "11010")
-        self.assertEqual(window.annual_cutoff, 111)
+        self.assertEqual(window.monthly_cutoff, "11001")
+        self.assertEqual(window.annual_cutoff, 110)
         self.assertFalse(
-            period_is_retained("11009", PeriodStrategy.MONTHLY, window)
+            period_is_retained("10912", PeriodStrategy.MONTHLY, window)
         )
         self.assertTrue(
-            period_is_retained("11010", PeriodStrategy.MONTHLY, window)
+            period_is_retained("11001", PeriodStrategy.MONTHLY, window)
         )
-        self.assertFalse(period_is_retained("110", PeriodStrategy.ANNUAL, window))
-        self.assertTrue(period_is_retained("111", PeriodStrategy.ANNUAL, window))
+        self.assertFalse(period_is_retained("109", PeriodStrategy.ANNUAL, window))
+        self.assertTrue(period_is_retained("110", PeriodStrategy.ANNUAL, window))
+        self.assertTrue(period_is_retained("115", PeriodStrategy.ANNUAL, window))
 
     def test_rejects_non_positive_retention_years(self):
         with self.assertRaises(ValueError):
@@ -42,15 +43,15 @@ class LocalRetentionTests(unittest.TestCase):
             strategies = {"population": PeriodStrategy.MONTHLY}
             for category in ("raw", "curated", "quality", "quarantine"):
                 if category == "raw":
-                    old_path = root / category / "population" / "11009_20260101T000000Z.json"
-                    new_path = root / category / "population" / "11010_20260101T000000Z.json"
-                    self._write_json(old_path, {"period": "11009", "records": []})
-                    self._write_json(new_path, {"period": "11010", "records": []})
+                    old_path = root / category / "population" / "10912_20260101T000000Z.json"
+                    new_path = root / category / "population" / "11001_20260101T000000Z.json"
+                    self._write_json(old_path, {"period": "10912", "records": []})
+                    self._write_json(new_path, {"period": "11001", "records": []})
                 else:
-                    old_path = root / category / "population" / "11009.json"
-                    new_path = root / category / "population" / "11010.json"
-                    self._write_json(old_path, {"period": "11009"})
-                    self._write_json(new_path, {"period": "11010"})
+                    old_path = root / category / "population" / "10912.json"
+                    new_path = root / category / "population" / "11001.json"
+                    self._write_json(old_path, {"period": "10912"})
+                    self._write_json(new_path, {"period": "11001"})
 
             self._write_json(
                 root / "quality" / "dataset_index.json",
@@ -59,13 +60,13 @@ class LocalRetentionTests(unittest.TestCase):
                     "datasets": {
                         "population": [
                             {
-                                "output_key": "11009",
-                                "path": "curated/population/11009.json",
+                                "output_key": "10912",
+                                "path": "curated/population/10912.json",
                                 "period_strategy": "monthly",
                             },
                             {
-                                "output_key": "11010",
-                                "path": "curated/population/11010.json",
+                                "output_key": "11001",
+                                "path": "curated/population/11001.json",
                                 "period_strategy": "monthly",
                             },
                         ]
@@ -79,22 +80,22 @@ class LocalRetentionTests(unittest.TestCase):
                 period_strategies=strategies,
             )
 
-            self.assertFalse((root / "curated/population/11009.json").exists())
-            self.assertTrue((root / "curated/population/11010.json").exists())
+            self.assertFalse((root / "curated/population/10912.json").exists())
+            self.assertTrue((root / "curated/population/11001.json").exists())
             self.assertFalse(
-                (root / "raw/population/11009_20260101T000000Z.json").exists()
+                (root / "raw/population/10912_20260101T000000Z.json").exists()
             )
             self.assertTrue(
-                (root / "raw/population/11010_20260101T000000Z.json").exists()
+                (root / "raw/population/11001_20260101T000000Z.json").exists()
             )
-            self.assertIn("curated/population/11009.json", report["deleted_paths"])
+            self.assertIn("curated/population/10912.json", report["deleted_paths"])
 
             index = json.loads(
                 (root / "quality/dataset_index.json").read_text(encoding="utf-8")
             )
             self.assertEqual(
                 [entry["output_key"] for entry in index["datasets"]["population"]],
-                ["11010"],
+                ["11001"],
             )
 
     def test_filters_old_records_inside_all_available_json(self):
@@ -102,8 +103,10 @@ class LocalRetentionTests(unittest.TestCase):
             root = Path(directory)
             strategies = {"youth_budgets": PeriodStrategy.ALL_AVAILABLE}
             records = [
+                {"budget_year_roc": "109", "value": 109},
                 {"budget_year_roc": "110", "value": 110},
                 {"budget_year_roc": "111", "value": 111},
+                {"budget_year_roc": "115", "value": 115},
                 {"budget_year_roc": "116", "value": 116},
             ]
             curated_path = root / "curated/youth_budgets/all.json"
@@ -121,11 +124,11 @@ class LocalRetentionTests(unittest.TestCase):
             raw = json.loads(raw_path.read_text(encoding="utf-8"))
             self.assertEqual(
                 [record["budget_year_roc"] for record in curated["records"]],
-                ["111", "116"],
+                ["110", "111", "115", "116"],
             )
             self.assertEqual(
                 [record["budget_year_roc"] for record in raw["documents"]],
-                ["111", "116"],
+                ["110", "111", "115", "116"],
             )
             self.assertIn("curated/youth_budgets/all.json", report["rewritten_paths"])
 

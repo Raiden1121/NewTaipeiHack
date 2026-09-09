@@ -358,7 +358,7 @@ class RefreshRunnerTests(unittest.TestCase):
     def test_successful_refresh_prunes_old_partition_and_writes_retention_report(self):
         with TemporaryDirectory() as directory:
             output_dir = Path(directory)
-            old_path = output_dir / "curated" / "population" / "11009.json"
+            old_path = output_dir / "curated" / "population" / "10912.json"
             current_path = output_dir / "curated" / "population" / "11509.json"
             old_path.parent.mkdir(parents=True)
             old_path.write_text("{}", encoding="utf-8")
@@ -397,7 +397,7 @@ class RefreshRunnerTests(unittest.TestCase):
     def test_refresh_error_keeps_old_data_and_skips_retention(self):
         with TemporaryDirectory() as directory:
             output_dir = Path(directory)
-            old_path = output_dir / "curated" / "population" / "11009.json"
+            old_path = output_dir / "curated" / "population" / "10912.json"
             old_path.parent.mkdir(parents=True)
             old_path.write_text("{}", encoding="utf-8")
             specs = (
@@ -429,7 +429,7 @@ class RefreshRunnerTests(unittest.TestCase):
     def test_historical_range_applies_retention_after_success(self):
         with TemporaryDirectory() as directory:
             output_dir = Path(directory)
-            old_path = output_dir / "curated" / "population" / "11009.json"
+            old_path = output_dir / "curated" / "population" / "10912.json"
             current_path = output_dir / "curated" / "population" / "11509.json"
             old_path.parent.mkdir(parents=True)
             old_path.write_text("{}", encoding="utf-8")

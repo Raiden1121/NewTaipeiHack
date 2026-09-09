@@ -33,14 +33,12 @@ def build_retention_window(current_period: str, years: int = 5) -> RetentionWind
     year, month = _parse_month_period(current_period)
     if years <= 0:
         raise ValueError("retention years must be positive")
-    current_index = year * 12 + month - 1
-    cutoff_index = current_index - (years * 12) + 1
-    cutoff_year, cutoff_month_index = divmod(cutoff_index, 12)
+    cutoff_year = year - years
     return RetentionWindow(
         current_period=current_period,
         years=years,
-        monthly_cutoff=f"{cutoff_year:03d}{cutoff_month_index + 1:02d}",
-        annual_cutoff=year - years + 1,
+        monthly_cutoff=f"{cutoff_year:03d}01",
+        annual_cutoff=cutoff_year,
     )
 
 

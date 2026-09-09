@@ -97,7 +97,7 @@ python src/run_pipeline.py --period 11507 --include-tdx --output-dir data
 
 排程更新使用 `--refresh-profile`。它會讀取 `config/refresh_profiles.json`，依 daily、weekly 或 monthly 的 wall-clock cadence 檢查 `data/quality/refresh_state.json`，只執行已到期的 execution units；同一個 cadence 尚未到期的資料不會呼叫 collector。每次執行會產生對應的 refresh report，並更新 refresh state 與 authoritative `data/quality/dataset_index.json`。
 
-pipeline 預設保留最近 5 年資料（60 個月）；collection 全部成功後，會清除超過保留窗的 local JSON partition，並更新 `data/quality/retention_report.json`。只要有 collection error，就會跳過清理以保護既有資料。可用 `--retention-years N` 覆寫保留年數；清理規則依 monthly、annual、snapshot、all_available 分別處理。
+pipeline 預設保留前五個完整年度加上目前年度；例如目前為 `11509` 時，年度資料保留 `110`～`115`，月資料從 `11001` 保留到目前月份。collection 全部成功後，會清除早於保留起點的 local JSON partition，並更新 `data/quality/retention_report.json`。只要有 collection error，就會跳過清理以保護既有資料。可用 `--retention-years N` 覆寫完整歷史年度數；清理規則依 monthly、annual、snapshot、all_available 分別處理，all_available 的未來年度資料不會因為超過目前年度而被誤刪。
 
 以下命令可由本機手動執行，也可交給外部排程器執行：
 
@@ -139,7 +139,7 @@ refresh CLI 本身不包含定時器。外部 cron、GitHub Actions 或 AWS Even
 
 `data/data_description.md` 是資料欄位與輸出說明文件，不是排程的真實來源。profile、資料集清單與 cadence 以 `config/refresh_profiles.json`、orchestration code 與 `data/quality/refresh_state.json` 的執行狀態為準。
 
-首次建立資料時，先用 historical range 抓最近 5 年，例如目前 ROC 月為 `11509` 時使用 `--start-period 11010 --end-period 11509`；之後再使用上述 refresh commands。未來搬到 S3 時只替換 storage operation，五年 retention policy 不變。
+首次建立資料時，先用 historical range 抓前五個完整年度與目前年度，例如目前 ROC 月為 `11509` 時使用 `--start-period 11001 --end-period 11509`；之後再使用上述 refresh commands。未來搬到 S3 時只替換 storage operation，retention policy 不變。
 
 ## Source-aware recovery / resume
 
