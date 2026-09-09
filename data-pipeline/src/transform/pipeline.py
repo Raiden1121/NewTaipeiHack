@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .contracts import TransformResult
+from .budget import transform_youth_budgets
 from .education import transform_college_majors, transform_graduate_majors
 from .geography import DistrictResolver
 from .housing import transform_house_prices, transform_rentals
@@ -59,6 +60,7 @@ _PLAIN_TRANSFORMS = {
     "training_numbers": transform_training_numbers,
     "talent_demand": transform_talent_demand,
     "wages": transform_wages,
+    "youth_budgets": transform_youth_budgets,
 }
 
 
@@ -93,6 +95,15 @@ def run_transform(
             fetched_at=fetched_at,
         )
     if canonical_dataset in _PLAIN_TRANSFORMS:
+        if isinstance(records, Mapping):
+            metadata = records.get("metadata")
+            envelope_fetched_at = (
+                metadata.get("fetched_at")
+                if isinstance(metadata, Mapping)
+                else records.get("fetched_at")
+            )
+            records = _record_list(records.get("records"), field="records")
+            fetched_at = fetched_at or envelope_fetched_at
         return _PLAIN_TRANSFORMS[canonical_dataset](
             _record_list(records, field="records"),
             fetched_at=fetched_at,

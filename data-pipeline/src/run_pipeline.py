@@ -26,6 +26,8 @@ from collectors.talent_demand import fetch_talent_demand
 from collectors.training_nums import fetch_training_numbers
 from collectors.vt_course import fetch_vt_courses
 from collectors.wage import fetch_wage
+from collectors.contracts import CollectedPayload
+from collectors.youth_budget import fetch_youth_budgets
 from collectors.errors import CollectorNoDataError
 from orchestration.contracts import CollectorSpec, ExecutionUnit, PeriodStrategy
 from orchestration.retry import collect_with_retry
@@ -44,6 +46,7 @@ from transform.io import (
     write_dataset_index,
     write_period_range_report,
     write_raw,
+    write_source_artifacts,
 )
 from transform.pipeline import canonicalize_dataset, dataset_requires_resolver, run_transform
 
@@ -80,6 +83,12 @@ def _collect_wages(period: str) -> Any:
     return fetch_wage(county="新北市", year=period[:3])
 
 
+def _collect_youth_budgets(_period: str) -> CollectedPayload:
+    """Fetch the current official list; period is execution provenance only."""
+
+    return fetch_youth_budgets()
+
+
 DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
     CollectorSpec("population", lambda period: fetch_population(period, county="新北市")),
     CollectorSpec("movement", lambda period: fetch_moving(period, county="新北市")),
@@ -101,6 +110,7 @@ DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
         "training_numbers", lambda period: fetch_training_numbers(county="新北市"), PeriodStrategy.SNAPSHOT
     ),
     CollectorSpec("talent_demand", lambda period: fetch_talent_demand(), PeriodStrategy.ALL_AVAILABLE),
+    CollectorSpec("youth_budgets", _collect_youth_budgets, PeriodStrategy.ALL_AVAILABLE),
 )
 
 
@@ -272,12 +282,18 @@ def _run_execution_unit(
             )
             status["attempts"] = retry_result.attempts
             canonical_dataset = canonicalize_dataset(spec.dataset)
-            raw_payload, transform_input = _raw_and_transform_payload(
+            raw_payload, transform_input, source_artifacts = _raw_and_transform_payload(
                 canonical_dataset,
                 retry_result.value,
                 period=unit.source_period,
                 fetched_at=fetched_at,
             )
+            if isinstance(retry_result.value, CollectedPayload):
+                raw_payload["source_artifacts"] = write_source_artifacts(
+                    source_artifacts,
+                    dataset=canonical_dataset,
+                    output_dir=output_root,
+                )
             LOGGER.debug(
                 "collect complete dataset=%s source_period=%s records=%d attempts=%d",
                 spec.dataset,
@@ -774,7 +790,17 @@ def _write_authoritative_index(
 
 def _raw_and_transform_payload(
     dataset: str, collected: Any, *, period: str, fetched_at: str
-) -> tuple[dict[str, Any], Any]:
+) -> tuple[dict[str, Any], Any, tuple[Any, ...]]:
+    if isinstance(collected, CollectedPayload):
+        payload = {
+            "dataset": dataset,
+            "period": period,
+            "fetched_at": fetched_at,
+            **dict(collected.metadata),
+            "records": list(collected.records),
+        }
+        return payload, payload["records"], collected.artifacts
+
     if dataset == "college_majors":
         if not isinstance(collected, Mapping):
             raise TypeError("college_majors collector must return an envelope")
@@ -787,7 +813,7 @@ def _raw_and_transform_payload(
             "overview_records": overview,
             "detail_records": detail,
         }
-        return payload, {"overview_records": overview, "detail_records": detail}
+        return payload, {"overview_records": overview, "detail_records": detail}, ()
 
     if dataset == "wages":
         if not isinstance(collected, Mapping):
@@ -798,7 +824,7 @@ def _raw_and_transform_payload(
         payload["dataset"] = dataset
         payload["period"] = period
         payload["metadata"] = metadata
-        return payload, payload
+        return payload, payload, ()
 
     records = collected.get("records") if isinstance(collected, Mapping) else collected
     if isinstance(records, (str, bytes)) or not isinstance(records, Sequence):
@@ -809,7 +835,7 @@ def _raw_and_transform_payload(
         "fetched_at": fetched_at,
         "records": list(records),
     }
-    return payload, payload["records"]
+    return payload, payload["records"], ()
 
 
 def _has_records(dataset: str, transform_input: Any) -> bool:

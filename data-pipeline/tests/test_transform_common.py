@@ -103,6 +103,29 @@ class TestTransformCommon(unittest.TestCase):
         with self.assertRaises(TransformValueError):
             build_common_metadata(**(required | {"youth_eligibility": "eligible"}))
 
+    def test_common_metadata_accepts_organization_without_district(self):
+        metadata = build_common_metadata(
+            dataset="youth_budgets",
+            source="ntpc_youth_bureau_budget",
+            source_record_id="budget-row-1",
+            geo_level="organization",
+            district_id=None,
+            district_name=None,
+            period_start="2026-01-01",
+            period_end="2026-12-31",
+            period_type="year",
+            metric_id="budget_amount",
+            value=213022,
+            unit="TWD_thousand",
+            age_scope="not_age_specific",
+            age_min=None,
+            age_max=None,
+            youth_eligibility="context_only",
+            fetched_at=None,
+        )
+        self.assertEqual(metadata["geo_level"], "organization")
+        self.assertIsNone(metadata["district_id"])
+
     def test_fallback_source_id_is_stable_when_input_order_changes(self):
         raw = {"district": "板橋區", "value": "10"}
 

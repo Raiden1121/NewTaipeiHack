@@ -1,3 +1,5 @@
+import hashlib
+import hashlib
 import json
 import sys
 import tempfile
@@ -26,10 +28,13 @@ from orchestration.contracts import PeriodStrategy  # noqa: E402
 from orchestration.retry import collect_with_retry  # noqa: E402
 from transform.geography import DistrictResolver  # noqa: E402
 from transform.io import (  # noqa: E402
+    write_source_artifacts,
     write_curated,
     write_period_range_report,
     write_raw,
 )
+from collectors.contracts import CollectedPayload, SourceArtifact  # noqa: E402
+from run_pipeline import _raw_and_transform_payload  # noqa: E402
 from transform.pipeline import (  # noqa: E402
     UnsupportedDatasetError,
     canonicalize_dataset,
@@ -64,6 +69,25 @@ def house_price_row():
     }
 
 
+def youth_budget_row():
+    return {
+        "document_id": "youth_budgets:115:legal_budget:abc",
+        "budget_year_roc": "115",
+        "document_status": "legal_budget",
+        "document_status_label": "法定預算",
+        "row_type": "total",
+        "business_plan": "新北市政府青年局合計",
+        "work_plan": None,
+        "budget_amount": "213,022",
+        "ratio_percent": "100.00",
+        "unit_label": "新臺幣千元",
+        "table_title": "計畫及預算統計表",
+        "source_page_number": 28,
+        "source_document_url": "https://example.test/115",
+        "source_pdf_sha256": "sha256:abc",
+    }
+
+
 class TestTransformPipeline(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -76,6 +100,92 @@ class TestTransformPipeline(unittest.TestCase):
         self.assertEqual(result.records[-1]["metric_id"], "youth_18_35_total")
         with self.assertRaisesRegex(UnsupportedDatasetError, "unknown_dataset"):
             run_transform("unknown_dataset", [])
+
+    def test_writes_hash_checked_source_artifact_with_relative_metadata(self):
+        content = b"%PDF-test"
+        digest = "sha256:" + hashlib.sha256(content).hexdigest()
+        artifact = SourceArtifact(
+            filename="115_legal_budget_abc.pdf",
+            content=content,
+            media_type="application/pdf",
+            sha256=digest,
+        )
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            output_dir = Path(tempdir)
+            metadata = write_source_artifacts(
+                [artifact], dataset="youth_budgets", output_dir=output_dir
+            )
+
+            artifact_path = output_dir / "raw" / "youth_budgets" / "artifacts" / artifact.filename
+            self.assertEqual(artifact_path.read_bytes(), content)
+            self.assertEqual(
+                metadata,
+                [
+                    {
+                        "path": "raw/youth_budgets/artifacts/115_legal_budget_abc.pdf",
+                        "media_type": "application/pdf",
+                        "sha256": digest,
+                        "size_bytes": len(content),
+                    }
+                ],
+            )
+
+    def test_source_artifact_writer_rejects_path_traversal_and_hash_mismatch(self):
+        content = b"%PDF-test"
+        with tempfile.TemporaryDirectory() as tempdir:
+            with self.assertRaises(ValueError):
+                write_source_artifacts(
+                    [
+                        SourceArtifact(
+                            filename="../escape.pdf",
+                            content=content,
+                            media_type="application/pdf",
+                            sha256="sha256:" + hashlib.sha256(content).hexdigest(),
+                        )
+                    ],
+                    dataset="youth_budgets",
+                    output_dir=Path(tempdir),
+                )
+            with self.assertRaises(ValueError):
+                write_source_artifacts(
+                    [
+                        SourceArtifact(
+                            filename="safe.pdf",
+                            content=content,
+                            media_type="application/pdf",
+                            sha256="sha256:" + "0" * 64,
+                        )
+                    ],
+                    dataset="youth_budgets",
+                    output_dir=Path(tempdir),
+                )
+
+    def test_collected_payload_keeps_records_metadata_and_artifacts_separate(self):
+        content = b"%PDF-test"
+        artifact = SourceArtifact(
+            filename="115_legal_budget_abc.pdf",
+            content=content,
+            media_type="application/pdf",
+            sha256="sha256:" + hashlib.sha256(content).hexdigest(),
+        )
+        collected = CollectedPayload(
+            records=[{"budget_year_roc": "115"}],
+            metadata={"documents": [{"document_id": "doc-115"}]},
+            artifacts=(artifact,),
+        )
+
+        raw_payload, transform_input, artifacts = _raw_and_transform_payload(
+            "youth_budgets",
+            collected,
+            period="11601",
+            fetched_at="2026-09-09T00:00:00+00:00",
+        )
+
+        self.assertEqual(raw_payload["records"], collected.records)
+        self.assertEqual(raw_payload["documents"], collected.metadata["documents"])
+        self.assertEqual(transform_input, collected.records)
+        self.assertEqual(artifacts, collected.artifacts)
 
     def test_college_dispatch_accepts_two_source_envelope(self):
         result = run_transform(
@@ -108,6 +218,94 @@ class TestTransformPipeline(unittest.TestCase):
             "graduate_majors", "vt_courses", "training_numbers",
             "talent_demand",
         }.issubset(datasets))
+
+    def test_all_available_typed_payload_writes_raw_artifact_and_all_output(self):
+        content = b"%PDF-test"
+        artifact = SourceArtifact(
+            filename="115_legal_budget_abc.pdf",
+            content=content,
+            media_type="application/pdf",
+            sha256="sha256:" + hashlib.sha256(content).hexdigest(),
+        )
+        calls = []
+
+        def collect(period):
+            calls.append(period)
+            return CollectedPayload(
+                records=[youth_budget_row()],
+                metadata={"documents": [{"document_id": "doc-115"}]},
+                artifacts=(artifact,),
+            )
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            output_dir = Path(tempdir) / "data"
+            report = run_period_range(
+                "11501",
+                "11601",
+                output_dir=output_dir,
+                config_dir=CONFIG_DIR,
+                collector_specs=[
+                    CollectorSpec("youth_budgets", collect, PeriodStrategy.ALL_AVAILABLE)
+                ],
+            )
+
+            self.assertEqual(report["status"], "ok")
+            self.assertEqual(calls, ["11601"])
+            raw_paths = list((output_dir / "raw" / "youth_budgets").glob("*.json"))
+            self.assertEqual(len(raw_paths), 1)
+            raw = json.loads(raw_paths[0].read_text())
+            self.assertEqual(raw["documents"], [{"document_id": "doc-115"}])
+            self.assertEqual(raw["source_artifacts"][0]["size_bytes"], len(content))
+            self.assertEqual(
+                (output_dir / "raw" / "youth_budgets" / "artifacts" / artifact.filename).read_bytes(),
+                content,
+            )
+            self.assertTrue((output_dir / "curated" / "youth_budgets" / "all.json").exists())
+            self.assertTrue((output_dir / "quality" / "youth_budgets" / "all.json").exists())
+            self.assertTrue((output_dir / "quarantine" / "youth_budgets" / "all.json").exists())
+
+    def test_youth_budget_raw_replay_does_not_call_collector(self):
+        content = b"%PDF-test"
+        artifact = SourceArtifact(
+            filename="115_legal_budget_abc.pdf",
+            content=content,
+            media_type="application/pdf",
+            sha256="sha256:" + hashlib.sha256(content).hexdigest(),
+        )
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            raw_path = write_raw(
+                {
+                    "dataset": "youth_budgets",
+                    "period": "11601",
+                    "fetched_at": "2026-09-09T00:00:00+00:00",
+                    "documents": [{"document_id": "doc-115"}],
+                    "source_artifacts": [{"path": "raw/youth_budgets/artifacts/115_legal_budget_abc.pdf"}],
+                    "records": [youth_budget_row()],
+                },
+                dataset="youth_budgets",
+                snapshot="11601_20260909T000000Z",
+                output_dir=root / "data",
+            )
+
+            from unittest.mock import patch
+
+            with patch("run_pipeline.fetch_youth_budgets", side_effect=AssertionError("must not collect")):
+                exit_code = main(
+                    [
+                        "--dataset", "youth_budgets",
+                        "--input", str(raw_path),
+                        "--output-dir", str(root / "replay"),
+                        "--config-dir", str(CONFIG_DIR),
+                    ]
+                )
+
+            curated = json.loads(
+                (root / "replay" / "curated" / "youth_budgets.json").read_text()
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(curated["records"][0]["value"], 213022)
 
     def test_writes_raw_curated_quality_and_quarantine_json(self):
         result = run_transform("population", [population_row()], resolver=self.resolver)

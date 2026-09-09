@@ -38,6 +38,33 @@ Analytics 可能計算青年人口、YoY、Cohort Retention Signal、職缺／�
 - 本地輸出：`data/raw/`、`data/curated/`、`data/quality/`、`data/quarantine/`。
 - 未來輸出：S3 Raw／Curated Data、DynamoDB 指標與 AI Evidence。
 
+### 青年局預算 PDF
+
+`youth_budgets` 是 `all_available` source strategy：一次抓取官方列表頁上目前可發現的年度文件，輸出固定為 `curated/youth_budgets/all.json`。raw 會保留列表／文件 metadata 與 PDF artifact：
+
+```text
+data/raw/youth_budgets/{snapshot}.json
+data/raw/youth_budgets/artifacts/{roc_year}_{status}_{sha256_prefix}.pdf
+data/curated/youth_budgets/all.json
+data/quality/youth_budgets/all.json
+data/quarantine/youth_budgets/all.json
+```
+
+執行與 replay：
+
+```bash
+cd data-pipeline
+PYTHONPATH=src python3 src/run_pipeline.py \
+  --start-period 11501 --end-period 11601 --output-dir data
+
+PYTHONPATH=src python3 src/run_pipeline.py \
+  --dataset youth_budgets \
+  --input data/raw/youth_budgets/{snapshot}.json \
+  --output-dir data
+```
+
+`--input` 只讀 raw JSON、重新執行 transform，不重新呼叫列表頁或下載 PDF。analytics 應讀 `data/quality/dataset_index.json` 指向的 `curated/youth_budgets/all.json`，不可直接 glob curated 目錄；預算資料是 organization-level context，不可當成 29 區預算。
+
 ## Pipeline Usage
 
 指定一個 ROC 月份，執行所有非 TDX collectors：

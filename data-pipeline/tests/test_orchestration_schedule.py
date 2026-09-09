@@ -73,6 +73,7 @@ class TestExecutionSchedule(unittest.TestCase):
             "vt_courses": PeriodStrategy.SNAPSHOT,
             "training_numbers": PeriodStrategy.SNAPSHOT,
             "talent_demand": PeriodStrategy.ALL_AVAILABLE,
+            "youth_budgets": PeriodStrategy.ALL_AVAILABLE,
         }
 
         self.assertEqual(

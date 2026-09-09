@@ -1,1 +1,2 @@
 # Python dependencies will be defined when the ETL implementation is introduced.
+pypdf>=5.0,<7

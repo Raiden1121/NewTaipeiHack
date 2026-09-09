@@ -1029,3 +1029,39 @@ https://data.ntpc.gov.tw/api/datasets/acce802d-58cc-4dff-9e7a-9ecc517f78be/csv/f
 | 淡水區 | 房地(土地+建物)+車位 | 1140510 | 178.3 | 15500000 | 86932 | 287378.50162 |
 
 此資料是定期更新的買賣交易快照；collector 不產生區級彙總、房價中位數或成長率。若需歷史趨勢，應定期保存每次 `snapshot_fetched_at` 與原始資料。
+
+## youth_budget.py
+
+### 1. 怎麼 call 官方預算來源
+
+`youth_budgets` 從新北市政府青年局的預算公告列表動態發現年度文件，再進入詳情頁下載 PDF；不硬編碼單一檔案 URL。collector 只解析 PDF 中的「計畫及預算統計表」。
+
+```python
+from collectors.youth_budget import fetch_youth_budgets
+
+# 列表頁上所有符合規則的 ROC 年度與版本
+payload = fetch_youth_budgets()
+
+# 僅驗證指定年度；測試時可注入 open_url，不會呼叫 live source
+payload = fetch_youth_budgets(years=("115", "116"))
+```
+
+列表來源：
+
+```text
+https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=108
+```
+
+文件標題中的 `預算案` 對應 `proposed_budget`；`法定版` 與 `法定預算` 對應 `legal_budget`。同年度不同版本以 `document_id` 與 PDF SHA-256 共存，不互相覆蓋。
+
+### 2. 回傳格式與保存規則
+
+`fetch_youth_budgets()` 回傳 `CollectedPayload`：`records` 保存來源字串、`metadata.documents` 保存公告／詳情／PDF URL、日期、版本、頁碼與 hash，`artifacts` 保存 PDF bytes。pipeline 再將 PDF 寫到：
+
+```text
+data/raw/youth_budgets/artifacts/{roc_year}_{status}_{sha256_prefix}.pdf
+```
+
+每筆 raw row 至少包含 `budget_year_roc`、`document_status`、`row_type`、`business_plan`、`work_plan`、`budget_amount`、`ratio_percent`、`source_page_number`、`source_document_url`、`source_pdf_sha256` 與 `document_id`。`budget_amount`、`ratio_percent` 保留來源字串，型別驗證交由 transform。
+
+目前 parser 以 `pypdf` 搜尋表格標題與欄位，不固定第 28 頁；找不到標題／header、非 PDF、超過 50 MB、數值格式錯誤或重複 total row 時會記錄失敗。測試使用 fake HTML／PDF response；live source 僅作手動 smoke check。

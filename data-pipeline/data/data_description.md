@@ -1,15 +1,15 @@
 # Data Pipeline 資料說明
 
-本文件依據 `data/curated/` 內截至 2026-09-04 的實際處理結果撰寫，涵蓋目前已串接的 17 個 canonical datasets。範例值直接取自 curated JSON，沒有自行編造或重新計算。
+本文件依據 `data/curated/` 內的既有處理結果，以及 2026-09-09 `11201`～`11601` range pipeline output 撰寫，涵蓋目前已串接的 18 個 canonical datasets。範例值直接取自 generated JSON，沒有自行編造或重新計算。
 
 > 範例只展示標準化後較重要的欄位。完整來源內容仍保存在各筆資料的 `raw_record`、`raw_records`、`overview_raw_record` 或 `detail_raw_records`，因內容很大，不在本文件重複展開。
 
 ## 目前資料完整度
 
-- 17 個已串接資料集都有至少一份實際 curated 輸出。
+- 目前 18 個 canonical datasets 都有至少一份實際 curated 輸出；`youth_budgets` 的 range 執行產生 1 份 `all` curated 輸出。
 - 2026-09-04 的 TDX 執行成功取得 `bus_stops`、`railway_stops`、`bike_stops`。
-- 最新單月 `11507` 執行結果為 12 組成功、5 組來源無資料；無資料的是 `births`、`marriages`、`wages`、`college_majors`、`graduate_majors`，但它們先前成功取得的歷史 curated 檔仍存在。
-- 最新 `data/quality/dataset_index.json` 只列本次成功的 12 組平面輸出，因此目前不能只依該 index 取得所有歷史資料。歷史期間需參考 `data/quality/collection_range.json` 及下列各資料夾。
+- 2026-09-09 的 `11201`～`11601` range 執行結果為 102 組成功、28 組來源無資料、1 組傳輸失敗；唯一失敗的是 `population` 的 `11206`，原因為 HTTP 回應中途截斷 (`IncompleteRead`)。
+- `data/quality/collection_range.json` 記錄本次 range 執行結果；`data/quality/dataset_index.json` 只列本次成功的 execution units，因此不包含失敗的 `population/11206`，也不包含本次未使用 `--include-tdx` 的 TDX 資料。歷史期間仍需參考下列各資料夾。
 - 資料來源沒有提供的期間不會以 0 補值；缺失欄位一律保留為 JSON `null`。
 
 ## 共同資料結構
@@ -21,7 +21,7 @@
 | `dataset` | canonical 資料集名稱 |
 | `source` | 資料來源識別名稱 |
 | `source_record_id` | 可穩定辨識來源資料的 ID |
-| `geo_level` | 地理粒度：`district`、`county` 或 `national` |
+| `geo_level` | 地理粒度：`district`、`county`、`national` 或 `organization` |
 | `district_id` | 新北市行政區代碼；無可靠區級資料時為 `null` |
 | `district_name` | 新北市行政區名稱；無可靠區級資料時為 `null` |
 | `period_start` | 資料代表期間起日 |
@@ -57,6 +57,7 @@
 | `vt_courses` | 公共職訓課程區域數量 | 2026-09-01 取得的快照 | 2 區 | 背景指標 |
 | `training_numbers` | 新北市訓練課程、人數與費用 | 2026-08-14～2027-01-16 | 新北市整體 | 背景指標 |
 | `talent_demand` | 全國職類人才需求與僱用 | 2013～2025 | 全國 | 背景指標 |
+| `youth_budgets` | 青年局年度預算「計畫及預算統計表」 | ROC 112、113 法定預算；ROC 114、115 法定版；ROC 116 預算案 | organization | 背景指標 |
 | `bus_stops` | TDX 公車站點與業者 | 2026-09-03 快照 | 新北市 29 區／未對應 | 背景指標 |
 | `railway_stops` | 臺鐵、高鐵、捷運及輕軌站點 | 2026-09-03 取得的快照 | 新北市 18 區 | 背景指標 |
 | `bike_stops` | YouBike 靜態站點與容量 | 2026-09-04 快照 | 新北市 29 區／未對應 | 背景指標 |
@@ -510,6 +511,52 @@ TDX 新北市 YouBike 靜態站點，保留站點名稱、座標與容量。coll
 - 實際檔案：`data/curated/bike_stops.json`，1,600 筆；快照日期為 2026-09-04。
 - 1,595 筆可映射到 29 區，5 筆座標無法可靠映射並保留 `district_id=null`。
 - 本次未啟用 `include_availability=True`，因此 `availability`、`available_rent_bikes`、`available_return_bikes` 為 `null`；這不是即時可借／可還資料。
+
+## 18. `youth_budgets`：青年局年度預算
+
+### 資料名稱與統計內容
+
+資料來自新北市政府青年局官方預算公告列表，collector 動態追蹤詳情 URL，下載 PDF 後只抽取「計畫及預算統計表」。2026-09-09 的實際 range output 發現 5 份文件、5 個 PDF artifact、20 筆 raw row 與 20 筆 curated row，且沒有文件解析失敗：
+
+| budget_year_roc | document_status | document_status_label | published_date | updated_date | source_page_number | row_count |
+|---|---|---|---|---|---:|---:|
+| 116 | `proposed_budget` | 預算案 | 115-09-01 | 115-09-01 | 28 | 4 |
+| 115 | `legal_budget` | 法定版 | 114-09-30 | 115-02-09 | 28 | 4 |
+| 114 | `legal_budget` | 法定版 | 113-08-29 | 114-02-10 | 26 | 4 |
+| 113 | `legal_budget` | 法定預算 | 113-01-29 | 113-01-29 | 27 | 4 |
+| 112 | `legal_budget` | 法定預算 | 113-10-11 | 113-10-11 | 25 | 4 |
+
+### 實際 curated rows
+
+| budget_year_roc | document_status | row_type | business_plan | value | budget_ratio_percent | period_start |
+|---|---|---|---|---:|---:|---|
+| 116 | proposed_budget | total | 新北市政府青年局合計 | 220101 | 100.00 | 2027-01-01 |
+| 116 | proposed_budget | detail | 一般行政 | 60280 | 27.39 | 2027-01-01 |
+| 116 | proposed_budget | detail | 青年發展業務 | 159521 | 72.47 | 2027-01-01 |
+| 116 | proposed_budget | detail | 第一預備金 | 300 | 0.14 | 2027-01-01 |
+| 115 | legal_budget | total | 新北市政府青年局合計 | 213022 | 100.00 | 2026-01-01 |
+| 115 | legal_budget | detail | 一般行政 | 56819 | 26.67 | 2026-01-01 |
+| 115 | legal_budget | detail | 青年發展業務 | 155903 | 73.19 | 2026-01-01 |
+| 115 | legal_budget | detail | 第一預備金 | 300 | 0.14 | 2026-01-01 |
+| 114 | legal_budget | total | 新北市政府青年局合計 | 196153 | 100.00 | 2025-01-01 |
+| 114 | legal_budget | detail | 一般行政 | 52645 | 26.84 | 2025-01-01 |
+| 114 | legal_budget | detail | 青年發展業務 | 143208 | 73.01 | 2025-01-01 |
+| 114 | legal_budget | detail | 第一預備金 | 300 | 0.15 | 2025-01-01 |
+| 113 | legal_budget | total | 新北市政府青年局合計 | 158650 | 100.00 | 2024-01-01 |
+| 113 | legal_budget | detail | 一般行政 | 51228 | 32.29 | 2024-01-01 |
+| 113 | legal_budget | detail | 青年發展業務 | 107122 | 67.52 | 2024-01-01 |
+| 113 | legal_budget | detail | 第一預備金 | 300 | 0.19 | 2024-01-01 |
+| 112 | legal_budget | total | 新北市政府青年局合計 | 149029 | 100.00 | 2023-01-01 |
+| 112 | legal_budget | detail | 一般行政 | 51291 | 34.42 | 2023-01-01 |
+| 112 | legal_budget | detail | 青年發展業務 | 97438 | 65.38 | 2023-01-01 |
+| 112 | legal_budget | detail | 第一預備金 | 300 | 0.20 | 2023-01-01 |
+
+### 其他說明
+
+- curated output：`curated/youth_budgets/all.json`；raw envelope 的 `documents` 有 5 筆、`source_artifacts` 有 5 筆，PDF 存在 `raw/youth_budgets/artifacts/`。
+- `value` 單位為 `TWD_thousand`，保留來源千元，不換算成元；`budget_ratio_percent` 是來源提供的比率，不由 pipeline 重算。
+- 所有 curated rows 的 `geo_level` 是 `organization`，`district_id` 與 `district_name` 是 JSON `null`，`youth_eligibility` 是 `context_only`；不可拆配到新北市 29 區，也不是精確 18–35 歲指標。
+- 列表頁目前可發現的文件不代表歷史年度完整性；若要追蹤新版本，應重新執行 collector 並保留新的 raw snapshot 與 PDF hash。
 
 ## 使用建議
 

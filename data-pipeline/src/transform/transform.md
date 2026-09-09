@@ -102,8 +102,27 @@ python src/run_pipeline.py --dataset population --input data/raw/population/exam
 | `vt_courses` | `vt_course` | `{"records": [...]}` |
 | `training_numbers` | `training_nums` | `{"records": [...]}` |
 | `talent_demand` | — | `{"records": [...]}` |
+| `youth_budgets` | — | `{"records": [...], "documents": [...], "source_artifacts": [...]}` |
 | `bus_stops` | `bus_stop` | `{"records": [...]}` |
 | `railway_stops` | `railway_stop` | `{"records": [...]}` |
 | `bike_stops` | `bike_stop` | `{"records": [...]}` |
 
 Alias 會先轉成 canonical dataset；curated record 的 `dataset`、輸出檔名與資料夾一律使用 canonical 名稱。職缺是時間快照，raw envelope 應提供 `fetched_at`；缺少時仍保留資料，但 quality 會加入 `missing_snapshot`。
+
+## `youth_budgets`：青年局年度預算
+
+collector 只保存官方 PDF 的「計畫及預算統計表」；raw envelope 另含 `documents` 與 `source_artifacts`，PDF artifact 以 SHA-256 命名，讓 raw replay 不必重新下載來源文件。`proposed_budget` 與 `legal_budget` 由 `document_id`、ROC 年度、版本與 PDF hash 區分，不能用年度單一 key 覆蓋。
+
+curated record 使用 organization grain，不將機關預算分配到新北市 29 區：
+
+| Field | Contract |
+|---|---|
+| `geo_level` | `organization` |
+| `district_id`, `district_name` | JSON `null` |
+| `period_type` | `year`；ROC 年轉 Gregorian 年邊界 |
+| `metric_id`, `value`, `unit` | `budget_amount`、解析後整數、`TWD_thousand` |
+| `age_scope`, `youth_eligibility` | `not_age_specific`、`context_only` |
+| `budget_ratio_percent` | 來源提供的比率；不由 pipeline 重算 |
+| domain fields | `organization_name`、`budget_year_roc`、`document_status`、`row_type`、`business_plan`、`work_plan`、`source_pdf_sha256`、`raw_record` |
+
+total row 與 detail row 分別保存；不加總 detail、不把千元換算成元。缺少 business/work plan、未知版本、非有限或負數值會進 quarantine，且保留 `raw_record`。
