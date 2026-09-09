@@ -23,4 +23,15 @@ export function participationFillColor(
   return "#e3edf7";
 }
 
+// 青年生育率 choropleth 著色。CSV fertilityRate 約落在 35–54 區間，
+// 同屬地圖 choropleth 內聯色碼例外（唯一用途：地圖填色）。
+export function fertilityFillColor(fertilityRate: number | undefined): string {
+  if (fertilityRate === undefined) return "#d8e3ee";
+  if (fertilityRate >= 49) return "#0a5aa8";
+  if (fertilityRate >= 45) return "#3b82c8";
+  if (fertilityRate >= 42) return "#7fb0dd";
+  if (fertilityRate >= 39) return "#b9d4ec";
+  return "#e3edf7";
+}
+
 export const SELECTED_DISTRICT_FILL = "#ffad5a";
