@@ -8,6 +8,7 @@ from typing import Any, Iterable, Mapping
 
 from .contracts import TransformResult
 from .budget import transform_youth_budgets
+from .childcare import transform_babysitting_places
 from .education import transform_college_majors, transform_graduate_majors
 from .geography import DistrictResolver
 from .housing import transform_house_prices, transform_rentals
@@ -40,6 +41,8 @@ _ALIASES = {
     "bus_stop": "bus_stops",
     "railway_stop": "railway_stops",
     "bike_stop": "bike_stops",
+    "babysitting_place": "babysitting_places",
+    "Babysitting_place": "babysitting_places",
 }
 _GEOGRAPHIC_TRANSFORMS = {
     "population": transform_population,
@@ -54,6 +57,7 @@ _GEOGRAPHIC_TRANSFORMS = {
     "bus_stops": transform_bus_stops,
     "railway_stops": transform_railway_stops,
     "bike_stops": transform_bike_stops,
+    "babysitting_places": transform_babysitting_places,
 }
 _PLAIN_TRANSFORMS = {
     "graduate_majors": transform_graduate_majors,

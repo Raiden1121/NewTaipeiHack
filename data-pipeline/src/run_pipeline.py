@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from collectors.birth_nums import fetch_birth_numbers
+from collectors.Babysitting_place import fetch_babysitting_places
 from collectors.bike_stop import fetch_bike_stops
 from collectors.bus_stop import fetch_bus_stops
 from collectors.college_major import fetch_college_majors
@@ -119,6 +120,9 @@ DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
     CollectorSpec("vt_courses", lambda period: fetch_vt_courses(county="新北市"), PeriodStrategy.SNAPSHOT),
     CollectorSpec(
         "training_numbers", lambda period: fetch_training_numbers(county="新北市"), PeriodStrategy.SNAPSHOT
+    ),
+    CollectorSpec(
+        "babysitting_places", lambda period: fetch_babysitting_places(), PeriodStrategy.SNAPSHOT
     ),
     CollectorSpec("talent_demand", lambda period: fetch_talent_demand(), PeriodStrategy.ALL_AVAILABLE),
     CollectorSpec("youth_budgets", _collect_youth_budgets, PeriodStrategy.ALL_AVAILABLE),

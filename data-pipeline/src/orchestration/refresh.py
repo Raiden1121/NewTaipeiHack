@@ -36,6 +36,7 @@ SUPPORTED_DATASETS: tuple[str, ...] = (
     "training_numbers",
     "talent_demand",
     "youth_budgets",
+    "babysitting_places",
     "bus_stops",
     "railway_stops",
     "bike_stops",

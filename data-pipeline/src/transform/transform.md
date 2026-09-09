@@ -106,8 +106,15 @@ python src/run_pipeline.py --dataset population --input data/raw/population/exam
 | `bus_stops` | `bus_stop` | `{"records": [...]}` |
 | `railway_stops` | `railway_stop` | `{"records": [...]}` |
 | `bike_stops` | `bike_stop` | `{"records": [...]}` |
+| `babysitting_places` | `babysitting_place`, `Babysitting_place` | `{"records": [...], "source_datasets": [...]}` |
 
 Alias 會先轉成 canonical dataset；curated record 的 `dataset`、輸出檔名與資料夾一律使用 canonical 名稱。職缺是時間快照，raw envelope 應提供 `fetched_at`；缺少時仍保留資料，但 quality 會加入 `missing_snapshot`。
+
+## `babysitting_places`：私托與公托名冊
+
+collector 會呼叫新北市資料開放平台的私托與公托 JSON endpoint，合併成一個 `snapshot` dataset；每筆 raw record 帶有 `care_type`（`private`／`public`）與 `source_dataset_id`。來源沒有歷史年度參數，因此 `latest.json` 只代表最近一次抓取結果。
+
+curated record 使用 district grain；`areacode` 優先透過 `config/districts.json` 對應行政區，無法對應時保留 `district_id=null`。來源沒有年齡欄位，所有列使用 `not_age_specific`／`context_only`。私托 `person` 轉為非負整數 `capacity`，公托缺少收托人數時保留 JSON `null`。
 
 ## `youth_budgets`：青年局年度預算
 

@@ -216,7 +216,7 @@ class TestTransformPipeline(unittest.TestCase):
             "house_prices", "rentals", "job_vacancies",
             "job_vacancy_salaries", "wages", "college_majors",
             "graduate_majors", "vt_courses", "training_numbers",
-            "talent_demand",
+            "talent_demand", "babysitting_places",
         }.issubset(datasets))
 
     def test_all_available_typed_payload_writes_raw_artifact_and_all_output(self):

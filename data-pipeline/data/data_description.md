@@ -1,12 +1,13 @@
 # Data Pipeline 資料說明
 
-本文件依據 `data/curated/` 內的既有處理結果，以及 2026-09-09 `11201`～`11601` range pipeline output 撰寫，涵蓋目前已串接的 18 個 canonical datasets。範例值直接取自 generated JSON，沒有自行編造或重新計算。
+本文件依據 `data/curated/` 內的既有處理結果，以及 2026-09-09 `11201`～`11601` range pipeline output 撰寫，涵蓋目前已串接的 18 個既有 canonical datasets，並補充本次新增的 `babysitting_places` collector／transform 契約。範例值直接取自 generated JSON，沒有自行編造或重新計算；新資料集首次 live 執行後才會產生最新 curated snapshot。
 
 > 範例只展示標準化後較重要的欄位。完整來源內容仍保存在各筆資料的 `raw_record`、`raw_records`、`overview_raw_record` 或 `detail_raw_records`，因內容很大，不在本文件重複展開。
 
 ## 目前資料完整度
 
-- 目前 18 個 canonical datasets 都有至少一份實際 curated 輸出；`youth_budgets` 的 range 執行產生 1 份 `all` curated 輸出。
+- 目前 18 個既有 canonical datasets 都有至少一份實際 curated 輸出；`youth_budgets` 的 range 執行產生 1 份 `all` curated 輸出。
+- `babysitting_places` 已加入 collector、transform 與 pipeline registry；2026-09-09 live smoke 取得私托 261 筆、公托 130 筆，共 391 筆，391 筆均通過 transform，來源本身沒有歷史年度參數。
 - 2026-09-04 的 TDX 執行成功取得 `bus_stops`、`railway_stops`、`bike_stops`。
 - 2026-09-09 的 `11201`～`11601` range 執行結果為 102 組成功、28 組來源無資料、1 組傳輸失敗；唯一失敗的是 `population` 的 `11206`，原因為 HTTP 回應中途截斷 (`IncompleteRead`)。
 - `data/quality/collection_range.json` 記錄本次 range 執行結果；`data/quality/dataset_index.json` 只列本次成功的 execution units，因此不包含失敗的 `population/11206`，也不包含本次未使用 `--include-tdx` 的 TDX 資料。歷史期間仍需參考下列各資料夾。
@@ -61,6 +62,7 @@
 | `bus_stops` | TDX 公車站點與業者 | 2026-09-03 快照 | 新北市 29 區／未對應 | 背景指標 |
 | `railway_stops` | 臺鐵、高鐵、捷運及輕軌站點 | 2026-09-03 取得的快照 | 新北市 18 區 | 背景指標 |
 | `bike_stops` | YouBike 靜態站點與容量 | 2026-09-04 快照 | 新北市 29 區／未對應 | 背景指標 |
+| `babysitting_places` | 私立托嬰機構與公共托育中心名冊 | 最新年度 snapshot | 新北市 29 區／未對應 | 背景指標 |
 
 ## 1. `population`：人口資料
 
@@ -557,6 +559,51 @@ TDX 新北市 YouBike 靜態站點，保留站點名稱、座標與容量。coll
 - `value` 單位為 `TWD_thousand`，保留來源千元，不換算成元；`budget_ratio_percent` 是來源提供的比率，不由 pipeline 重算。
 - 所有 curated rows 的 `geo_level` 是 `organization`，`district_id` 與 `district_name` 是 JSON `null`，`youth_eligibility` 是 `context_only`；不可拆配到新北市 29 區，也不是精確 18–35 歲指標。
 - 列表頁目前可發現的文件不代表歷史年度完整性；若要追蹤新版本，應重新執行 collector 並保留新的 raw snapshot 與 PDF hash。
+
+## 19. `babysitting_places`：私托與公托名冊
+
+### 資料名稱與統計內容
+
+資料來自新北市政府資料開放平台的「新北市私立托嬰機構名冊」與「新北市公共托育中心名冊」。兩個來源都標示為每年更新；collector 每次執行都抓取兩個 JSON endpoint，使用 `page`／`size` 分頁取得完整名冊，再合併為同一個 canonical dataset，並以 `care_type` 區分 `private` 與 `public`。未帶分頁參數的 endpoint 只提供 30 筆預覽，不能直接當成完整資料。
+
+### 處理後 Keys
+
+共同 Keys，加上：
+
+- `care_type`：`private` 或 `public`。
+- `facility_name`：私托使用來源 `title`，公托使用來源 `name`。
+- `operator_name`：公托使用來源 `unit`；私托沒有此欄位時為 `null`。
+- `county_name`、`county_code`：來源縣市欄位。
+- `source_district_name`、`source_district_code`：來源 `area`／`town` 與 `areacode`。
+- `address`、`phone`：來源地址與聯絡電話。
+- `capacity`：私托來源 `person` 解析後的可收托人數；公托來源沒有此欄位時為 `null`。
+- `capacity_unit`：有 `capacity` 時為 `child_slots`，缺失時為 `null`。
+- `source_dataset_id`、`source_row_id`：來源資料集與來源序號。
+- `raw_record`：未覆寫的來源列與 collector 加入的來源類型標記。
+
+### 前五筆實際資料
+
+| care_type | facility_name | district_name | address | phone | capacity | capacity_unit |
+|---|---|---|---|---|---:|---|
+| private | 茵幼爾股份有限公司附設新北市私立寶貝媽咪托嬰中心 | 板橋區 | 莊敬路46號2樓 | (02)82529955 | 90 | child_slots |
+| private | 新北市私立卡爾威特托嬰中心 | 板橋區 | 板新路101號1樓、107號2樓 | (02)89518905 | 140 | child_slots |
+| private | 新北市私立捧馨園托嬰中心 | 板橋區 | 四川路1段151號 | (02)29563008 | 25 | child_slots |
+| private | 新北市私立喜閱寶寶托嬰中心 | 板橋區 | 廣和街61號1.2樓 | (02)89516588 | 30 | child_slots |
+| private | 新北市私立卡爾威特托嬰中心亞東園 | 板橋區 | 南雅南路2段144巷66號 | (02)89664098 | 32 | child_slots |
+
+### 其他說明
+
+- 實際檔案：`data/curated/babysitting_places/latest.json`，391 筆；私托 261 筆、公托 130 筆；快照日期為 2026-09-09。
+- 來源 API：私托 <https://data.ntpc.gov.tw/api/datasets/69cecdb0-7796-48df-84e5-99e4f1274245/json>；公托 <https://data.ntpc.gov.tw/api/datasets/b3faf2aa-e96b-4f2f-b647-da47dc094860/json>。
+- 完整查詢使用 `?page=0&size=1000`，collector 會持續分頁直到取得完整名冊。
+- 官方資料頁：<https://data.ntpc.gov.tw/datasets/69cecdb0-7796-48df-84e5-99e4f1274245>、<https://data.ntpc.gov.tw/datasets/b3faf2aa-e96b-4f2f-b647-da47dc094860>。
+- 此資料集是 `snapshot` source strategy，不把目前名冊複製成過去年度。輸出位置為 `data/raw/babysitting_places/`、`data/curated/babysitting_places/latest.json`、`data/quality/babysitting_places/latest.json` 與 `data/quarantine/babysitting_places/latest.json`。
+- 執行命令：`PYTHONPATH=src .venv/bin/python src/run_pipeline.py --refresh-profile monthly --datasets babysitting_places --output-dir data`。此命令只更新 `babysitting_places`。
+- `areacode` 優先用來對應 `config/districts.json`；無法可靠對應時保留 `district_id=null`，不使用最近行政區猜測。
+- `capacity` 只代表來源列提供的私托可收托人數；公托沒有此欄位時保留為 `null`，不補成 0。
+- 資料沒有年齡欄位，因此 `age_scope=not_age_specific`、`youth_eligibility=context_only`，只能作托育資源背景，不是 18–35 歲核心指標。
+- 公托與私托的定義、欄位與更新內容由來源機關維護；兩者可以分別統計，也可以用 `care_type` 做資源比較。
+- 若需行政區托育據點數、私托容量總和或人均資源，應在 `analytics/` 依可靠 `district_id` 計算；collector 與 transform 只保存單一機構資料。
 
 ## 使用建議
 

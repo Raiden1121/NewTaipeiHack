@@ -77,6 +77,7 @@ class TestExecutionSchedule(unittest.TestCase):
             "job_vacancy_salaries": PeriodStrategy.SNAPSHOT,
             "vt_courses": PeriodStrategy.SNAPSHOT,
             "training_numbers": PeriodStrategy.SNAPSHOT,
+            "babysitting_places": PeriodStrategy.SNAPSHOT,
             "talent_demand": PeriodStrategy.ALL_AVAILABLE,
             "youth_budgets": PeriodStrategy.ALL_AVAILABLE,
         }

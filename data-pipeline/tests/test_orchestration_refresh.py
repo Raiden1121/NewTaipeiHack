@@ -14,6 +14,13 @@ from orchestration.refresh import (
 
 
 class RefreshProfileTests(unittest.TestCase):
+    def test_default_profiles_include_babysitting_places(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "refresh_profiles.json"
+
+        profiles = load_refresh_profiles(config_path)
+
+        self.assertIn("babysitting_places", profiles["monthly"])
+
     def test_loads_profiles_and_filters_selected_datasets(self):
         with TemporaryDirectory() as directory:
             path = Path(directory) / "refresh_profiles.json"

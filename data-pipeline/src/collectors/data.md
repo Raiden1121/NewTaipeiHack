@@ -1065,3 +1065,47 @@ data/raw/youth_budgets/artifacts/{roc_year}_{status}_{sha256_prefix}.pdf
 每筆 raw row 至少包含 `budget_year_roc`、`document_status`、`row_type`、`business_plan`、`work_plan`、`budget_amount`、`ratio_percent`、`source_page_number`、`source_document_url`、`source_pdf_sha256` 與 `document_id`。`budget_amount`、`ratio_percent` 保留來源字串，型別驗證交由 transform。
 
 目前 parser 以 `pypdf` 搜尋表格標題與欄位，不固定第 28 頁；找不到標題／header、非 PDF、超過 50 MB、數值格式錯誤或重複 total row 時會記錄失敗。測試使用 fake HTML／PDF response；live source 僅作手動 smoke check。
+
+## Babysitting_place.py
+
+### 1. 怎麼 call API
+
+```python
+from collectors.Babysitting_place import fetch_babysitting_places
+
+payload = fetch_babysitting_places()
+records = payload.records
+```
+
+collector 會依序呼叫兩個新北市資料開放平台 JSON API，並使用 `page=0&size=1000` 開始分頁；若某頁筆數等於 page size，會繼續呼叫下一頁。未帶分頁參數的 endpoint 只回傳部分預覽資料。
+
+```text
+https://data.ntpc.gov.tw/api/datasets/69cecdb0-7796-48df-84e5-99e4f1274245/json?page=0&size=1000
+https://data.ntpc.gov.tw/api/datasets/b3faf2aa-e96b-4f2f-b647-da47dc094860/json?page=0&size=1000
+```
+
+前者是私立托嬰機構，後者是公共托育中心。兩個來源各自解析成 JSON object 後合併；每筆資料加入 `care_type` 與 `source_dataset_id`，不會把兩個來源誤當成同一種機構。
+
+### 2. 回傳格式
+
+`fetch_babysitting_places()` 回傳 `CollectedPayload`：
+
+```json
+{
+  "records": [
+    {
+      "care_type": "private",
+      "source_dataset_id": "69cecdb0-7796-48df-84e5-99e4f1274245",
+      "title": "來源托嬰中心名稱",
+      "area": "板橋區",
+      "person": "60"
+    }
+  ],
+  "metadata": {
+    "source": "ntpc_social_affairs_babysitting",
+    "update_frequency": "annual"
+  }
+}
+```
+
+來源欄位差異由 transform 處理：私托使用 `title`、`area`、`person`；公托使用 `name`、`town`、`unit`。此 collector 是最新名冊 snapshot，不產生歷史年度資料。
