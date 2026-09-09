@@ -4,7 +4,7 @@ import HomePage from "@/features/home/HomePage";
 import EmploymentPage from "@/features/employment/EmploymentPage";
 import PoliticsPage from "@/features/politics/PoliticsPage";
 import FertilityPage from "@/features/fertility/FertilityPage";
-import PlaceholderPage from "@/components/shared/PlaceholderPage";
+import PolicySupportPage from "@/features/policySupport/PolicySupportPage";
 
 export const router = createBrowserRouter([
   {
@@ -14,10 +14,7 @@ export const router = createBrowserRouter([
       { path: "/employment", element: <EmploymentPage /> },
       { path: "/politics", element: <PoliticsPage /> },
       { path: "/fertility", element: <FertilityPage /> },
-      {
-        path: "/policy-support",
-        element: <PlaceholderPage title="施政協助" />,
-      },
+      { path: "/policy-support", element: <PolicySupportPage /> },
     ],
   },
 ]);
