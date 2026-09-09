@@ -5,6 +5,7 @@ from __future__ import annotations
 import socket
 import time
 from collections.abc import Callable, Iterator
+from http.client import IncompleteRead
 from urllib.error import URLError
 from typing import Any
 
@@ -37,7 +38,13 @@ def collect_with_retry(
 def is_timeout_error(exc: BaseException) -> bool:
     exceptions = list(_walk_exception_graph(exc))
 
-    if any(isinstance(item, (TimeoutError, socket.timeout)) for item in exceptions):
+    if any(
+        isinstance(
+            item,
+            (TimeoutError, socket.timeout, IncompleteRead, ConnectionResetError),
+        )
+        for item in exceptions
+    ):
         return True
 
     for item in exceptions:

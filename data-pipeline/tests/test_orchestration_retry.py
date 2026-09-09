@@ -1,6 +1,7 @@
 import socket
 import sys
 import unittest
+from http.client import IncompleteRead
 from pathlib import Path
 from urllib.error import URLError
 
@@ -18,6 +19,34 @@ from collectors.wage import WageCollectorError  # noqa: E402
 
 
 class TestCollectWithRetry(unittest.TestCase):
+    def test_retries_incomplete_read_then_succeeds(self):
+        calls = 0
+
+        def operation():
+            nonlocal calls
+            calls += 1
+            if calls < 3:
+                raise IncompleteRead(b"partial")
+            return ["record"]
+
+        result = collect_with_retry(operation, sleep=lambda _: None)
+
+        self.assertEqual(result.value, ["record"])
+        self.assertEqual(result.attempts, 3)
+
+    def test_does_not_retry_collector_validation_error(self):
+        calls = 0
+
+        def operation():
+            nonlocal calls
+            calls += 1
+            raise ValueError("invalid source schema")
+
+        with self.assertRaises(ValueError):
+            collect_with_retry(operation, sleep=lambda _: None)
+
+        self.assertEqual(calls, 1)
+
     def test_retries_two_timeouts_then_returns_success(self):
         attempts = 0
         delays = []
@@ -108,6 +137,20 @@ class TestCollectWithRetry(unittest.TestCase):
 
 
 class TestIsTimeoutError(unittest.TestCase):
+    def test_accepts_connection_reset_error(self):
+        self.assertTrue(is_timeout_error(ConnectionResetError("connection reset")))
+
+    def test_accepts_wrapped_incomplete_read_and_connection_reset_error(self):
+        cause_wrapper = RuntimeError("collector request failed")
+        cause_wrapper.__cause__ = IncompleteRead(b"partial")
+        context_wrapper = RuntimeError("collector request interrupted")
+        context_wrapper.__context__ = ConnectionResetError("connection reset")
+        root = RuntimeError("root")
+        root.__cause__ = cause_wrapper
+        root.__context__ = context_wrapper
+
+        self.assertTrue(is_timeout_error(root))
+
     def test_accepts_timeout_error(self):
         self.assertTrue(is_timeout_error(TimeoutError("timed out")))
 
