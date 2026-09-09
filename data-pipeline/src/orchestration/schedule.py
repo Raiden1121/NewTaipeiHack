@@ -3,8 +3,24 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 
 from .contracts import CollectorSpec, ExecutionUnit, PeriodStrategy
+
+
+def current_roc_period(now: datetime) -> str:
+    """Return the current Gregorian datetime as a five-digit ROC month."""
+
+    return f"{now.year - 1911:03d}{now.month:02d}"
+
+
+def build_current_execution_units(
+    specs: Iterable[CollectorSpec], now: datetime
+) -> list[ExecutionUnit]:
+    """Build source-aware execution units for the current ROC month."""
+
+    period = current_roc_period(now)
+    return build_execution_units(specs, period, period)
 
 
 def build_execution_units(

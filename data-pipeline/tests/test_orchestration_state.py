@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -21,6 +22,10 @@ from orchestration.state import (  # noqa: E402
     ResumeAction,
     choose_resume_action,
     find_latest_raw,
+    is_refresh_due,
+    load_refresh_state,
+    refresh_state_key,
+    write_refresh_state,
 )
 from transform.io import write_dataset_index  # noqa: E402
 
@@ -301,6 +306,90 @@ class TestDatasetIndex(unittest.TestCase):
                 },
             },
         )
+
+
+class RefreshStateTests(unittest.TestCase):
+    @staticmethod
+    def _unit(dataset="job_vacancies", output_key="latest"):
+        return ExecutionUnit(
+            CollectorSpec(dataset, lambda _period: [], PeriodStrategy.SNAPSHOT),
+            source_period="11509",
+            output_key=output_key,
+        )
+
+    def test_refresh_state_round_trips_under_quality_directory(self):
+        state = {
+            "schema_version": 1,
+            "units": {
+                "job_vacancies:latest": {
+                    "dataset": "job_vacancies",
+                    "source_period": "11509",
+                    "output_key": "latest",
+                    "status": "ok",
+                    "last_checked_at": "2026-09-09T00:00:03+00:00",
+                    "attempts": 1,
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as tempdir:
+            path = write_refresh_state(state, tempdir)
+            loaded = load_refresh_state(tempdir)
+
+        self.assertEqual(path, Path(tempdir) / "quality" / "refresh_state.json")
+        self.assertEqual(loaded, state)
+
+    def test_refresh_state_key_uses_dataset_and_output_key(self):
+        self.assertEqual(refresh_state_key(self._unit()), "job_vacancies:latest")
+
+    def test_no_data_entry_is_due_again_after_monthly_window(self):
+        old = {
+            "status": "skipped",
+            "reason": "no_data",
+            "last_checked_at": "2026-08-01T00:00:00+00:00",
+        }
+        now = datetime(2026, 9, 9, 0, 0, tzinfo=timezone.utc)
+        self.assertTrue(is_refresh_due(old, now=now, profile="monthly"))
+
+    def test_failed_only_excludes_successful_entry(self):
+        old = {
+            "status": "ok",
+            "last_success_at": "2026-09-08T00:00:00+00:00",
+        }
+        now = datetime(2026, 9, 9, 0, 0, tzinfo=timezone.utc)
+        self.assertFalse(is_refresh_due(old, now=now, profile="daily", failed_only=True))
+
+    def test_failed_only_selects_error_without_selecting_no_data(self):
+        now = datetime(2026, 9, 9, 0, 0, tzinfo=timezone.utc)
+        self.assertTrue(
+            is_refresh_due(
+                {"status": "error", "last_checked_at": "2026-09-09T00:00:00+00:00"},
+                now=now,
+                profile="daily",
+                failed_only=True,
+            )
+        )
+        self.assertFalse(
+            is_refresh_due(
+                {
+                    "status": "skipped",
+                    "reason": "no_data",
+                    "last_checked_at": "2026-09-01T00:00:00+00:00",
+                },
+                now=now,
+                profile="monthly",
+                failed_only=True,
+            )
+        )
+
+    def test_successful_entry_is_not_due_until_daily_interval_elapses(self):
+        old = {
+            "status": "ok",
+            "last_checked_at": "2026-09-08T12:00:00+00:00",
+        }
+        before = datetime(2026, 9, 9, 11, 59, tzinfo=timezone.utc)
+        after = datetime(2026, 9, 9, 12, 0, tzinfo=timezone.utc)
+        self.assertFalse(is_refresh_due(old, now=before, profile="daily"))
+        self.assertTrue(is_refresh_due(old, now=after, profile="daily"))
 
 
 if __name__ == "__main__":

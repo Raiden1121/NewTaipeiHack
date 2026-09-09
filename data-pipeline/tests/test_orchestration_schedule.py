@@ -1,5 +1,6 @@
 import sys
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -9,7 +10,11 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from orchestration.contracts import CollectorSpec, PeriodStrategy  # noqa: E402
-from orchestration.schedule import build_execution_units  # noqa: E402
+from orchestration.schedule import (  # noqa: E402
+    build_current_execution_units,
+    build_execution_units,
+    current_roc_period,
+)
 from run_pipeline import DEFAULT_COLLECTOR_SPECS, TDX_COLLECTOR_SPECS  # noqa: E402
 
 
@@ -83,6 +88,21 @@ class TestExecutionSchedule(unittest.TestCase):
         self.assertTrue(
             all(spec.period_strategy is PeriodStrategy.SNAPSHOT for spec in TDX_COLLECTOR_SPECS)
         )
+
+
+class RefreshSchedulingTests(unittest.TestCase):
+    def test_current_period_converts_gregorian_to_roc_month(self):
+        now = datetime(2026, 9, 9, 0, 0, tzinfo=timezone.utc)
+        self.assertEqual(current_roc_period(now), "11509")
+
+    def test_current_units_keep_source_aware_output_keys(self):
+        now = datetime(2026, 9, 9, 0, 0, tzinfo=timezone.utc)
+        units = build_current_execution_units(DEFAULT_COLLECTOR_SPECS, now=now)
+        by_dataset = {unit.spec.dataset: unit for unit in units}
+        self.assertEqual(by_dataset["population"].output_key, "11509")
+        self.assertEqual(by_dataset["births"].output_key, "115")
+        self.assertEqual(by_dataset["house_prices"].output_key, "latest")
+        self.assertEqual(by_dataset["youth_budgets"].output_key, "all")
 
 
 if __name__ == "__main__":
