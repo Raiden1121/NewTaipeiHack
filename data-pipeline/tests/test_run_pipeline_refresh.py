@@ -194,6 +194,141 @@ class RefreshRunnerTests(unittest.TestCase):
             execute.assert_not_called()
             self.assertTrue((output_dir / "quality" / "refresh_daily.json").is_file())
 
+    def test_empty_refresh_does_not_erase_existing_dataset_index(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            state_dir = output_dir / "quality"
+            state_dir.mkdir(parents=True)
+            existing_index = {
+                "schema_version": 2,
+                "datasets": {
+                    "population": [
+                        {
+                            "output_key": "11509",
+                            "path": "curated/population/11509.json",
+                        }
+                    ]
+                },
+            }
+            index_path = state_dir / "dataset_index.json"
+            index_path.write_text(
+                json.dumps(existing_index),
+                encoding="utf-8",
+            )
+            (state_dir / "refresh_state.json").write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "units": {
+                        "job_vacancies:latest": {
+                            "dataset": "job_vacancies",
+                            "output_key": "latest",
+                            "status": "ok",
+                            "last_checked_at": "2026-09-09T00:00:00+00:00",
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
+            specs = (
+                CollectorSpec(
+                    "job_vacancies",
+                    lambda period: [],
+                    PeriodStrategy.SNAPSHOT,
+                ),
+            )
+            profiles = {
+                "daily": ("job_vacancies",),
+                "weekly": (),
+                "monthly": (),
+            }
+            with patch("run_pipeline._run_execution_unit") as execute:
+                report = run_refresh(
+                    "daily",
+                    output_dir=output_dir,
+                    config_dir=output_dir,
+                    collector_specs=specs,
+                    refresh_profiles=profiles,
+                    now=datetime(2026, 9, 9, 1, tzinfo=timezone.utc),
+                )
+
+            self.assertEqual(report["status"], "ok")
+            execute.assert_not_called()
+            self.assertEqual(json.loads(index_path.read_text(encoding="utf-8")), existing_index)
+
+    def test_refresh_merges_successful_curated_path_into_dataset_index(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            index_path = output_dir / "quality" / "dataset_index.json"
+            index_path.parent.mkdir(parents=True)
+            index_path.write_text(
+                json.dumps({
+                    "schema_version": 2,
+                    "datasets": {
+                        "population": [
+                            {
+                                "output_key": "11509",
+                                "path": "curated/population/11509.json",
+                            }
+                        ],
+                        "job_vacancies": [
+                            {
+                                "output_key": "latest",
+                                "path": "curated/job_vacancies/old.json",
+                            }
+                        ],
+                    },
+                }),
+                encoding="utf-8",
+            )
+            new_curated_path = output_dir / "curated" / "job_vacancies" / "latest.json"
+            new_curated_path.parent.mkdir(parents=True)
+            new_curated_path.write_text("{}", encoding="utf-8")
+            specs = (
+                CollectorSpec(
+                    "job_vacancies",
+                    lambda period: [],
+                    PeriodStrategy.SNAPSHOT,
+                ),
+            )
+            profiles = {
+                "daily": ("job_vacancies",),
+                "weekly": (),
+                "monthly": (),
+            }
+            status = {
+                "status": "ok",
+                "source_period": "11509",
+                "output_key": "latest",
+                "curated_path": str(new_curated_path),
+                "attempts": 1,
+            }
+            with patch("run_pipeline._run_execution_unit", return_value=status):
+                report = run_refresh(
+                    "daily",
+                    output_dir=output_dir,
+                    config_dir=output_dir,
+                    collector_specs=specs,
+                    refresh_profiles=profiles,
+                    now=datetime(2026, 9, 9, tzinfo=timezone.utc),
+                )
+
+            self.assertEqual(report["status"], "ok")
+            index = json.loads(index_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                index["datasets"]["population"],
+                [{"output_key": "11509", "path": "curated/population/11509.json"}],
+            )
+            self.assertEqual(
+                index["datasets"]["job_vacancies"],
+                [{
+                    "output_key": "latest",
+                    "path": "curated/job_vacancies/latest.json",
+                    "period_strategy": "snapshot",
+                    "source_period": "11509",
+                    "transform_version": "2026-09-02.1",
+                }],
+            )
+
     def test_cli_rejects_empty_dataset_name_before_refresh(self):
         with patch("run_pipeline.run_refresh") as execute:
             with self.assertRaises(SystemExit) as raised:
@@ -209,6 +344,16 @@ class RefreshRunnerTests(unittest.TestCase):
 
         self.assertEqual(raised.exception.code, 2)
         execute.assert_not_called()
+
+    def test_cli_rejects_empty_historical_values_in_refresh_mode(self):
+        for option in ("--input", "--period", "--start-period", "--end-period"):
+            with self.subTest(option=option):
+                with patch("run_pipeline.run_refresh") as execute:
+                    with self.assertRaises(SystemExit) as raised:
+                        main(["--refresh-profile", "daily", option, ""])
+
+                self.assertEqual(raised.exception.code, 2)
+                execute.assert_not_called()
 
 
 if __name__ == "__main__":

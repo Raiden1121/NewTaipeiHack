@@ -659,6 +659,11 @@ def run_refresh(
         state_path = write_refresh_state(state, output_dir)
         _log_unit_result(index, len(units), unit.spec.dataset, status)
 
+    index_path = _merge_refresh_index(
+        units,
+        execution_statuses,
+        output_dir=output_dir,
+    )
     errors = {
         status["dataset"]: status.get("error", "unknown error")
         for status in execution_statuses
@@ -675,6 +680,7 @@ def run_refresh(
         "status": "error" if errors and strict else "ok",
         "errors": errors,
         "state_path": str(state_path),
+        "dataset_index_path": str(index_path),
     }
     write_refresh_report(report, profile=profile, output_dir=output_dir)
     _log_summary(execution_statuses)
@@ -763,7 +769,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if refresh_arguments and not args.refresh_profile:
         parser.error("--datasets and --failed-only require --refresh-profile")
     if args.refresh_profile:
-        if args.input or args.period or args.start_period or args.end_period:
+        if (
+            args.input is not None
+            or args.period is not None
+            or args.start_period is not None
+            or args.end_period is not None
+        ):
             parser.error(
                 "--refresh-profile cannot be combined with --input, --period, "
                 "--start-period, or --end-period"
@@ -999,6 +1010,103 @@ def _write_authoritative_index(
             }
         )
     return write_dataset_index(entries, output_dir=output_root)
+
+
+def _merge_refresh_index(
+    units: Sequence[ExecutionUnit],
+    statuses: Sequence[Mapping[str, Any]],
+    *,
+    output_dir: str | Path,
+) -> Path:
+    """Merge successful refresh outputs into the existing authoritative index."""
+
+    output_root = Path(output_dir)
+    index_path = output_root / "quality" / "dataset_index.json"
+    existing_entries = _load_dataset_index_entries(index_path)
+    replacements: dict[tuple[str, str], dict[str, Any]] = {}
+    for unit, status in zip(units, statuses, strict=True):
+        if status.get("status") != "ok":
+            continue
+        entry = _refresh_index_entry(unit, status, output_root=output_root)
+        if entry is None:
+            continue
+        replacements[(entry["dataset"], entry["output_key"])] = entry
+
+    if not replacements:
+        if index_path.is_file():
+            return index_path
+        return write_dataset_index([], output_dir=output_root)
+
+    merged: list[dict[str, Any]] = []
+    replaced: set[tuple[str, str]] = set()
+    for existing in existing_entries:
+        key = _dataset_index_key(existing)
+        if key in replacements:
+            if key not in replaced:
+                merged.append(replacements[key])
+                replaced.add(key)
+            continue
+        merged.append(existing)
+    merged.extend(
+        entry
+        for key, entry in replacements.items()
+        if key not in replaced
+    )
+    return write_dataset_index(merged, output_dir=output_root)
+
+
+def _load_dataset_index_entries(path: Path) -> list[dict[str, Any]]:
+    payload = _read_json_mapping(path)
+    if payload is None:
+        return []
+    datasets = payload.get("datasets")
+    if not isinstance(datasets, Mapping):
+        return []
+    entries: list[dict[str, Any]] = []
+    for dataset, dataset_entries in datasets.items():
+        if not isinstance(dataset, str) or not isinstance(dataset_entries, list):
+            continue
+        for entry in dataset_entries:
+            if not isinstance(entry, Mapping):
+                continue
+            normalized = dict(entry)
+            normalized["dataset"] = dataset
+            entries.append(normalized)
+    return entries
+
+
+def _refresh_index_entry(
+    unit: ExecutionUnit,
+    status: Mapping[str, Any],
+    *,
+    output_root: Path,
+) -> dict[str, Any] | None:
+    curated_value = status.get("curated_path")
+    if not isinstance(curated_value, str):
+        return None
+    curated_path = Path(curated_value)
+    if not curated_path.is_file():
+        return None
+    try:
+        relative_path = curated_path.resolve().relative_to(output_root.resolve())
+    except ValueError:
+        return None
+    return {
+        "dataset": _canonical_dataset_or_name(unit.spec.dataset),
+        "output_key": status.get("output_key", unit.output_key),
+        "path": relative_path.as_posix(),
+        "period_strategy": unit.spec.period_strategy.value,
+        "source_period": status.get("source_period", unit.source_period),
+        "transform_version": TRANSFORM_VERSION,
+    }
+
+
+def _dataset_index_key(entry: Mapping[str, Any]) -> tuple[str, str] | None:
+    dataset = entry.get("dataset")
+    output_key = entry.get("output_key")
+    if not isinstance(dataset, str) or not isinstance(output_key, str):
+        return None
+    return dataset, output_key
 
 
 def _raw_and_transform_payload(
