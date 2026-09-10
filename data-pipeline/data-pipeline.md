@@ -131,9 +131,21 @@ PYTHONPATH=src .venv/bin/python src/run_pipeline.py \
   --strict
 ```
 
-`--refresh-profile` 是 refresh mode，依 refresh state 的到期判斷執行目前應更新的資料；`--datasets` 只能縮小指定 profile 的範圍，`--failed-only` 則只挑選該 profile 上一次狀態為 `error` 的 units。`no_data` 不是永久失敗，annual 資料會在下一個 monthly window 重新檢查。
+`--refresh-profile` 是 refresh mode，依 refresh state 的到期判斷執行目前應更新的資料；`--datasets` 可縮小指定 profile 的範圍，`--failed-only` 則只挑選該 profile 上一次狀態為 `error` 的 units。加上 `--force` 會忽略目前 unit 的到期狀態並重新執行。沒有 due unit 時會跳過 retention，不會為了清理而重新掃描全部大型 JSON。`no_data` 不是永久失敗，annual 資料會在下一個 monthly window 重新檢查。
 
-歷史 range mode 仍使用 `--start-period` 與 `--end-period`，依 `PeriodStrategy` 建立歷史月份、年度、snapshot 或 all-available units；它是補齊或重建指定期間，不等同於 daily、weekly、monthly 的 wall-clock refresh mode。`--period`、`--input`、`--resume` 與 `--force` 仍屬既有的單月或 raw replay／recovery 操作，不應與 `--refresh-profile` 混用。
+歷史 range mode 仍使用 `--start-period` 與 `--end-period`，依 `PeriodStrategy` 建立歷史月份、年度、snapshot 或 all-available units；它是補齊或重建指定期間，不等同於 daily、weekly、monthly 的 wall-clock refresh mode。歷史 range 也可用 `--datasets` 只選指定資料集；例如只重抓 `college_majors` 的 110～114 五個學年度：
+
+```bash
+PYTHONPATH=src .venv/bin/python src/run_pipeline.py \
+  --start-period 11001 \
+  --end-period 11412 \
+  --datasets college_majors \
+  --output-dir data \
+  --force \
+  --strict
+```
+
+`10901`～`11412` 是六個學年度（109、110、111、112、113、114），不是五年。`--period`、`--input` 與 `--resume` 仍屬既有的單月或 raw replay／recovery 操作；`--force` 可用於 historical range，也可用於 refresh mode。
 
 refresh CLI 本身不包含定時器。外部 cron、GitHub Actions 或 AWS EventBridge Scheduler 只負責在指定時間呼叫上述同一個 CLI；本次 pipeline 不新增 AWS credentials、Lambda、EventBridge、部署資源或其他 AWS infrastructure。若尚未部署外部 scheduler，可以先在本機手動執行並確認 state、report 與 dataset index，再由部署環境設定實際頻率。
 

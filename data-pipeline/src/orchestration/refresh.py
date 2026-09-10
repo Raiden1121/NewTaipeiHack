@@ -140,6 +140,7 @@ def build_refresh_units(
     state: Mapping[str, Any] | None = None,
     selected: Sequence[str] | None = None,
     failed_only: bool = False,
+    force: bool = False,
     now: datetime | None = None,
     profiles: Mapping[str, Sequence[str]] | None = None,
 ) -> list[ExecutionUnit]:
@@ -162,7 +163,7 @@ def build_refresh_units(
         if unit.spec.dataset not in selected_datasets:
             continue
         entry = state_units.get(refresh_state_key(unit))
-        if is_refresh_due(
+        if force or is_refresh_due(
             entry,
             now=current,
             profile=profile,

@@ -15,7 +15,7 @@
 
 ## Geography rules
 
-區級資料使用 `config/districts.json` 的新北市 29 區 `district_id`。名稱、官方代碼、郵遞區號與 TDX 座標只有在可靠對應時才填入；無法對應不得使用最近行政區。縣市與全國資料維持 `county`／`national`，不人工拆區。
+區級資料使用 `config/districts.json` 的新北市 29 區 `district_id`。名稱、官方代碼、郵遞區號與 TDX 座標只有在可靠對應時才填入；無法對應不得使用最近行政區。縣市與全國資料維持 `county`／`national`，不人工拆區。`college_majors` 是例外：來源有學校代碼但沒有行政區，transform 以教育部學校名錄的校址對照表映射學校所在地；這不代表學生居住地，對不到時保留 `district_id=null`。
 
 ## Local output
 
@@ -97,7 +97,7 @@ python src/run_pipeline.py --dataset population --input data/raw/population/exam
 | `job_vacancies` | `job_vacancy` | `{"records": [...], "fetched_at": "ISO timestamp"}` |
 | `job_vacancy_salaries` | `job_vacancy_salary` | `{"records": [...], "fetched_at": "ISO timestamp"}` |
 | `wages` | `wage` | `{"records": [...], "metadata": {"fetched_at": "..."}}` |
-| `college_majors` | `college_major` | `{"overview_records": [...], "detail_records": [...]}` |
+| `college_majors` | `college_major` | `{"overview_records": [...], "detail_records": [...], "school_locations": [...]}` |
 | `graduate_majors` | `graduate_major` | `{"records": [...]}` |
 | `vt_courses` | `vt_course` | `{"records": [...]}` |
 | `training_numbers` | `training_nums` | `{"records": [...]}` |

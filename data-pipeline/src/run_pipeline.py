@@ -14,6 +14,7 @@ from collectors.Babysitting_place import fetch_babysitting_places
 from collectors.bike_stop import fetch_bike_stops
 from collectors.bus_stop import fetch_bus_stops
 from collectors.college_major import fetch_college_majors
+from collectors.college_school import fetch_college_school_locations
 from collectors.graduate_major import fetch_graduate_majors
 from collectors.house_price import fetch_house_prices
 from collectors.job_vacancy import fetch_new_taipei_job_vacancies
@@ -75,6 +76,7 @@ def _collect_college(period: str) -> dict[str, Any]:
         "detail_records": fetch_college_majors(
             academic_year=academic_year, county="新北市", include_student_detail=True
         ),
+        "school_locations": fetch_college_school_locations(),
     }
 
 
@@ -504,6 +506,7 @@ def run_period_range(
     config_dir: str | Path,
     include_tdx: bool = False,
     strict: bool = False,
+    datasets: Sequence[str] | None = None,
     collector_specs: Sequence[CollectorSpec] | None = None,
     resume: bool = False,
     force: bool = False,
@@ -515,6 +518,7 @@ def run_period_range(
     specs = tuple(DEFAULT_COLLECTOR_SPECS if collector_specs is None else collector_specs)
     if include_tdx and collector_specs is None:
         specs += TDX_COLLECTOR_SPECS
+    specs = _select_collector_specs(specs, datasets)
     units = build_execution_units(specs, start_period, end_period)
     unit_statuses: list[dict[str, Any]] = []
     total_units = len(units)
@@ -604,6 +608,7 @@ def run_refresh(
     strict: bool = False,
     datasets: Sequence[str] | None = None,
     failed_only: bool = False,
+    force: bool = False,
     now: datetime | None = None,
     refresh_profiles_path: str | Path | None = None,
     collector_specs: Sequence[CollectorSpec] | None = None,
@@ -642,6 +647,7 @@ def run_refresh(
         state=state,
         selected=datasets,
         failed_only=failed_only,
+        force=force,
         now=current,
         profiles=configured_profiles,
     )
@@ -739,6 +745,13 @@ def _run_retention(
 ) -> dict[str, Any]:
     """Apply retention only after every collection unit is error-free."""
 
+    if not statuses:
+        return {
+            "status": "skipped",
+            "reason": "no_execution_units",
+            "retention_years": retention_years,
+            "current_period": current_period,
+        }
     if any(status.get("status") == "error" for status in statuses):
         return {
             "status": "skipped",
@@ -756,6 +769,27 @@ def _run_retention(
         period_strategies=strategies,
         retention_years=retention_years,
     )
+
+
+def _select_collector_specs(
+    specs: Sequence[CollectorSpec], datasets: Sequence[str] | None
+) -> tuple[CollectorSpec, ...]:
+    """Select named collectors while preserving registry order."""
+
+    if datasets is None:
+        return tuple(specs)
+    selected = tuple(datasets)
+    if not selected:
+        raise ValueError("datasets must contain at least one dataset name")
+    if len(set(selected)) != len(selected):
+        raise ValueError("datasets must not contain duplicates")
+    available = {spec.dataset for spec in specs}
+    unknown = set(selected) - available
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise ValueError(f"unknown dataset(s): {names}")
+    selected_set = set(selected)
+    return tuple(spec for spec in specs if spec.dataset in selected_set)
 
 
 def _update_refresh_state_entry(
@@ -806,7 +840,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "--datasets",
-        help="Comma-separated dataset names; only valid with --refresh-profile",
+        help=(
+            "Comma-separated dataset names; valid with --refresh-profile "
+            "or a historical period range"
+        ),
     )
     parser.add_argument(
         "--failed-only",
@@ -840,13 +877,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--retention-years must be positive")
     _configure_terminal_logging()
 
-    refresh_arguments = (
-        args.refresh_profile is not None
-        or args.datasets is not None
-        or args.failed_only
-    )
-    if refresh_arguments and not args.refresh_profile:
-        parser.error("--datasets and --failed-only require --refresh-profile")
+    if args.failed_only and not args.refresh_profile:
+        parser.error("--failed-only requires --refresh-profile")
     if args.refresh_profile:
         if (
             args.input is not None
@@ -867,6 +899,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             strict=args.strict,
             datasets=selected_datasets,
             failed_only=args.failed_only,
+            force=args.force,
             retention_years=args.retention_years,
         )
         return 1 if report["status"] == "error" else 0
@@ -874,6 +907,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.input:
         if not args.dataset:
             parser.error("--dataset is required with --input")
+        if args.datasets is not None:
+            parser.error("--datasets cannot be combined with --input")
         return _run_replay(
             dataset=args.dataset,
             input_path=Path(args.input),
@@ -885,6 +920,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.end_period and not args.start_period:
         parser.error("--start-period is required with --end-period")
     if args.start_period:
+        selected_datasets = _parse_refresh_datasets(args.datasets, parser)
         report = run_period_range(
             args.start_period,
             args.end_period,
@@ -892,11 +928,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             config_dir=args.config_dir,
             include_tdx=args.include_tdx,
             strict=args.strict,
+            datasets=selected_datasets,
             resume=args.resume,
             force=args.force,
             retention_years=args.retention_years,
         )
         return 1 if report["status"] == "error" else 0
+    if args.datasets is not None:
+        parser.error("--datasets requires --refresh-profile or a period range")
     if not args.period:
         parser.error("choose either --input with --dataset or --period")
 
@@ -1209,14 +1248,20 @@ def _raw_and_transform_payload(
             raise TypeError("college_majors collector must return an envelope")
         overview = collected.get("overview_records", [])
         detail = collected.get("detail_records", [])
+        school_locations = collected.get("school_locations", [])
         payload = {
             "dataset": dataset,
             "period": period,
             "fetched_at": fetched_at,
             "overview_records": overview,
             "detail_records": detail,
+            "school_locations": school_locations,
         }
-        return payload, {"overview_records": overview, "detail_records": detail}, ()
+        return payload, {
+            "overview_records": overview,
+            "detail_records": detail,
+            "school_locations": school_locations,
+        }, ()
 
     if dataset == "wages":
         if not isinstance(collected, Mapping):

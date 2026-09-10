@@ -81,9 +81,19 @@ def run_transform(
     if canonical_dataset == "college_majors":
         if not isinstance(records, Mapping):
             raise TypeError("college_majors requires overview_records/detail_records envelope")
+        school_locations = (
+            _record_list(records.get("school_locations"), field="school_locations")
+            if "school_locations" in records
+            else None
+        )
+        active_resolver = resolver
+        if school_locations is not None and active_resolver is None:
+            active_resolver = _default_resolver()
         return transform_college_majors(
             _record_list(records.get("overview_records"), field="overview_records"),
             _record_list(records.get("detail_records", []), field="detail_records"),
+            resolver=active_resolver,
+            school_locations=school_locations,
             fetched_at=fetched_at,
         )
     if canonical_dataset == "wages" and isinstance(records, Mapping):

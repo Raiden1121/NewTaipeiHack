@@ -393,6 +393,25 @@ collector 只分別取得兩份原始資料；需要性別／年級欄位時，�
 
 9621 有 103–114 學年度，但 9622 目前只有 113、114 學年度；103–112 學年度沒有詳細學生資料可合併。
 
+## 6.1 college_school.py
+
+`college_majors` 另外取得教育部「全國大學校院名錄」CSV，使用 `學校代碼` 對照學校地址與第三級行政區。這份資料只作為 transform 的位置參照，不在 collector 計算學生或教師統計。
+
+```python
+from collectors.college_school import fetch_college_school_locations
+
+locations = fetch_college_school_locations()
+```
+
+官方資料來源：
+
+```text
+https://data.gov.tw/dataset/33207
+https://ws.moe.edu.tw/001/Upload/4/relfile/0/5038/55f39b31-27a0-4009-866a-ea260eb45eaf.csv
+```
+
+collector 會處理教育部 CSV 的 BOM 與多行欄位標頭，輸出 `school_code`、`school_name`、`county_name`、`district_name`、`postal_code`、`school_address` 與 `raw_record`。教育部校碼沿革中的 `1084 ← 1166`、`1085 ← 1195` 會保留為對照別名，讓歷史學年度資料仍能映射。
+
 ## 7. graduate_major.py
 
 ### 1. 怎麼 call API

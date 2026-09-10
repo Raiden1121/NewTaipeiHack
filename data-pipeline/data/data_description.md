@@ -53,7 +53,7 @@
 | `job_vacancies` | 台灣就業通職缺 | 2026-09-03 快照 | 區／市 | 背景指標 |
 | `job_vacancy_salaries` | 有可解析薪資的職缺 | 2026-09-03 快照 | 區／市 | 背景指標 |
 | `wages` | 新北市官方年齡組薪資 | 2019～2024 | 新北市整體 | 年齡組 proxy |
-| `college_majors` | 新北市大專校院科系、學生、教師 | 學年度 105～114 | 新北市整體 | 背景指標 |
+| `college_majors` | 新北市大專校院科系、學生、教師 | 學年度 105～114 | 依學校所在地分至行政區 | 背景指標 |
 | `graduate_majors` | 全國科系畢業人數 | 學年度 106～114 | 全國 | 背景指標 |
 | `vt_courses` | 公共職訓課程區域數量 | 2026-09-01 取得的快照 | 2 區 | 背景指標 |
 | `training_numbers` | 新北市訓練課程、人數與費用 | 2026-08-14～2027-01-16 | 新北市整體 | 背景指標 |
@@ -341,26 +341,29 @@ Keys 與 `job_vacancies` 相同：共同 Keys，加上 `position_count`、`posit
 
 ### 資料名稱與統計內容
 
-教育部資料集 9621 與 9622。以學年度、學校、科系、日／進修、等級與體系配對，保留學生、教師、上學年度畢業生及男女／年級學生明細。
+教育部資料集 9621 與 9622。以學年度、學校、科系、日／進修、等級與體系配對，保留學生、教師、上學年度畢業生及男女／年級學生明細；另以教育部大專校院名錄的學校代碼、地址與第三級行政區對照，將學校所在地映射至新北市行政區。
 
 ### 處理後 Keys
 
-共同 Keys，加上：`county_name`、`academic_year`、`school_code`、`school_name`、`department_code`、`department_name`、`student_count`、`teacher_count`、`previous_graduate_count`、`detail_student_count`、`male_student_count`、`female_student_count`、`detail_counts`、`overview_raw_record`、`detail_raw_record`、`detail_raw_records`。
+共同 Keys，加上：`county_name`、`academic_year`、`school_code`、`school_name`、`department_code`、`department_name`、`student_count`、`teacher_count`、`previous_graduate_count`、`detail_student_count`、`male_student_count`、`female_student_count`、`detail_counts`、`school_address`、`school_postal_code`、`school_location_district`、`school_location_source`、`school_location_status`、`school_location_raw_record`、`overview_raw_record`、`detail_raw_record`、`detail_raw_records`。
 
 ### 前五筆實際資料
 
-| school_name | department_name | student_count | teacher_count | previous_graduate_count | detail_student_count | male_student_count | female_student_count |
-|---|---|---:|---:|---:|---:|---:|---:|
-| 國立臺北大學 | 歷史學系 | 28 | 0 | 4 | 28 | 19 | 9 |
-| 國立臺北大學 | 歷史學系 | 182 | 14 | 32 | 182 | 85 | 97 |
-| 國立臺北大學 | 民俗藝術與文化資產研究所 | 40 | 5 | 3 | 40 | 19 | 21 |
-| 國立臺北大學 | 應用外語學系 | 243 | 12 | 51 | 243 | 73 | 170 |
-| 國立臺北大學 | 創新華語文教學學士學位學程 | 35 | 2 | 0 | 35 | 10 | 25 |
+| district_name | school_name | department_name | student_count | teacher_count | previous_graduate_count | detail_student_count | male_student_count | female_student_count |
+|---|---|---|---:|---:|---:|---:|---:|---:|
+| 三峽區 | 國立臺北大學 | 歷史學系 | 28 | 0 | 4 | 28 | 19 | 9 |
+| 三峽區 | 國立臺北大學 | 歷史學系 | 182 | 14 | 32 | 182 | 85 | 97 |
+| 三峽區 | 國立臺北大學 | 民俗藝術與文化資產研究所 | 40 | 5 | 3 | 40 | 19 | 21 |
+| 三峽區 | 國立臺北大學 | 應用外語學系 | 243 | 12 | 51 | 243 | 73 | 170 |
+| 三峽區 | 國立臺北大學 | 創新華語文教學學士學位學程 | 35 | 2 | 0 | 35 | 10 | 25 |
 
 ### 其他說明
 
 - 歷史檔在 `data/curated/college_majors/{academic-year}.json`。
-- 學年度 105～114 可用；115 尚無資料。資料是學校所在地為新北市的 county 粒度，不是學生戶籍行政區。
+- 學年度 105～114 可用；115 尚無資料。重新執行 pipeline 後，資料粒度為學校所在地行政區，不是學生戶籍行政區。
+- `district_id` 與 `district_name` 是正式的行政區欄位；本表的 `district_name` 來自學校地址對照，前五筆的國立臺北大學位於三峽區。
+- 學校所在地對照來源為教育部大專校院名錄；`school_code` 以代碼對照，`school_location_status=matched` 才代表成功映射。對不到的學校保留 `district_id=null`，不使用最近行政區猜測。
+- `1084`（亞東科技大學）與 `1085`（馬偕醫學大學）使用教育部校碼沿革對應至名錄中的歷史代碼，確保不同學年度仍可映射到校址行政區。
 - 學年度 105～112 沒有 detail 資料。114 年 919 筆中，101 筆 overview 無法配到 detail、8 筆 detail 無法配到 overview；分析男女或年級前應檢查 `quality_flags`。
 
 ## 11. `graduate_majors`：全國科系畢業人數

@@ -15,7 +15,7 @@ from .contracts import ExecutionUnit, PeriodStrategy
 
 
 SCHEMA_VERSION = 2
-TRANSFORM_VERSION = "2026-09-02.1"
+TRANSFORM_VERSION = "2026-09-10.1"
 REFRESH_STATE_SCHEMA_VERSION = 1
 _REFRESH_PROFILE_INTERVALS = {
     "daily": timedelta(days=1),
