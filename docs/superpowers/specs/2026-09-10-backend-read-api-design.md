@@ -1,6 +1,10 @@
 # Backend Read API Design
 
+<<<<<<< ours
 **Date:** 2026-09-10
+=======
+**Date:** 2026-09-10  
+>>>>>>> theirs
 **Status:** Design approved for planning; implementation not started
 
 ## Goal
@@ -153,7 +157,11 @@ Metric 應包含：
 - `districtId` 必須是新北市 29 區中的正式 `district_id`。
 - `analysisId` 必須存在於 manifest，不允許由 request 建立任意檔案路徑。
 
+<<<<<<< ours
 API 對外只使用 ISO period；ROC period 只存在於 pipeline source metadata，不要求 Frontend 處理 ROC 轉換。`timeframe` 只選擇 analytics 已經產出的結果，不在 Backend request 期間計算三年平均或十年綜合分數。
+=======
+`timeframe` 只選擇 analytics 已經產出的結果，不在 Backend request 期間計算三年平均或十年綜合分數。
+>>>>>>> theirs
 
 ### Analysis response
 
@@ -215,7 +223,10 @@ API 對外只使用 ISO period；ROC period 只存在於 pipeline source metadat
 backend/src/handler.ts                    # Lambda event adapter
 backend/src/app.ts                        # 可測試的 application entry
 backend/src/http/router.ts                 # method/path dispatch
+<<<<<<< ours
 backend/src/http/types.ts                  # normalized request/response types
+=======
+>>>>>>> theirs
 backend/src/http/response.ts               # success/error envelope
 backend/src/http/errors.ts                 # domain error → HTTP mapping
 backend/src/application/                  # use cases
@@ -246,3 +257,7 @@ shared/src/metrics.ts                       # shared metric types
 4. Analysis API 與完整 proxy/quality/error metadata。
 5. DynamoDB adapter 與 production configuration。
 6. Infrastructure/CDK 與 Frontend API migration 另以整合任務驗證。
+<<<<<<< ours
+=======
+
+>>>>>>> theirs

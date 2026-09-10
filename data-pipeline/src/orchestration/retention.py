@@ -266,7 +266,7 @@ def _record_is_retained(value: Any, window: RetentionWindow) -> bool:
 
 def _record_period(value: Mapping[str, Any]) -> tuple[str, PeriodStrategy] | None:
     period_type = value.get("period_type")
-    for key in ("budget_year_roc", "roc_year", "academic_year", "統計期", "學年度"):
+    for key in ("budget_year_roc", "year_roc", "roc_year", "academic_year", "統計期", "學年度"):
         if key in value:
             try:
                 return str(_parse_roc_year(value[key])), PeriodStrategy.ANNUAL

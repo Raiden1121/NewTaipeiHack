@@ -6,6 +6,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from analytics.config import load_topic_rules
+
 from .contracts import TransformResult
 from .budget import transform_youth_budgets
 from .childcare import transform_babysitting_places
@@ -18,6 +20,8 @@ from .mobility import transform_movement
 from .population import transform_population
 from .training import transform_talent_demand, transform_training_numbers, transform_vt_courses
 from .transport import transform_bike_stops, transform_bus_stops, transform_railway_stops
+from .join_proposals import transform_join_proposals
+from .youth_council_minutes import transform_youth_council_minutes
 
 
 class UnsupportedDatasetError(ValueError):
@@ -66,6 +70,10 @@ _PLAIN_TRANSFORMS = {
     "wages": transform_wages,
     "youth_budgets": transform_youth_budgets,
 }
+_TOPIC_TRANSFORMS = {
+    "join_proposals": transform_join_proposals,
+    "youth_council_minutes": transform_youth_council_minutes,
+}
 
 
 def run_transform(
@@ -74,6 +82,7 @@ def run_transform(
     *,
     resolver: DistrictResolver | None = None,
     fetched_at: str | None = None,
+    config_dir: str | Path | None = None,
 ) -> TransformResult:
     """Run one explicitly registered transform without live data access."""
 
@@ -108,7 +117,7 @@ def run_transform(
             resolver=active_resolver,
             fetched_at=fetched_at,
         )
-    if canonical_dataset in _PLAIN_TRANSFORMS:
+    if canonical_dataset in _PLAIN_TRANSFORMS or canonical_dataset in _TOPIC_TRANSFORMS:
         if isinstance(records, Mapping):
             metadata = records.get("metadata")
             envelope_fetched_at = (
@@ -118,6 +127,14 @@ def run_transform(
             )
             records = _record_list(records.get("records"), field="records")
             fetched_at = fetched_at or envelope_fetched_at
+        if canonical_dataset in _TOPIC_TRANSFORMS:
+            rules_path = Path(config_dir) if config_dir is not None else _default_config_dir()
+            rules = load_topic_rules(rules_path / "youth_topic_rules.json")
+            return _TOPIC_TRANSFORMS[canonical_dataset](
+                _record_list(records, field="records"),
+                fetched_at=fetched_at,
+                rules=rules,
+            )
         return _PLAIN_TRANSFORMS[canonical_dataset](
             _record_list(records, field="records"),
             fetched_at=fetched_at,
@@ -127,7 +144,7 @@ def run_transform(
 
 def canonicalize_dataset(dataset: str) -> str:
     canonical = _ALIASES.get(dataset, dataset)
-    supported = {"college_majors", *_GEOGRAPHIC_TRANSFORMS, *_PLAIN_TRANSFORMS}
+    supported = {"college_majors", *_GEOGRAPHIC_TRANSFORMS, *_PLAIN_TRANSFORMS, *_TOPIC_TRANSFORMS}
     if canonical not in supported:
         raise UnsupportedDatasetError(
             f"unsupported dataset {dataset!r}; supported datasets: {', '.join(sorted(supported))}"
@@ -143,6 +160,10 @@ def dataset_requires_resolver(dataset: str) -> bool:
 def _default_resolver() -> DistrictResolver:
     config_path = Path(__file__).resolve().parents[2] / "config" / "districts.json"
     return DistrictResolver.from_json(config_path)
+
+
+def _default_config_dir() -> Path:
+    return Path(__file__).resolve().parents[2] / "config"
 
 
 def _record_list(value: Any, *, field: str) -> list[Mapping[str, Any]]:

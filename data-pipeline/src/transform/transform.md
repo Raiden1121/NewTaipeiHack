@@ -133,3 +133,17 @@ curated record 使用 organization grain，不將機關預算分配到新北市 
 | domain fields | `organization_name`、`budget_year_roc`、`document_status`、`row_type`、`business_plan`、`work_plan`、`source_pdf_sha256`、`raw_record` |
 
 total row 與 detail row 分別保存；不加總 detail、不把千元換算成元。缺少 business/work plan、未知版本、非有限或負數值會進 quarantine，且保留 `raw_record`。
+
+## `join_proposals`
+
+此 transform 將 join raw rows 轉為全國粒度年度資料：`geo_level=national`、`district_id=null`、`district_name=null`、`period_type=year`。`period_start`／`period_end` 是提案日期對應的 Gregorian 年度邊界，`year_roc` 保留 ROC 年。無年齡欄位時固定為 `age_scope=not_age_specific`、`youth_eligibility=context_only`。
+
+`youth_topic_proxy` 由 `config/youth_topic_rules.json` 的權責機關／關鍵字推定，`proxy_reasons` 保存命中理由；不符合 proxy 的 row 仍保留。`raw_record` 保存完整來源列，後續 analytics 才做議題匹配與權重計算。
+
+## `youth_council_minutes`
+
+此 transform 將一份 PDF 的 `page_texts` 拆成會議提案項目，使用 `geo_level=organization`、`organization_name=新北市青年局` 與年度期間。每筆保存 `item_no`、`source_page_start`、`source_page_end`、`source_text`、`source_pdf_sha256`、`discussed`、`resolved`、`escalated`。
+
+若文字出現在提案／討論段落，標記 `discussed`；出現在決議／結論段落，標記 `resolved`；決議文字命中 `提請市議會`、`函送議會`、`納入施政計畫` 或 `送局處辦理` 等設定詞，標記 `escalated`。找不到決議段落時保留 partial item，並設定 `manual_review_required=true`，不把解析失敗當成已決議。
+
+兩個資料集都由 `run_transform(..., config_dir=...)` 載入 topic rules；transform 不呼叫 live API，也不計算跨來源 `raw_score`。

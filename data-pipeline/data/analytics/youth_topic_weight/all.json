@@ -1,0 +1,754 @@
+{
+  "metric_id": "youth_topic_weight",
+  "calculation_version": "1",
+  "source_datasets": [
+    "join_proposals",
+    "youth_council_minutes"
+  ],
+  "config_version": "1",
+  "normalization": "yearly_max",
+  "generated_at": "2026-09-10T13:31:10.007428+00:00",
+  "years": [
+    {
+      "year_roc": 110,
+      "topics": [
+        {
+          "label": "居住正義",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "社會住宅",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 3.0
+        },
+        {
+          "label": "就業支持",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "青年創業",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 3.0
+        },
+        {
+          "label": "公共參與",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 3.0
+        },
+        {
+          "label": "交通通勤",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "教育培力",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "世代正義",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "低薪困境",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "租金補貼",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 3.0
+        },
+        {
+          "label": "心理健康",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 3.0
+        },
+        {
+          "label": "性別平等",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "環境永續",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "托育支持",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 3.0
+        },
+        {
+          "label": "在地就業",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "數位權利",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "地方創生",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "文化參與",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "食品安全",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "勞動權益",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "青年審議",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "社會安全網",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        }
+      ]
+    },
+    {
+      "year_roc": 112,
+      "topics": [
+        {
+          "label": "居住正義",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "社會住宅",
+          "weight": 3,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.257143
+        },
+        {
+          "label": "就業支持",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "青年創業",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 7,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 3.0
+        },
+        {
+          "label": "公共參與",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "交通通勤",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "教育培力",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "世代正義",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "低薪困境",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "租金補貼",
+          "weight": 3,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 1.457143
+        },
+        {
+          "label": "心理健康",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 6,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 2.742857
+        },
+        {
+          "label": "性別平等",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "環境永續",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "托育支持",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "在地就業",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "數位權利",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "地方創生",
+          "weight": 4,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 4,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 2.228571
+        },
+        {
+          "label": "文化參與",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "食品安全",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "勞動權益",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "青年審議",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "社會安全網",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        }
+      ]
+    },
+    {
+      "year_roc": 114,
+      "topics": [
+        {
+          "label": "居住正義",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "社會住宅",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "就業支持",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "青年創業",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 4,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 3.0
+        },
+        {
+          "label": "公共參與",
+          "weight": 3,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 1.65
+        },
+        {
+          "label": "交通通勤",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "教育培力",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "世代正義",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "低薪困境",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "租金補貼",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "心理健康",
+          "weight": 3,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 1.65
+        },
+        {
+          "label": "性別平等",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "環境永續",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "托育支持",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "在地就業",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "數位權利",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "地方創生",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "文化參與",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "食品安全",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "勞動權益",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "青年審議",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.0
+        },
+        {
+          "label": "社會安全網",
+          "weight": 3,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0.0,
+          "raw_score": 0.45
+        }
+      ]
+    }
+  ]
+}

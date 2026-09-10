@@ -31,12 +31,18 @@ Files created by this plan:
 
 - `backend/tsconfig.json`: Backend compiler settings and `dist` output.
 - `backend/vitest.config.ts`: Backend test environment and path configuration.
+<<<<<<< ours
 - `shared/tsconfig.json`: Shared type-checking configuration.
+=======
+>>>>>>> theirs
 - `backend/src/handler.ts`: API Gateway HTTP API v2 Lambda adapter.
 - `backend/src/app.ts`: Pure application entry accepting a normalized request.
 - `backend/src/config.ts`: Environment parsing for data root, origins, and cache values.
 - `backend/src/http/router.ts`: Explicit method/path routing and parameter extraction.
+<<<<<<< ours
 - `backend/src/http/types.ts`: Normalized request and response types used by the app and Lambda adapter.
+=======
+>>>>>>> theirs
 - `backend/src/http/response.ts`: Success, error, CORS, cache, and request-id headers.
 - `backend/src/http/errors.ts`: Typed application errors and HTTP status mapping.
 - `backend/src/application/catalog.ts`: Catalog/readiness use case.
@@ -68,7 +74,10 @@ Files explicitly not modified by this Backend plan:
 - Modify: `shared/package.json`
 - Create: `backend/tsconfig.json`
 - Create: `backend/vitest.config.ts`
+<<<<<<< ours
 - Create: `shared/tsconfig.json`
+=======
+>>>>>>> theirs
 - Create: `shared/src/metrics.ts`
 - Create: `shared/src/api.ts`
 - Create: `shared/src/index.ts`
@@ -152,6 +161,7 @@ Add these scripts to `backend/package.json`:
 
 Add runtime/build dependencies for `zod` and `@newtaipei-youth/shared`, plus development dependencies for `typescript`, `tsx`, `vitest`, `@types/node`, and `@types/aws-lambda`. Configure `tsconfig.json` with `target: ES2022`, `module: NodeNext`, `moduleResolution: NodeNext`, `rootDir: "src"`, `outDir: "dist"`, `strict: true`, and `declaration: true`.
 
+<<<<<<< ours
 Configure `shared/package.json` as an ESM, types-only workspace package and add `shared/tsconfig.json` with `target: ES2022`, `module: NodeNext`, `moduleResolution: NodeNext`, `strict: true`, and `noEmit: true`. Add the Backend `tsconfig.json` path mapping `@newtaipei-youth/shared` to `../shared/src/index.ts`; all Backend imports of shared definitions must use `import type` so the compiled Lambda does not require a runtime Shared module.
 
 Create `backend/vitest.config.ts` with Node environment and the same `@newtaipei-youth/shared` alias:
@@ -172,6 +182,8 @@ export default defineConfig({
 });
 ```
 
+=======
+>>>>>>> theirs
 - [ ] **Step 4: Define and export the shared metric and API types**
 
 Create the types used by all later tasks:
@@ -228,6 +240,7 @@ Expected: the contract test passes and TypeScript emits `backend/dist` without e
 **Interfaces:**
 
 - Produces `PublishedManifest` with `schema_version`, `snapshot_id`, `generated_at`, `as_of`, `artifacts`, `datasets`, and `warnings`.
+<<<<<<< ours
 - Produces `PublishedCatalog`, `DashboardOverview`, `DistrictDetail`, and `AnalysisResult` DTOs validated by runtime schemas.
 - Produces `PublishedDataStore`:
 
@@ -296,6 +309,11 @@ export interface AnalysisResult {
 }
 ```
 
+=======
+- Produces `DashboardOverview`, `DistrictDetail`, and `AnalysisResult` DTOs validated by runtime schemas.
+- Produces `PublishedDataStore`:
+
+>>>>>>> theirs
 ```ts
 export interface PublishedDataStore {
   getCatalog(): Promise<PublishedCatalog>;
@@ -321,7 +339,11 @@ import { LocalPublishedDataStore } from "../src/adapters/localPublishedDataStore
 describe("LocalPublishedDataStore", () => {
   it("loads only the snapshot selected by current.json", async () => {
     const store = new LocalPublishedDataStore({
+<<<<<<< ours
       rootDir: "tests/fixtures/published",
+=======
+      rootDir: "backend/tests/fixtures/published",
+>>>>>>> theirs
     });
 
     const catalog = await store.getCatalog();
@@ -336,7 +358,11 @@ describe("LocalPublishedDataStore", () => {
 
   it("returns null for an unknown district without reading an arbitrary path", async () => {
     const store = new LocalPublishedDataStore({
+<<<<<<< ours
       rootDir: "tests/fixtures/published",
+=======
+      rootDir: "backend/tests/fixtures/published",
+>>>>>>> theirs
     });
 
     await expect(
@@ -364,7 +390,11 @@ Create `current.json` containing only:
 { "snapshot_id": "fixture-snapshot" }
 ```
 
+<<<<<<< ours
 Create a manifest whose artifact paths are relative, manifest-controlled paths. The overview fixture contains all 29 canonical districts; the detail fixture contains at least `65000010` and an unavailable metric. Every metric must include status, period, source, eligibility, and quality fields; include one `unavailable` metric with `value: null` and no `raw_record`.
+=======
+Create a manifest whose artifact paths are relative, manifest-controlled paths. Include exactly three districts in the fixture test data and a separate contract assertion for the production-shaped 29-district overview. Every metric must include status, period, source, eligibility, and quality fields; include one `unavailable` metric with `value: null` and no `raw_record`.
+>>>>>>> theirs
 
 - [ ] **Step 4: Implement config and manifest-controlled file access**
 
@@ -397,7 +427,10 @@ Expected: all adapter tests pass and the compiled adapter is emitted.
 - Create: `backend/src/http/errors.ts`
 - Create: `backend/src/http/response.ts`
 - Create: `backend/src/http/router.ts`
+<<<<<<< ours
 - Create: `backend/src/http/types.ts`
+=======
+>>>>>>> theirs
 - Create: `backend/src/application/catalog.ts`
 - Create: `backend/src/app.ts`
 - Create: `backend/src/handler.ts`
@@ -412,6 +445,7 @@ Expected: all adapter tests pass and the compiled adapter is emitted.
 - Produces `handler(event): Promise<APIGatewayProxyStructuredResultV2>`.
 - Produces `parsePeriodSelection(query): PeriodSelection`.
 - Produces `toHttpError(error): ApiErrorResponse`.
+<<<<<<< ours
 - Produces `getCatalog(store): Promise<PublishedCatalog>`.
 
 Define the normalized HTTP interfaces in `backend/src/http/types.ts`:
@@ -435,6 +469,8 @@ export interface App {
   handle(request: HttpRequest): Promise<HttpResponse>;
 }
 ```
+=======
+>>>>>>> theirs
 
 - [ ] **Step 1: Write failing HTTP tests**
 
@@ -447,7 +483,11 @@ describe("HTTP core", () => {
   it("returns readiness and catalog metadata", async () => {
     const app = createApp(
       new LocalPublishedDataStore({
+<<<<<<< ours
         rootDir: "tests/fixtures/published",
+=======
+        rootDir: "backend/tests/fixtures/published",
+>>>>>>> theirs
       }),
       { allowedOrigins: ["http://localhost:5173"], cacheMaxAgeSeconds: 60 },
     );
@@ -511,7 +551,11 @@ Map them to `400`, `404`, `404`, and `503`. Map unknown errors to `500 INTERNAL_
 
 - [ ] **Step 4: Implement allowlist request schemas and explicit router**
 
+<<<<<<< ours
 Implement `parsePeriodSelection(query)` so it accepts only `latest`, ISO `YYYY`, ISO `YYYY-MM`, `recent_3y`, and `historical_10y`. Reject empty values, both `period` and `timeframe` together, unsupported values, and repeated values. Route only these exact paths:
+=======
+Implement `parsePeriodSelection(query)` so it accepts only `latest`, three-digit ROC years converted by the published contract, ISO `YYYY` years, ISO `YYYY-MM`, `recent_3y`, and `historical_10y`. Reject empty values, both `period` and `timeframe` together, unsupported values, and repeated values. Route only these exact paths:
+>>>>>>> theirs
 
 ```text
 GET /api/v1/health
@@ -527,8 +571,11 @@ Return `404` for every other path and `405` for unsupported methods on a known p
 
 `app.handle()` receives a normalized request and delegates to application services. `handler.ts` converts API Gateway HTTP API v2 `rawPath`, `requestContext.http.method`, `queryStringParameters`, and `headers` into that normalized request; it must generate a request id when API Gateway did not provide one. It must not read environment variables inside every route branch.
 
+<<<<<<< ours
 Implement `getCatalog(store)` in `application/catalog.ts` by calling `store.getCatalog()` once and returning the manifest metadata without loading dashboard rows. Connect `/api/v1/health` to `store.checkReadiness()` and `/api/v1/catalog` to `getCatalog(store)`; readiness failure returns `503 SNAPSHOT_UNAVAILABLE`.
 
+=======
+>>>>>>> theirs
 - [ ] **Step 6: Run focused tests and build**
 
 Run:
@@ -568,7 +615,11 @@ import { createApp } from "../src/app";
 import { LocalPublishedDataStore } from "../src/adapters/localPublishedDataStore";
 
 const app = createApp(
+<<<<<<< ours
   new LocalPublishedDataStore({ rootDir: "tests/fixtures/published" }),
+=======
+  new LocalPublishedDataStore({ rootDir: "backend/tests/fixtures/published" }),
+>>>>>>> theirs
   { allowedOrigins: [], cacheMaxAgeSeconds: 60 },
 );
 
@@ -604,7 +655,11 @@ describe("dashboard and district routes", () => {
     });
     expect(detail.statusCode).toBe(200);
     expect(detail.body.data.fertility.status).toBe("unavailable");
+<<<<<<< ours
     expect(detail.body.data.fertility.metrics[0].value).toBeNull();
+=======
+    expect(detail.body.data.fertility.value).toBeNull();
+>>>>>>> theirs
   });
 });
 ```
@@ -642,10 +697,18 @@ npm --workspace @newtaipei-youth/backend run build
 
 Expected: all overview/detail tests pass and the handler compiles.
 
+<<<<<<< ours
 ## Task 5: Implement Analysis Endpoint and Contract/Quality Checks
 
 **Files:**
 
+=======
+## Task 5: Implement Catalog, Analysis Endpoint, and Contract/Quality Checks
+
+**Files:**
+
+- Create: `backend/src/application/catalog.ts` tests if not completed in Task 3
+>>>>>>> theirs
 - Create: `backend/src/application/analyses.ts`
 - Modify: `backend/src/http/router.ts`
 - Create: `backend/tests/analyses.test.ts`
@@ -654,6 +717,10 @@ Expected: all overview/detail tests pass and the handler compiles.
 
 **Interfaces:**
 
+<<<<<<< ours
+=======
+- Produces `getCatalog(store): Promise<PublishedCatalog>`.
+>>>>>>> theirs
 - Produces `getAnalysis(store, analysisId, selection): Promise<AnalysisResult>`.
 - Produces a contract assertion that checks snapshot consistency, district uniqueness, `null` missing values, and absence of raw fields.
 
@@ -667,7 +734,11 @@ import { LocalPublishedDataStore } from "../src/adapters/localPublishedDataStore
 describe("analysis route", () => {
   it("returns a published analysis with provenance", async () => {
     const app = createApp(
+<<<<<<< ours
       new LocalPublishedDataStore({ rootDir: "tests/fixtures/published" }),
+=======
+      new LocalPublishedDataStore({ rootDir: "backend/tests/fixtures/published" }),
+>>>>>>> theirs
       { allowedOrigins: [], cacheMaxAgeSeconds: 60 },
     );
     const response = await app.handle({
@@ -685,7 +756,11 @@ describe("analysis route", () => {
 
   it("does not expose raw source records", async () => {
     const app = createApp(
+<<<<<<< ours
       new LocalPublishedDataStore({ rootDir: "tests/fixtures/published" }),
+=======
+      new LocalPublishedDataStore({ rootDir: "backend/tests/fixtures/published" }),
+>>>>>>> theirs
       { allowedOrigins: [], cacheMaxAgeSeconds: 60 },
     );
     const response = await app.handle({
@@ -711,9 +786,15 @@ npm --workspace @newtaipei-youth/backend run test -- analyses.test.ts api-contra
 
 Expected: FAIL because analysis lookup and contract assertions are not implemented.
 
+<<<<<<< ours
 - [ ] **Step 3: Implement analysis lookup**
 
 `getAnalysis()` accepts an analysis id only if the manifest lists it; calls the store once; and returns the precomputed `statistics`, `method`, `sample_size`, `limitations`, `geo_level`, and period without recomputing them. Catalog behavior is implemented in Task 3 and is covered by the HTTP contract tests.
+=======
+- [ ] **Step 3: Implement catalog and analysis lookup**
+
+`getCatalog()` returns only manifest metadata: snapshot, generated time, as-of period, dataset entries, coverage, transform versions, and warnings. `getAnalysis()` accepts an analysis id only if the manifest lists it; calls the store once; and returns the precomputed `statistics`, `method`, `sample_size`, `limitations`, `geo_level`, and period without recomputing them.
+>>>>>>> theirs
 
 - [ ] **Step 4: Add recursive response quality assertions**
 
@@ -744,6 +825,7 @@ Expected: all Backend tests pass and TypeScript emits the Lambda build.
 - `DynamoMetricsStore` implements the exact `PublishedDataStore` interface from Task 2.
 - Storage configuration reads `DYNAMODB_TABLE_NAME`, `DYNAMODB_REGION`, and `PUBLISHED_SNAPSHOT_ID` without changing application services or routes.
 
+<<<<<<< ours
 Use these queryable keys for the first table contract:
 
 ```text
@@ -759,6 +841,8 @@ catalog metadata:  PK=SNAPSHOT#{snapshot_id}#RESOURCE#catalog
 
 Overview uses a keyed Query for one snapshot resource and never uses a table Scan. A district detail uses a keyed GetItem or Query. The loader that writes these items belongs to the data-pipeline/infrastructure integration task and must preserve the same snapshot id.
 
+=======
+>>>>>>> theirs
 - [ ] **Step 1: Write failing DynamoDB mapping tests**
 
 ```ts
@@ -769,8 +853,13 @@ describe("DynamoMetricsStore", () => {
   it("queries a district by canonical district id and period", async () => {
     const send = async () => ({
       Items: [{
+<<<<<<< ours
         PK: "SNAPSHOT#fixture-snapshot#RESOURCE#district_details",
         SK: "DISTRICT#65000010",
+=======
+        PK: "SNAPSHOT#fixture-snapshot",
+        SK: "DISTRICT#65000010#DOMAIN#overview",
+>>>>>>> theirs
         district_id: "65000010",
         metrics: [],
       }],
@@ -837,6 +926,7 @@ npm --workspace @newtaipei-youth/backend run test
 
 Document `BACKEND_DATA_ROOT`, `BACKEND_ALLOWED_ORIGINS`, `BACKEND_CACHE_MAX_AGE_SECONDS`, `DYNAMODB_TABLE_NAME`, `DYNAMODB_REGION`, and `PUBLISHED_SNAPSHOT_ID` with their local/test meaning.
 
+<<<<<<< ours
 Create `backend/.env.example` with these local/test defaults:
 
 ```dotenv
@@ -848,6 +938,8 @@ DYNAMODB_REGION=
 PUBLISHED_SNAPSHOT_ID=fixture-snapshot
 ```
 
+=======
+>>>>>>> theirs
 - [ ] **Step 2: Document the integration order**
 
 State that the next cross-module work is: pipeline `analytics` publishes the manifest/artifacts; Frontend replaces `fetchDistrictSummaries()` with the API client; Infrastructure creates API Gateway/Lambda/S3/DynamoDB; AI remains in `ai-service`.
@@ -864,3 +956,7 @@ git status --short
 ```
 
 Expected: Backend tests pass, TypeScript build exits `0`, `git diff --check` reports no whitespace errors, and the working tree lists only the intended uncommitted Backend/shared/documentation changes.
+<<<<<<< ours
+=======
+
+>>>>>>> theirs

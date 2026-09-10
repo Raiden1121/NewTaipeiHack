@@ -101,6 +101,36 @@ class TestTransformPipeline(unittest.TestCase):
         with self.assertRaisesRegex(UnsupportedDatasetError, "unknown_dataset"):
             run_transform("unknown_dataset", [])
 
+    def test_dispatches_youth_topic_transforms_with_config_dir(self):
+        join_result = run_transform(
+            "join_proposals",
+            [
+                {
+                    "proposal_id": "p-1",
+                    "title": "青年居住",
+                    "content": "社宅",
+                    "submitted_at": "1140102",
+                }
+            ],
+            config_dir=CONFIG_DIR,
+        )
+        self.assertEqual(join_result.records[0]["dataset"], "join_proposals")
+
+        minutes_result = run_transform(
+            "youth_council_minutes",
+            [
+                {
+                    "meeting_id": "m-1",
+                    "meeting_name": "青年會議",
+                    "meeting_date": "1140102",
+                    "year_roc": "114",
+                    "page_texts": ["提案事項\n一、社宅\n決議事項\n提請市議會"],
+                }
+            ],
+            config_dir=CONFIG_DIR,
+        )
+        self.assertEqual(minutes_result.records[0]["dataset"], "youth_council_minutes")
+
     def test_writes_hash_checked_source_artifact_with_relative_metadata(self):
         content = b"%PDF-test"
         digest = "sha256:" + hashlib.sha256(content).hexdigest()
@@ -306,6 +336,46 @@ class TestTransformPipeline(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(curated["records"][0]["value"], 213022)
+
+    def test_youth_topic_raw_replay_writes_all_available_output_without_collecting(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            raw_path = write_raw(
+                {
+                    "dataset": "join_proposals",
+                    "period": "11509",
+                    "fetched_at": "2026-09-09T00:00:00+00:00",
+                    "records": [
+                        {
+                            "proposal_id": "p-1",
+                            "title": "青年社宅",
+                            "content": "居住正義",
+                            "submitted_at": "1140102",
+                        }
+                    ],
+                },
+                dataset="join_proposals",
+                snapshot="11509_20260909T000000Z",
+                output_dir=root / "data",
+            )
+
+            from unittest.mock import patch
+
+            with patch("run_pipeline.fetch_join_proposals", side_effect=AssertionError("must not collect")):
+                exit_code = main(
+                    [
+                        "--dataset", "join_proposals",
+                        "--input", str(raw_path),
+                        "--output-dir", str(root / "replay"),
+                        "--config-dir", str(CONFIG_DIR),
+                    ]
+                )
+
+            curated_path = root / "replay" / "curated" / "join_proposals" / "all.json"
+            curated = json.loads(curated_path.read_text())
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(curated["records"][0]["youth_topic_proxy"])
 
     def test_writes_raw_curated_quality_and_quarantine_json(self):
         result = run_transform("population", [population_row()], resolver=self.resolver)

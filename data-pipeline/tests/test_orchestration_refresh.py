@@ -20,6 +20,8 @@ class RefreshProfileTests(unittest.TestCase):
         profiles = load_refresh_profiles(config_path)
 
         self.assertIn("babysitting_places", profiles["monthly"])
+        self.assertIn("join_proposals", profiles["monthly"])
+        self.assertIn("youth_council_minutes", profiles["monthly"])
 
     def test_loads_profiles_and_filters_selected_datasets(self):
         with TemporaryDirectory() as directory:

@@ -1,0 +1,8 @@
+{
+  "version": "1",
+  "w_join": 1.0,
+  "w_minutes": 1.8,
+  "w_resolved": 1.2,
+  "w_escalated": 2.5,
+  "normalization": "yearly_max"
+}

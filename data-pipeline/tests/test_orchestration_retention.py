@@ -132,6 +132,34 @@ class LocalRetentionTests(unittest.TestCase):
             )
             self.assertIn("curated/youth_budgets/all.json", report["rewritten_paths"])
 
+    def test_filters_year_roc_records_inside_all_available_json(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            records = [
+                {"year_roc": "109", "value": 109},
+                {"year_roc": "110", "value": 110},
+                {"year_roc": "115", "value": 115},
+            ]
+            path = root / "curated/join_proposals/all.json"
+            raw_path = root / "raw/join_proposals/11509_20260909T000000Z.json"
+            self._write_json(path, {"records": records})
+            self._write_json(raw_path, {"records": records, "documents": records})
+
+            prune_local_data(
+                root,
+                current_period="11509",
+                period_strategies={"join_proposals": PeriodStrategy.ALL_AVAILABLE},
+            )
+
+            self.assertEqual(
+                [row["year_roc"] for row in json.loads(path.read_text(encoding="utf-8"))["records"]],
+                ["110", "115"],
+            )
+            self.assertEqual(
+                [row["year_roc"] for row in json.loads(raw_path.read_text(encoding="utf-8"))["records"]],
+                ["110", "115"],
+            )
+
     def test_preserves_records_without_a_recognizable_period(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)

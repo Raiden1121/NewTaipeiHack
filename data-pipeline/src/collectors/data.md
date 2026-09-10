@@ -1128,3 +1128,26 @@ https://data.ntpc.gov.tw/api/datasets/b3faf2aa-e96b-4f2f-b647-da47dc094860/json?
 ```
 
 來源欄位差異由 transform 處理：私托使用 `title`、`area`、`person`；公托使用 `name`、`town`、`unit`。此 collector 是最新名冊 snapshot，不產生歷史年度資料。
+
+## join_proposals.py
+
+`fetch_join_proposals()` 優先讀取 data.gov.tw「公共政策網路參與平臺－提點子」資源；資源無法發現或沒有可用列時，退回 join.gov.tw 提案列表與 detail 頁。collector 只保存來源內容，不計算青年議題權重。
+
+```python
+from collectors.join_proposals import fetch_join_proposals
+
+payload = fetch_join_proposals()
+# 測試時可注入 resource_urls=()、listing_url 與 open_url，不呼叫 live source。
+```
+
+raw row 會保存 `proposal_id`、`proposal_url`、`title`、`content`、`endorsement_count`、`submitted_at`、`status`、`agency`、`category`、`year_roc` 與完整 `source_payload`。來源沒有的欄位保留 JSON `null`；`year_roc` 以提案日期為準。metadata 會記錄 `source_mode`、來源 URL、成功／失敗數與逐案 failures。join 沒有年齡或新北行政區欄位，後續 transform 只標記 `youth_topic_proxy`，不宣稱是真實 18–35 歲民意。
+
+## youth_council_minutes.py
+
+`fetch_youth_council_minutes()` 從青年局會議紀錄入口動態發現 detail 文件。detail URL 不以 `.pdf` 結尾時，collector 先用 `%PDF-` magic bytes 判斷；HTML detail 再尋找 PDF link。每份成功文件保存逐頁 `page_texts`，並回傳 `SourceArtifact`，由 pipeline 寫入：
+
+```text
+data/raw/youth_council_minutes/artifacts/{meeting_id}_{sha256_prefix}.pdf
+```
+
+raw record 至少包含 `meeting_id`、`meeting_name`、`meeting_date`、`term`、`year_roc`、`detail_url`、`pdf_url`、`source_pdf_sha256`、`artifact_filename` 與 `page_texts`。PDF 下載、大小限制、抽文字或單一文件失敗會記在 metadata，不會清除其他成功文件。`pypdf` 為 requirements 依賴；未安裝時會回傳明確的 extraction failure。

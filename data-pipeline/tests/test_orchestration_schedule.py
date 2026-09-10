@@ -80,6 +80,8 @@ class TestExecutionSchedule(unittest.TestCase):
             "babysitting_places": PeriodStrategy.SNAPSHOT,
             "talent_demand": PeriodStrategy.ALL_AVAILABLE,
             "youth_budgets": PeriodStrategy.ALL_AVAILABLE,
+            "join_proposals": PeriodStrategy.ALL_AVAILABLE,
+            "youth_council_minutes": PeriodStrategy.ALL_AVAILABLE,
         }
 
         self.assertEqual(

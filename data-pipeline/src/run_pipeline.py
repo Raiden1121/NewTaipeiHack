@@ -29,6 +29,8 @@ from collectors.training_nums import fetch_training_numbers
 from collectors.vt_course import fetch_vt_courses
 from collectors.wage import fetch_wage
 from collectors.contracts import CollectedPayload
+from collectors.join_proposals import fetch_join_proposals
+from collectors.youth_council_minutes import fetch_youth_council_minutes
 from collectors.youth_budget import fetch_youth_budgets
 from collectors.errors import CollectorNoDataError
 from orchestration.contracts import CollectorSpec, ExecutionUnit, PeriodStrategy
@@ -103,6 +105,18 @@ def _collect_youth_budgets(_period: str) -> CollectedPayload:
     return fetch_youth_budgets()
 
 
+def _collect_join_proposals(_period: str) -> CollectedPayload:
+    """Fetch all available nationwide join proposals."""
+
+    return fetch_join_proposals()
+
+
+def _collect_youth_council_minutes(_period: str) -> CollectedPayload:
+    """Fetch all discoverable Youth Bureau meeting records."""
+
+    return fetch_youth_council_minutes()
+
+
 DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
     CollectorSpec("population", lambda period: fetch_population(period, county="新北市")),
     CollectorSpec("movement", lambda period: fetch_moving(period, county="新北市")),
@@ -128,6 +142,10 @@ DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
     ),
     CollectorSpec("talent_demand", lambda period: fetch_talent_demand(), PeriodStrategy.ALL_AVAILABLE),
     CollectorSpec("youth_budgets", _collect_youth_budgets, PeriodStrategy.ALL_AVAILABLE),
+    CollectorSpec("join_proposals", _collect_join_proposals, PeriodStrategy.ALL_AVAILABLE),
+    CollectorSpec(
+        "youth_council_minutes", _collect_youth_council_minutes, PeriodStrategy.ALL_AVAILABLE
+    ),
 )
 
 
@@ -348,6 +366,7 @@ def _run_execution_unit(
             transform_input,
             resolver=resolver,
             fetched_at=fetched_at,
+            config_dir=config_dir,
         )
         curated_path, quality_path, quarantine_path = write_curated(
             result,
@@ -975,8 +994,15 @@ def _run_replay(
         if dataset_requires_resolver(canonical_dataset)
         else None
     )
-    result = run_transform(canonical_dataset, records, resolver=resolver, fetched_at=fetched_at)
-    write_curated(result, dataset=canonical_dataset, output_dir=output_dir)
+    result = run_transform(
+        canonical_dataset,
+        records,
+        resolver=resolver,
+        fetched_at=fetched_at,
+        config_dir=config_dir,
+    )
+    period = "all" if canonical_dataset in {"join_proposals", "youth_council_minutes"} else None
+    write_curated(result, dataset=canonical_dataset, output_dir=output_dir, period=period)
     return 0
 
 
