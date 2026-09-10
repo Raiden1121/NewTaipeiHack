@@ -1,195 +1,170 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 // 佔位資料，數值皆為示意，待 Backend API 提供整理後結果。
-const FERTILITY_SERIES = [8.6, 8.9, 9.4, 10.8, 11.2, 10.9, 10.4];
-const OPPORTUNITY_SERIES = [72, 74, 78, 83, 88, 90, 92];
-const AXIS_LABELS = ["林口區", "淡水區", "板橋區", "新莊區", "中和區", "三重區", "永和區"];
-
-const VIEW_OPTIONS = [
-  { id: "dual-axis", label: "雙軸折線圖" },
-  { id: "scatter", label: "散佈圖" },
-] as const;
-
-type ViewId = (typeof VIEW_OPTIONS)[number]["id"];
+// 每筆為一個行政區：x = 青年就業機會指數，y = 青年生育率（‰）。
+const SAMPLE: { opportunity: number; fertility: number }[] = [
+  { opportunity: 48, fertility: 7.2 },
+  { opportunity: 52, fertility: 6.8 },
+  { opportunity: 55, fertility: 8.1 },
+  { opportunity: 58, fertility: 7.6 },
+  { opportunity: 61, fertility: 9.0 },
+  { opportunity: 64, fertility: 8.4 },
+  { opportunity: 66, fertility: 10.1 },
+  { opportunity: 69, fertility: 9.3 },
+  { opportunity: 72, fertility: 9.8 },
+  { opportunity: 74, fertility: 11.2 },
+  { opportunity: 77, fertility: 10.4 },
+  { opportunity: 80, fertility: 11.9 },
+  { opportunity: 83, fertility: 11.1 },
+  { opportunity: 86, fertility: 12.6 },
+  { opportunity: 88, fertility: 12.0 },
+  { opportunity: 92, fertility: 13.1 },
+];
 
 const VB_W = 520;
-const VB_H = 220;
-const PAD_X = 28;
-const PAD_Y = 24;
+const VB_H = 240;
+const PAD_L = 40;
+const PAD_R = 16;
+const PAD_T = 16;
+const PAD_B = 34;
 
-function scaleSeries(series: number[]) {
-  const max = Math.max(...series);
-  const min = Math.min(...series);
-  return series.map((value) => (value - min) / (max - min || 1));
+const PLOT_W = VB_W - PAD_L - PAD_R;
+const PLOT_H = VB_H - PAD_T - PAD_B;
+
+function extent(values: number[]): [number, number] {
+  return [Math.min(...values), Math.max(...values)];
 }
 
-function DualAxisChart() {
-  const fertility = scaleSeries(FERTILITY_SERIES);
-  const opportunity = scaleSeries(OPPORTUNITY_SERIES);
-  const stepX = (VB_W - PAD_X * 2) / (FERTILITY_SERIES.length - 1);
+/** 最小平方法線性迴歸，回傳 y = slope * x + intercept。 */
+function linearRegression(points: { x: number; y: number }[]) {
+  const n = points.length;
+  const sumX = points.reduce((acc, p) => acc + p.x, 0);
+  const sumY = points.reduce((acc, p) => acc + p.y, 0);
+  const sumXY = points.reduce((acc, p) => acc + p.x * p.y, 0);
+  const sumXX = points.reduce((acc, p) => acc + p.x * p.x, 0);
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+  return { slope, intercept };
+}
 
-  const toPoints = (ratios: number[]) =>
-    ratios
-      .map((ratio, index) => {
-        const x = PAD_X + index * stepX;
-        const y = VB_H - PAD_Y - ratio * (VB_H - PAD_Y * 2);
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(" ");
+function ScatterRegressionChart() {
+  const [xMin, xMax] = extent(SAMPLE.map((d) => d.opportunity));
+  const [yMin, yMax] = extent(SAMPLE.map((d) => d.fertility));
 
-  return (
-    <svg
-      viewBox={`0 0 ${VB_W} ${VB_H}`}
-      className="block h-auto w-full"
-      role="img"
-      aria-label="青年生育率與青年就業機會指數雙軸折線圖佔位"
-    >
-      <line
-        x1={PAD_X}
-        y1={VB_H - PAD_Y}
-        x2={VB_W - PAD_X}
-        y2={VB_H - PAD_Y}
-        className="stroke-slate-200"
-        strokeWidth={1}
-      />
-      <polyline
-        points={toPoints(opportunity)}
-        className="fill-none stroke-accent-teal"
-        strokeWidth={2}
-        strokeDasharray="5 4"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <polyline
-        points={toPoints(fertility)}
-        className="fill-none stroke-primary"
-        strokeWidth={2}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      {fertility.map((ratio, index) => {
-        const x = PAD_X + index * stepX;
-        const y = VB_H - PAD_Y - ratio * (VB_H - PAD_Y * 2);
-        return (
-          <circle key={index} cx={x} cy={y} r={3} className="fill-primary" />
-        );
-      })}
-      {AXIS_LABELS.map((label, index) => (
-        <text
-          key={label}
-          x={PAD_X + index * stepX}
-          y={VB_H - 6}
-          textAnchor="middle"
-          className="fill-slate-400"
-          fontSize="9"
-        >
-          {label}
-        </text>
-      ))}
-    </svg>
+  const toX = (value: number) =>
+    PAD_L + ((value - xMin) / (xMax - xMin)) * PLOT_W;
+  const toY = (value: number) =>
+    PAD_T + (1 - (value - yMin) / (yMax - yMin)) * PLOT_H;
+
+  const { slope, intercept } = linearRegression(
+    SAMPLE.map((d) => ({ x: d.opportunity, y: d.fertility })),
   );
-}
-
-function ScatterChart() {
-  const fertility = scaleSeries(FERTILITY_SERIES);
-  const opportunity = scaleSeries(OPPORTUNITY_SERIES);
 
   return (
     <svg
       viewBox={`0 0 ${VB_W} ${VB_H}`}
       className="block h-auto w-full"
       role="img"
-      aria-label="青年生育率與青年就業機會指數散佈圖佔位"
+      aria-label="青年生育率對青年就業機會指數散佈圖與迴歸線佔位"
     >
+      {/* 軸線 */}
       <line
-        x1={PAD_X}
-        y1={VB_H - PAD_Y}
-        x2={VB_W - PAD_X}
-        y2={VB_H - PAD_Y}
+        x1={PAD_L}
+        y1={PAD_T}
+        x2={PAD_L}
+        y2={VB_H - PAD_B}
         className="stroke-slate-200"
         strokeWidth={1}
       />
       <line
-        x1={PAD_X}
-        y1={PAD_Y}
-        x2={PAD_X}
-        y2={VB_H - PAD_Y}
+        x1={PAD_L}
+        y1={VB_H - PAD_B}
+        x2={VB_W - PAD_R}
+        y2={VB_H - PAD_B}
         className="stroke-slate-200"
         strokeWidth={1}
       />
-      {FERTILITY_SERIES.map((_, index) => {
-        const x = PAD_X + opportunity[index] * (VB_W - PAD_X * 2);
-        const y = VB_H - PAD_Y - fertility[index] * (VB_H - PAD_Y * 2);
-        return (
-          <circle
-            key={index}
-            cx={x}
-            cy={y}
-            r={5}
-            className="fill-primary/60 stroke-primary"
-            strokeWidth={1.5}
-          />
-        );
-      })}
+
+      {/* 迴歸線 */}
+      <line
+        x1={toX(xMin)}
+        y1={toY(slope * xMin + intercept)}
+        x2={toX(xMax)}
+        y2={toY(slope * xMax + intercept)}
+        className="stroke-accent-teal"
+        strokeWidth={2}
+        strokeDasharray="6 4"
+        strokeLinecap="round"
+      />
+
+      {/* 資料點 */}
+      {SAMPLE.map((d, index) => (
+        <circle
+          key={index}
+          cx={toX(d.opportunity)}
+          cy={toY(d.fertility)}
+          r={4}
+          className="fill-primary/60 stroke-primary"
+          strokeWidth={1.5}
+        />
+      ))}
+
+      {/* 軸標題 */}
+      <text
+        x={PAD_L + PLOT_W / 2}
+        y={VB_H - 6}
+        textAnchor="middle"
+        className="fill-slate-400"
+        fontSize="10"
+      >
+        青年就業機會指數
+      </text>
+      <text
+        x={12}
+        y={PAD_T + PLOT_H / 2}
+        textAnchor="middle"
+        transform={`rotate(-90 12 ${PAD_T + PLOT_H / 2})`}
+        className="fill-slate-400"
+        fontSize="10"
+      >
+        青年生育率（‰）
+      </text>
     </svg>
   );
 }
 
 export default function OverlayComparisonPanel() {
-  // 佔位互動：切換僅改變佔位圖表樣式，尚未影響資料，待 Backend API 串接。
-  const [view, setView] = useState<ViewId>("dual-axis");
-
   return (
     <Card className="h-full">
       <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
-              Overlay Analysis
-            </p>
-            <CardTitle className="text-base font-bold text-slate-900">
-              疊圖比較分析
-            </CardTitle>
-            <p className="mt-1 text-xs text-slate-500">
-              青年生育率 vs. 青年就業機會指數
-            </p>
-          </div>
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
-            {VIEW_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setView(option.id)}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-                  view === option.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-slate-500 hover:text-slate-700",
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
+          Scatter Analysis
+        </p>
+        <CardTitle className="text-base font-bold text-slate-900">
+          疊圖比較分析
+        </CardTitle>
+        <p className="mt-1 text-xs text-slate-500">
+          青年生育率 vs. 青年就業機會指數（散佈圖＋迴歸線）
+        </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          {view === "dual-axis" ? <DualAxisChart /> : <ScatterChart />}
+          <ScatterRegressionChart />
         </div>
         <div className="flex items-center gap-4 text-[11px] font-semibold text-accent-slate">
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-4 rounded-sm bg-primary" aria-hidden="true" />
-            生育率（‰）
+            <span
+              className="h-2 w-2 rounded-full bg-primary"
+              aria-hidden="true"
+            />
+            行政區（每點一區）
           </span>
           <span className="flex items-center gap-1.5">
             <span
-              className="h-2 w-4 rounded-sm bg-accent-teal"
+              className="h-0 w-4 border-t-2 border-dashed border-accent-teal"
               aria-hidden="true"
             />
-            就業機會指數
+            線性迴歸線
           </span>
         </div>
         <p className="text-[11px] text-slate-400">佔位圖表，數值為示意。</p>

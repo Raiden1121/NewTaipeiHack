@@ -51,14 +51,7 @@ export const FERTILITY_KPIS: FertilityKpi[] = [
     format: (v) => v.toFixed(2),
     range: [0.9, 1.4],
     decimals: 2,
-  },
-  {
-    id: "first-birth-age",
-    label: "第一胎平均年齡",
-    caption: "初次生育之平均年齡（歲）",
-    format: (v) => v.toFixed(1),
-    range: [29, 34],
-    decimals: 1,
+    trend: true,
   },
   {
     id: "youth-population-share",
@@ -67,14 +60,7 @@ export const FERTILITY_KPIS: FertilityKpi[] = [
     format: (v) => `${v}%`,
     range: [22, 32],
     decimals: 1,
-  },
-  {
-    id: "subsidy-application-rate",
-    label: "生育補助申請率",
-    caption: "符合資格者實際申請比例",
-    format: (v) => `${Math.round(v)}%`,
-    range: [70, 95],
-    decimals: 0,
+    trend: true,
   },
   {
     id: "childcare-coverage",
@@ -83,6 +69,7 @@ export const FERTILITY_KPIS: FertilityKpi[] = [
     format: (v) => `${Math.round(v)}%`,
     range: [55, 85],
     decimals: 0,
+    trend: true,
   },
 ];
 

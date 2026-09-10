@@ -4,7 +4,7 @@ import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import FertilityDistributionMap from "./components/FertilityDistributionMap";
 import CoreFertilityKpiPanel from "./components/CoreFertilityKpiPanel";
 import OverlayComparisonPanel from "./components/OverlayComparisonPanel";
-import ResourceInvestmentScore from "./components/ResourceInvestmentScore";
+import FamilyFriendlinessPanel from "./components/FamilyFriendlinessPanel";
 import SectionErrorFallback from "@/components/shared/SectionErrorFallback";
 
 interface SectionProps {
@@ -56,7 +56,7 @@ export default function FertilityPage() {
       <Section
         eyebrow="Overlay & Investment"
         title="機會疊圖與資源量化評估"
-        description="生育率與就業機會之跨主題疊圖，以及各行政區政府資源投入評分"
+        description="生育率與就業機會之散佈迴歸分析，以及各行政區青年成家環境友善度"
       >
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
@@ -65,7 +65,7 @@ export default function FertilityPage() {
             </ErrorBoundary>
           </div>
           <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
-            <ResourceInvestmentScore />
+            <FamilyFriendlinessPanel />
           </ErrorBoundary>
         </div>
       </Section>
