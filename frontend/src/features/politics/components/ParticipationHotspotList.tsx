@@ -1,12 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useDistrictSummary } from "@/features/home/hooks/useDistrictSummary";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const TOP_N = 8;
 
 export default function ParticipationHotspotList() {
   const {
@@ -22,30 +20,53 @@ export default function ParticipationHotspotList() {
   );
   const selectDistrict = useSelectedDistrict((state) => state.selectDistrict);
 
+  const scrollRef = useRef<HTMLOListElement>(null);
+
   const ranked = useMemo(
     () =>
-      [...districts]
-        .sort(
-          (a, b) => b.youthParticipationIndex - a.youthParticipationIndex,
-        )
-        .slice(0, TOP_N),
+      [...districts].sort(
+        (a, b) => b.youthParticipationIndex - a.youthParticipationIndex,
+      ),
     [districts],
   );
 
+  // 地圖點選 → store 更新 → 對應排名列捲入卡片內的可視範圍（僅捲動清單容器，不動頁面）。
+  useEffect(() => {
+    if (!selectedDistrictId) return;
+    const container = scrollRef.current;
+    const row = container?.querySelector<HTMLElement>(
+      `[data-district-id="${selectedDistrictId}"]`,
+    );
+    if (!container || !row) return;
+    const containerRect = container.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    if (rowRect.top < containerRect.top) {
+      container.scrollBy({
+        top: rowRect.top - containerRect.top - 8,
+        behavior: "smooth",
+      });
+    } else if (rowRect.bottom > containerRect.bottom) {
+      container.scrollBy({
+        top: rowRect.bottom - containerRect.bottom + 8,
+        behavior: "smooth",
+      });
+    }
+  }, [selectedDistrictId]);
+
   return (
-    <Card className="flex h-full flex-col">
+    <Card className="flex flex-col">
       <CardHeader>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
-          Hotspot Ranking
+          Area Ranking
         </p>
         <CardTitle className="text-lg font-bold text-slate-900">
-          重點區域
+          區域排名
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col">
+      <CardContent className="flex flex-col">
         {isLoading ? (
           <div className="flex flex-col gap-2">
-            {Array.from({ length: TOP_N }).map((_, index) => (
+            {Array.from({ length: 10 }).map((_, index) => (
               <Skeleton key={index} className="h-9 w-full rounded-lg" />
             ))}
           </div>
@@ -65,19 +86,20 @@ export default function ParticipationHotspotList() {
           </section>
         ) : (
           <>
-            <ol className="flex flex-col gap-0.5">
+            <ol
+              ref={scrollRef}
+              className="-mr-2 flex max-h-[460px] flex-col gap-0.5 overflow-y-auto pr-2"
+            >
               {ranked.map((district, index) => {
                 const isSelected = district.id === selectedDistrictId;
                 return (
-                  <li key={district.id}>
+                  <li key={district.id} data-district-id={district.id}>
                     <button
                       type="button"
                       onClick={() => selectDistrict(district.id)}
                       className={cn(
                         "flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
-                        isSelected
-                          ? "bg-primary/10"
-                          : "hover:bg-slate-50",
+                        isSelected ? "bg-primary/10" : "hover:bg-slate-50",
                       )}
                     >
                       <span className="flex items-center gap-2.5">
@@ -91,7 +113,12 @@ export default function ParticipationHotspotList() {
                         >
                           {index + 1}
                         </span>
-                        <span className="text-sm font-semibold text-slate-800">
+                        <span
+                          className={cn(
+                            "text-sm font-semibold",
+                            isSelected ? "text-primary" : "text-slate-800",
+                          )}
+                        >
                           {district.name}
                         </span>
                       </span>
@@ -103,7 +130,7 @@ export default function ParticipationHotspotList() {
                 );
               })}
             </ol>
-            <p className="mt-auto pt-3 text-[11px] text-slate-400">
+            <p className="shrink-0 pt-3 text-[11px] text-slate-400">
               排名依青年參政指數（佔位資料，待 Backend API 提供）。
             </p>
           </>

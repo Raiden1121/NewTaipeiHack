@@ -8,7 +8,7 @@ import {
 } from "react";
 import { geoMercator, geoPath } from "d3-geo";
 import { motion } from "motion/react";
-import { Minus, Plus, RotateCcw, TrendingUp } from "lucide-react";
+import { Minus, Plus, RotateCcw } from "lucide-react";
 import { useDistrictSummary } from "@/features/home/hooks/useDistrictSummary";
 import {
   useNewTaipeiTopology,
@@ -30,9 +30,6 @@ const CLICK_ZOOM_SCALE = 2.2;
 const DRAG_THRESHOLD = 4;
 // 允許地圖平移到僅剩一半在框內，確保邊緣行政區點選後也能置中。
 const PAN_MARGIN_RATIO = 0.5;
-
-// 佔位：全市平均參政率，待 Backend API 提供整理後結果。
-const CITY_AVERAGE_PARTICIPATION = "18.5%";
 
 const LEGEND_STEPS = [
   "bg-primary/10",
@@ -236,10 +233,23 @@ export default function ParticipationHotspotMap() {
     setIsDragging(false);
   }
 
+  // 選取行政區（不論來源為地圖點選或右側排名）→ 置中對應區域。
+  const lastFocusedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedDistrictId) return;
+    if (lastFocusedRef.current === selectedDistrictId) return;
+    const feature = features.find(
+      (item) => item.properties.id === selectedDistrictId,
+    );
+    if (!feature) return;
+    lastFocusedRef.current = selectedDistrictId;
+    const raf = requestAnimationFrame(() => focusDistrict(feature));
+    return () => cancelAnimationFrame(raf);
+  }, [selectedDistrictId, features, focusDistrict]);
+
   function handleDistrictClick(feature: DistrictFeature) {
     if (movedRef.current) return;
     selectDistrict(feature.properties.id);
-    focusDistrict(feature);
     setPingKey((value) => value + 1);
   }
 
@@ -293,16 +303,6 @@ export default function ParticipationHotspotMap() {
           </section>
         ) : (
           <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg border border-slate-200 bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur">
-              <p className="text-[11px] font-semibold text-accent-slate">
-                全市平均參政率
-              </p>
-              <p className="flex items-center gap-1 text-lg font-bold text-primary">
-                {CITY_AVERAGE_PARTICIPATION}
-                <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
-              </p>
-            </div>
-
             <svg
               ref={svgRef}
               viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}

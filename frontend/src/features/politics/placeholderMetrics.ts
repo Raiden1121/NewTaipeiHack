@@ -1,5 +1,5 @@
 // 佔位指標產生器：以行政區 id 為種子產生 deterministic 數值，
-// 讓切換行政區時六大參政指標會明顯變動。真實資料待 Backend API 提供。
+// 讓切換行政區時三大參政指標會明顯變動。真實資料待 Backend API 提供。
 
 function hashSeed(seed: string): number {
   let hash = 2166136261;
@@ -30,34 +30,24 @@ export interface ParticipationKpi {
   format: (value: number) => string;
   range: [number, number];
   decimals: number;
-  /** 落差型指標為負向，數值越低越差。 */
-  negative?: boolean;
 }
 
 export const PARTICIPATION_KPIS: ParticipationKpi[] = [
   {
-    id: "candidate-density",
-    label: "青年參選密度",
-    caption: "18–35 歲候選人比例",
+    id: "service-coverage",
+    label: "服務涵蓋率",
+    caption: "據點服務覆蓋之青年人口",
     format: (v) => `${v}%`,
-    range: [8, 16],
+    range: [55, 85],
     decimals: 1,
   },
   {
     id: "youth-borough-chief",
-    label: "里長青年占比",
+    label: "青年里長占比",
     caption: "青年當選里長之比例",
     format: (v) => `${v}%`,
     range: [4, 12],
     decimals: 1,
-  },
-  {
-    id: "lean-ratio",
-    label: "參選傾向比",
-    caption: "與全體選民傾向之對照",
-    format: (v) => v.toFixed(2),
-    range: [0.6, 1.1],
-    decimals: 2,
   },
   {
     id: "yrr",
@@ -67,26 +57,9 @@ export const PARTICIPATION_KPIS: ParticipationKpi[] = [
     range: [0.45, 0.85],
     decimals: 2,
   },
-  {
-    id: "elected-gap",
-    label: "青年當選率落差",
-    caption: "與全體當選率之差值",
-    format: (v) => `${v > 0 ? "+" : ""}${v}%`,
-    range: [-6, 1],
-    decimals: 1,
-    negative: true,
-  },
-  {
-    id: "generation-gap",
-    label: "世代斷層指數",
-    caption: "里層間世代參政落差",
-    format: (v) => `${v}`,
-    range: [60, 88],
-    decimals: 1,
-  },
 ];
 
-/** 產生某行政區（或全市）的六大參政指標佔位值。 */
+/** 產生某行政區（或全市）的三大參政指標佔位值。 */
 export function buildParticipationMetrics(seedKey: string) {
   return PARTICIPATION_KPIS.map((kpi) => ({
     ...kpi,

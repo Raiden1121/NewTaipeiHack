@@ -5,9 +5,8 @@ import ParticipationHotspotMap from "./components/ParticipationHotspotMap";
 import ParticipationHotspotList from "./components/ParticipationHotspotList";
 import ParticipationKpiGrid from "./components/ParticipationKpiGrid";
 import YouthActProgress from "./components/YouthActProgress";
-import ServiceCoverageKpis from "./components/ServiceCoverageKpis";
 import ResourceIoCharts from "./components/ResourceIoCharts";
-import YouthDemandVoice from "./components/YouthDemandVoice";
+import YouthTopicWordCloud from "./components/YouthTopicWordCloud";
 import SectionErrorFallback from "@/components/shared/SectionErrorFallback";
 
 interface SectionProps {
@@ -42,9 +41,9 @@ export default function PoliticsPage() {
       <Section
         eyebrow="Participation Index"
         title="青年參政指數核心總覽"
-        description="新北市 29 個行政區之青年參政熱點，點選行政區切換下方六大指標"
+        description="新北市 29 個行政區之青年參政熱點，點選行政區切換下方三大指標"
       >
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
           <div className="lg:col-span-2">
             <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
               <ParticipationHotspotMap />
@@ -67,9 +66,6 @@ export default function PoliticsPage() {
         <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
           <YouthActProgress />
         </ErrorBoundary>
-        <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
-          <ServiceCoverageKpis />
-        </ErrorBoundary>
         <div className="mt-2">
           <p className="mb-3 text-sm font-bold text-slate-700">資源投入與產出</p>
           <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
@@ -81,10 +77,10 @@ export default function PoliticsPage() {
       <Section
         eyebrow="Youth Voice"
         title="青年需求與聲音"
-        description="提案議題分布與外部研究對照"
+        description="各年度青年關注議題之重要程度分布"
       >
         <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
-          <YouthDemandVoice />
+          <YouthTopicWordCloud />
         </ErrorBoundary>
       </Section>
     </div>
