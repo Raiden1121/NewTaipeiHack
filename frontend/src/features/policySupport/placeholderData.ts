@@ -1,13 +1,13 @@
 // 佔位資料，待施政協助板塊與 Backend / AI Service API 提供整理後結果。
 
-import { Home, Coins, Users, Baby } from "lucide-react";
+import { TrendingUp, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type OutcomeTrend = "up" | "down" | "flat";
 
 export interface PolicyOutcome {
   id: string;
-  project: string;
+  label: string;
   /** 主要百分比數值。 */
   value: number;
   metricLabel: string;
@@ -21,44 +21,24 @@ export interface PolicyOutcome {
 
 export const POLICY_OUTCOMES: PolicyOutcome[] = [
   {
-    id: "rent-subsidy",
-    project: "青年租金補貼專案",
-    value: 85,
-    metricLabel: "預算執行率",
-    deltaPct: 12.4,
+    id: "wage-growth",
+    label: "薪資成長率",
+    value: 2.8,
+    metricLabel: "青年平均月薪年增",
+    deltaPct: 0.6,
     trend: "up",
-    spark: [58, 61, 60, 67, 72, 78, 85],
-    icon: Home,
+    spark: [1.6, 1.9, 2.1, 2.0, 2.4, 2.6, 2.8],
+    icon: TrendingUp,
   },
   {
-    id: "startup-loan",
-    project: "創業貸款利息補貼",
-    value: 92,
-    metricLabel: "目標達成率",
-    deltaPct: 5.2,
-    trend: "up",
-    spark: [74, 78, 80, 83, 86, 89, 92],
-    icon: Coins,
-  },
-  {
-    id: "youth-empowerment",
-    project: "青年參與培力計畫",
-    value: 64,
-    metricLabel: "參與覆蓋率",
-    deltaPct: -2.1,
+    id: "youth-generation-change",
+    label: "青年人口世代變化率",
+    value: -3.5,
+    metricLabel: "20–35 歲人口近五年變化",
+    deltaPct: -1.2,
     trend: "down",
-    spark: [71, 70, 69, 68, 67, 66, 64],
+    spark: [-0.8, -1.4, -1.9, -2.3, -2.8, -3.1, -3.5],
     icon: Users,
-  },
-  {
-    id: "childcare-allowance",
-    project: "育兒津貼發放效率",
-    value: 98,
-    metricLabel: "準時發放率",
-    deltaPct: 0.1,
-    trend: "flat",
-    spark: [97, 98, 97, 98, 98, 97, 98],
-    icon: Baby,
   },
 ];
 
