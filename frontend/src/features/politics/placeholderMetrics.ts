@@ -1,0 +1,73 @@
+// 佔位指標產生器：以行政區 id 為種子產生 deterministic 數值，
+// 讓切換行政區時三大參政指標會明顯變動。真實資料待 Backend API 提供。
+
+function hashSeed(seed: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 0xffffffff;
+}
+
+/** 依 seed 在 [min, max] 之間取一個 deterministic 值，四捨五入到 decimals 位。 */
+function seededValue(
+  seed: string,
+  min: number,
+  max: number,
+  decimals = 1,
+): number {
+  const ratio = hashSeed(seed);
+  const raw = min + ratio * (max - min);
+  const factor = 10 ** decimals;
+  return Math.round(raw * factor) / factor;
+}
+
+export interface ParticipationKpi {
+  id: string;
+  label: string;
+  caption: string;
+  format: (value: number) => string;
+  range: [number, number];
+  decimals: number;
+}
+
+export const PARTICIPATION_KPIS: ParticipationKpi[] = [
+  {
+    id: "service-coverage",
+    label: "服務涵蓋率",
+    caption: "據點服務覆蓋之青年人口",
+    format: (v) => `${v}%`,
+    range: [55, 85],
+    decimals: 1,
+  },
+  {
+    id: "youth-borough-chief",
+    label: "青年里長占比",
+    caption: "青年當選里長之比例",
+    format: (v) => `${v}%`,
+    range: [4, 12],
+    decimals: 1,
+  },
+  {
+    id: "yrr",
+    label: "YRR (Youth Rep. Ratio)",
+    caption: "席次與青年人口占比之比值",
+    format: (v) => v.toFixed(2),
+    range: [0.45, 0.85],
+    decimals: 2,
+  },
+];
+
+/** 產生某行政區（或全市）的三大參政指標佔位值。 */
+export function buildParticipationMetrics(seedKey: string) {
+  return PARTICIPATION_KPIS.map((kpi) => ({
+    ...kpi,
+    value: seededValue(
+      `${seedKey}:${kpi.id}`,
+      kpi.range[0],
+      kpi.range[1],
+      kpi.decimals,
+    ),
+  }));
+}
