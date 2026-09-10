@@ -69,7 +69,7 @@ describe("KpiSummaryRow", () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  it("renders aggregated KPI values and the most common retention risk level", () => {
+  it("renders aggregated KPI values from the district summaries", () => {
     mockedUseDistrictSummary.mockReturnValue({
       data: SAMPLE_DISTRICTS,
       isLoading: false,
@@ -80,6 +80,5 @@ describe("KpiSummaryRow", () => {
 
     render(<KpiSummaryRow />);
     expect(screen.getByText("新北市青年人口 4,500 人")).toBeInTheDocument();
-    expect(screen.getByText("高風險")).toBeInTheDocument();
   });
 });

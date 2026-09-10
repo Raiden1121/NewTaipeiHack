@@ -7,39 +7,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { DistrictSummary, RetentionRiskLevel } from "@/types/district";
 
 const NATIONAL_YOUTH_POPULATION = 4_820_000;
 const NATIONAL_YOUTH_POPULATION_SHARE = 20.6;
 const CITY_YOUTH_POPULATION_SHARE = 28.4;
 const YOUTH_POPULATION_YOY = -1.2;
-
-const RISK_LABEL: Record<RetentionRiskLevel, string> = {
-  low: "低風險",
-  medium: "中風險",
-  high: "高風險",
-};
-
-function averageRetentionRisk(
-  districts: DistrictSummary[],
-): RetentionRiskLevel {
-  const counts: Record<RetentionRiskLevel, number> = {
-    low: 0,
-    medium: 0,
-    high: 0,
-  };
-  districts.forEach((district) => {
-    counts[district.retentionRiskLevel] += 1;
-  });
-
-  return (Object.keys(counts) as RetentionRiskLevel[]).reduce(
-    (mostCommon, level) =>
-      counts[level] > counts[mostCommon] ? level : mostCommon,
-    "low" as RetentionRiskLevel,
-  );
-}
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("zh-Hant-TW").format(Math.round(value));
@@ -57,10 +30,10 @@ export default function KpiSummaryRow() {
   if (isLoading) {
     return (
       <div
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-3"
         data-testid="kpi-skeleton"
       >
-        {Array.from({ length: 4 }).map((_, index) => (
+        {Array.from({ length: 3 }).map((_, index) => (
           <Skeleton key={index} className="h-32 w-full rounded-2xl" />
         ))}
       </div>
@@ -90,7 +63,6 @@ export default function KpiSummaryRow() {
     (total, district) => total + district.youthPopulation,
     0,
   );
-  const riskLevel = averageRetentionRisk(districts);
 
   const kpis = [
     {
@@ -112,7 +84,7 @@ export default function KpiSummaryRow() {
 
   return (
     <div
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      className="grid grid-cols-1 gap-4 sm:grid-cols-3"
       data-testid="kpi-success"
     >
       {kpis.map((kpi, index) => (
@@ -135,22 +107,6 @@ export default function KpiSummaryRow() {
           </Card>
         </motion.div>
       ))}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.24, duration: 0.35 }}
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold text-accent-slate">
-              平均留才風險等級
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge variant={riskLevel}>{RISK_LABEL[riskLevel]}</Badge>
-          </CardContent>
-        </Card>
-      </motion.div>
     </div>
   );
 }
