@@ -1,13 +1,6 @@
 import { useMemo } from "react";
 import { motion } from "motion/react";
-import {
-  Baby,
-  CalendarClock,
-  HeartPulse,
-  Home,
-  PiggyBank,
-  Users,
-} from "lucide-react";
+import { Baby, CalendarClock, HeartPulse, Home, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useDistrictSummary } from "@/features/home/hooks/useDistrictSummary";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
@@ -18,9 +11,7 @@ import { cn } from "@/lib/utils";
 const ICONS: Record<string, LucideIcon> = {
   "total-births": Baby,
   "avg-fertility-rate": HeartPulse,
-  "first-birth-age": CalendarClock,
   "youth-population-share": Users,
-  "subsidy-application-rate": PiggyBank,
   "childcare-coverage": Home,
 };
 
@@ -45,9 +36,15 @@ export default function CoreFertilityKpiPanel() {
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
           Core Metrics
         </p>
-        <CardTitle className="text-lg font-bold text-slate-900">
-          核心生育指標
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-lg font-bold text-slate-900">
+            核心生育指標
+          </CardTitle>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+            <CalendarClock className="h-3 w-3" aria-hidden="true" />
+            與去年相比
+          </span>
+        </div>
         <p className="text-xs font-semibold text-accent-slate">
           目前檢視範圍：
           <span className="font-bold text-slate-700">{scopeLabel}</span>
@@ -65,13 +62,13 @@ export default function CoreFertilityKpiPanel() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04, duration: 0.28 }}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+              className="flex flex-1 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
             >
               <div>
                 <p className="text-xs font-semibold text-slate-600">
                   {metric.label}
                 </p>
-                <p className="mt-0.5 flex items-baseline gap-1.5">
+                <p className="mt-1 flex items-baseline gap-1.5">
                   <span className="text-2xl font-bold text-slate-900">
                     {metric.format(metric.value)}
                   </span>
@@ -87,7 +84,7 @@ export default function CoreFertilityKpiPanel() {
                     </span>
                   ) : null}
                 </p>
-                <p className="mt-0.5 text-[11px] text-slate-400">
+                <p className="mt-1 text-[11px] text-slate-400">
                   {metric.caption}
                 </p>
               </div>
@@ -97,8 +94,8 @@ export default function CoreFertilityKpiPanel() {
             </motion.div>
           );
         })}
-        <p className="mt-auto pt-2 text-[11px] text-slate-400">
-          六大生育指標為依行政區產生的佔位資料，待 Backend API 提供整理後結果。
+        <p className="pt-1 text-[11px] text-slate-400">
+          四項生育指標為依行政區產生的佔位資料，增減百分比為與去年同期相比，待 Backend API 提供整理後結果。
         </p>
       </CardContent>
     </Card>

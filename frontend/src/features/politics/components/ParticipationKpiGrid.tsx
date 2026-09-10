@@ -1,27 +1,16 @@
 import { useMemo } from "react";
 import { motion } from "motion/react";
-import {
-  ArrowLeftRight,
-  Building2,
-  Gauge,
-  Layers,
-  TrendingDown,
-  UserPlus,
-} from "lucide-react";
+import { Building2, Gauge, Target } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useDistrictSummary } from "@/features/home/hooks/useDistrictSummary";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 import { Card, CardContent } from "@/components/ui/card";
 import { buildParticipationMetrics } from "../placeholderMetrics";
-import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, LucideIcon> = {
-  "candidate-density": UserPlus,
+  "service-coverage": Target,
   "youth-borough-chief": Building2,
-  "lean-ratio": ArrowLeftRight,
   yrr: Gauge,
-  "elected-gap": TrendingDown,
-  "generation-gap": Layers,
 };
 
 export default function ParticipationKpiGrid() {
@@ -52,7 +41,6 @@ export default function ParticipationKpiGrid() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {metrics.map((metric, index) => {
           const Icon = ICONS[metric.id] ?? Gauge;
-          const isNegativeValue = metric.negative && metric.value < 0;
           return (
             <motion.div
               key={metric.id}
@@ -66,12 +54,7 @@ export default function ParticipationKpiGrid() {
                     <p className="text-sm font-semibold text-slate-600">
                       {metric.label}
                     </p>
-                    <p
-                      className={cn(
-                        "mt-1 text-3xl font-bold",
-                        isNegativeValue ? "text-risk-high" : "text-slate-900",
-                      )}
-                    >
+                    <p className="mt-1 text-3xl font-bold text-slate-900">
                       {metric.format(metric.value)}
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
@@ -88,7 +71,7 @@ export default function ParticipationKpiGrid() {
         })}
       </div>
       <p className="text-[11px] text-slate-400">
-        六大參政指標為依行政區產生的佔位資料，待 Backend API 提供整理後結果。
+        三大參政指標為依行政區產生的佔位資料，待 Backend API 提供整理後結果。
       </p>
     </div>
   );

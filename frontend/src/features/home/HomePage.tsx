@@ -61,7 +61,7 @@ export default function HomePage() {
         </div>
       </Section>
 
-      <Section eyebrow="Governance" title="施政協助與決策支援">
+      <Section eyebrow="Governance" title="施政協助">
         <PolicySupportPanel />
       </Section>
     </div>
