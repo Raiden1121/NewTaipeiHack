@@ -19,8 +19,8 @@ interface ScatterChart {
 const CHARTS: ScatterChart[] = [
   {
     id: "salary-education",
-    chartTitle: "起薪與教育水準相關性（各行政區）",
-    xLabel: "高等教育普及率 (%)",
+    chartTitle: "起薪與知識型職缺比例相關性（各行政區）",
+    xLabel: "知識型職缺比例 (%)",
     yLabel: "青年平均起薪 (萬元)",
     trend: { x1: 4, y1: 14, x2: 94, y2: 88 },
     points: [

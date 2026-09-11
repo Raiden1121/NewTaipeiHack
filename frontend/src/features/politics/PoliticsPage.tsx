@@ -4,7 +4,6 @@ import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import ParticipationHotspotMap from "./components/ParticipationHotspotMap";
 import ParticipationHotspotList from "./components/ParticipationHotspotList";
 import ParticipationKpiGrid from "./components/ParticipationKpiGrid";
-import YouthActProgress from "./components/YouthActProgress";
 import ResourceIoCharts from "./components/ResourceIoCharts";
 import YouthTopicWordCloud from "./components/YouthTopicWordCloud";
 import SectionErrorFallback from "@/components/shared/SectionErrorFallback";
@@ -63,10 +62,7 @@ export default function PoliticsPage() {
         title="青年政策與服務易達性分析"
         description="服務易達性與資源配置"
       >
-        <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
-          <YouthActProgress />
-        </ErrorBoundary>
-        <div className="mt-2">
+        <div>
           <p className="mb-3 text-sm font-bold text-slate-700">資源投入與產出</p>
           <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
             <ResourceIoCharts />

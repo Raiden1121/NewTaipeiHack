@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
@@ -6,7 +5,6 @@ import OpportunityIndexMap from "./components/OpportunityIndexMap";
 import DistrictDetailCard from "./components/DistrictDetailCard";
 import CrossAnalysisScatter from "./components/CrossAnalysisScatter";
 import SectionErrorFallback from "@/components/shared/SectionErrorFallback";
-import { cn } from "@/lib/utils";
 
 interface SectionProps {
   eyebrow: string;
@@ -36,37 +34,6 @@ function Section({ eyebrow, title, description, action, children }: SectionProps
   );
 }
 
-const TIMEFRAME_OPTIONS = [
-  { id: "decade", label: "近十年綜合" },
-  { id: "recent", label: "近三年平均" },
-] as const;
-
-function TimeframeToggle() {
-  // 佔位互動：切換尚未影響資料，待 Backend API 串接。
-  const [value, setValue] =
-    useState<(typeof TIMEFRAME_OPTIONS)[number]["id"]>("decade");
-
-  return (
-    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
-      {TIMEFRAME_OPTIONS.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          onClick={() => setValue(option.id)}
-          className={cn(
-            "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-            value === option.id
-              ? "bg-primary text-primary-foreground"
-              : "text-slate-500 hover:text-slate-700",
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export default function EmploymentPage() {
   const { reset } = useQueryErrorResetBoundary();
 
@@ -76,7 +43,6 @@ export default function EmploymentPage() {
         eyebrow="Opportunity Index"
         title="青年機會指數"
         description="分析新北市 29 個行政區之綜合發展潛力與民生負擔"
-        action={<TimeframeToggle />}
       >
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">

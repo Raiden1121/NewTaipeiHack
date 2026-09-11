@@ -39,7 +39,7 @@ export default function FertilityPage() {
       <Section
         eyebrow="Fertility Report"
         title="青年生育分析報告"
-        description="分析新北市 29 個行政區 20–39 歲青年人口生育趨勢與資源投入狀況，點選行政區切換右側核心指標"
+        description="分析新北市 29 個行政區 18–35 歲青年人口生育趨勢與資源投入狀況，點選行政區切換右側核心指標"
       >
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
