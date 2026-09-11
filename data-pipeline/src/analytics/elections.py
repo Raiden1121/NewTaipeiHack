@@ -68,7 +68,14 @@ def calculate_youth_candidacy(
         if bool(raw.get("elected")) or raw.get("elected_mark") == "*":
             group["elected_count"] += 1
 
-    t1_rows = [_finalize_group(group, denominator=population.get(year, {}).get("city"), denominator_scope="citywide") for _, group in sorted(t1_groups.items())]
+    t1_rows = [
+        _finalize_group(
+            group,
+            denominator=population.get(year, {}).get("city"),
+            denominator_scope="citywide",
+        )
+        for (year, _), group in sorted(t1_groups.items())
+    ]
     v1_rows = []
     for _, group in sorted(v1_groups.items()):
         denominator = population.get(group["election_year_roc"], {}).get("districts", {}).get(group["district_id"])

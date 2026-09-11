@@ -14,6 +14,75 @@ import run_analytics  # noqa: E402
 
 
 class TestRunAnalytics(unittest.TestCase):
+    def test_youth_participation_branch_embeds_analysis_in_snapshot(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            config_dir = root / "config"
+            config_dir.mkdir()
+            (config_dir / "homepage_analytics.json").write_text(
+                json.dumps(
+                    {
+                        "version": "1",
+                        "annual_years_roc": [110, 111, 112, 113, 114],
+                        "population_reference_year_roc": 114,
+                        "election_years_roc": [103, 107, 111],
+                        "service_radius_m": 2500,
+                        "normalization": {"method": "p5_p95", "constant_value": 50},
+                        "yoi_weights": {"job": 0.25, "salary": 0.25, "talent": 0.05, "housing": 0.25, "transport": 0.2},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            homepage = {
+                "metric_id": "homepage",
+                "generated_at": "2026-09-11T09:39:13.190552+00:00",
+                "districts": [],
+                "_quality": {"source_periods": {}},
+            }
+            participation = {
+                "metric_id": "youth_participation",
+                "generated_at": "2026-09-11T09:39:13.190552+00:00",
+                "elections": {},
+                "_quality": {"source_periods": {}, "coverage": {}},
+            }
+            with patch.object(run_analytics, "HomepageInputResolver"):
+                with patch.object(run_analytics, "generate_homepage_data", return_value=homepage):
+                    with patch.object(
+                        run_analytics,
+                        "generate_youth_participation_data",
+                        return_value=participation,
+                    ) as generate:
+                        with patch.object(
+                            run_analytics,
+                            "write_youth_participation_data",
+                            return_value=(root / "participation.json", root / "quality.json"),
+                        ) as write:
+                            with patch.object(run_analytics, "publish_homepage_snapshot") as publish:
+                                self.assertEqual(
+                                    run_analytics.main(
+                                        [
+                                            "--metric",
+                                            "youth_participation",
+                                            "--output-dir",
+                                            str(root / "data"),
+                                            "--config-dir",
+                                            str(config_dir),
+                                            "--publish",
+                                            "--snapshot-id",
+                                            "dev-youth-participation",
+                                        ]
+                                    ),
+                                    0,
+                                )
+            generate.assert_called_once()
+            write.assert_called_once()
+            publish.assert_called_once()
+            self.assertEqual(
+                publish.call_args.kwargs["analyses"]["participation"]["metric_id"],
+                "youth_participation",
+            )
+            self.assertNotIn("_quality", publish.call_args.kwargs["analyses"]["participation"])
+
     def test_employment_branch_writes_and_publishes_analysis(self):
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)

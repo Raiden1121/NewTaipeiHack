@@ -33,6 +33,7 @@ from collectors.join_proposals import fetch_join_proposals
 from collectors.elections import fetch_elections
 from collectors.youth_council_minutes import fetch_youth_council_minutes
 from collectors.youth_budget import fetch_youth_budgets
+from collectors.youth_grants import fetch_youth_grants
 from collectors.youth_service_points import fetch_youth_service_points
 from collectors.village_boundaries import fetch_village_boundaries
 from collectors.errors import CollectorNoDataError
@@ -120,6 +121,12 @@ def _collect_youth_service_points(_period: str) -> CollectedPayload:
     return fetch_youth_service_points()
 
 
+def _collect_youth_grants(_period: str) -> CollectedPayload:
+    """Fetch all annual civil-organization grant detail documents."""
+
+    return fetch_youth_grants()
+
+
 def _collect_join_proposals(_period: str) -> CollectedPayload:
     """Fetch all available nationwide join proposals."""
 
@@ -160,6 +167,7 @@ DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
     ),
     CollectorSpec("talent_demand", lambda period: fetch_talent_demand(), PeriodStrategy.ALL_AVAILABLE),
     CollectorSpec("youth_budgets", _collect_youth_budgets, PeriodStrategy.ALL_AVAILABLE),
+    CollectorSpec("youth_grants", _collect_youth_grants, PeriodStrategy.ALL_AVAILABLE),
     CollectorSpec("elections", _collect_elections, PeriodStrategy.ALL_AVAILABLE),
     CollectorSpec(
         "youth_service_points", _collect_youth_service_points, PeriodStrategy.SNAPSHOT
@@ -1030,6 +1038,7 @@ def _run_replay(
         "elections",
         "join_proposals",
         "youth_council_minutes",
+        "youth_grants",
     } else None
     write_curated(result, dataset=canonical_dataset, output_dir=output_dir, period=period)
     return 0

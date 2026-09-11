@@ -29,6 +29,7 @@ from .service_points import (
     transform_youth_service_points,
 )
 from .village_boundaries import transform_village_boundaries
+from .youth_grants import transform_youth_grants
 
 
 class UnsupportedDatasetError(ValueError):
@@ -72,6 +73,7 @@ _GEOGRAPHIC_TRANSFORMS = {
     "babysitting_places": transform_babysitting_places,
     "elections": transform_elections,
     "youth_service_points": transform_youth_service_points,
+    "youth_grants": transform_youth_grants,
 }
 _PLAIN_TRANSFORMS = {
     "graduate_majors": transform_graduate_majors,
@@ -132,6 +134,22 @@ def run_transform(
             resolver=active_resolver,
             fetched_at=fetched_at,
             location_reference=location_reference,
+        )
+    if canonical_dataset == "youth_grants":
+        active_resolver = resolver or _default_resolver()
+        if isinstance(records, Mapping):
+            metadata = records.get("metadata")
+            envelope_fetched_at = (
+                metadata.get("fetched_at")
+                if isinstance(metadata, Mapping)
+                else records.get("fetched_at")
+            )
+            records = _record_list(records.get("records"), field="records")
+            fetched_at = fetched_at or envelope_fetched_at
+        return transform_youth_grants(
+            _record_list(records, field="records"),
+            resolver=active_resolver,
+            fetched_at=fetched_at,
         )
     if canonical_dataset in _GEOGRAPHIC_TRANSFORMS:
         active_resolver = resolver or _default_resolver()

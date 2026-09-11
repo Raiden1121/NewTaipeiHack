@@ -81,6 +81,7 @@ class TestExecutionSchedule(unittest.TestCase):
             "babysitting_places": PeriodStrategy.SNAPSHOT,
             "talent_demand": PeriodStrategy.ALL_AVAILABLE,
             "youth_budgets": PeriodStrategy.ALL_AVAILABLE,
+            "youth_grants": PeriodStrategy.ALL_AVAILABLE,
             "elections": PeriodStrategy.ALL_AVAILABLE,
             "youth_service_points": PeriodStrategy.SNAPSHOT,
             "village_boundaries": PeriodStrategy.SNAPSHOT,

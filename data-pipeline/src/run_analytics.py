@@ -22,6 +22,10 @@ from analytics.youth_keyword_frequency import (
     write_youth_keyword_frequency,
 )
 from analytics.youth_topic_weight import calculate_youth_topic_weights, write_youth_topic_weights
+from analytics.youth_participation import (
+    generate_youth_participation_data,
+    write_youth_participation_data,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,7 +33,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--metric",
         required=True,
-        choices=("youth_topic_weight", "youth_keyword_frequency", "homepage", "employment"),
+        choices=(
+            "youth_topic_weight",
+            "youth_keyword_frequency",
+            "homepage",
+            "employment",
+            "youth_participation",
+        ),
     )
     parser.add_argument("--output-dir", default="data")
     parser.add_argument("--config-dir", default="config")
@@ -49,9 +59,11 @@ def main(argv: list[str] | None = None) -> int:
 
     output_dir = Path(args.output_dir)
     config_dir = Path(args.config_dir)
-    if args.publish and args.metric not in {"homepage", "employment"}:
-        parser.error("--publish is only supported with --metric homepage or employment")
-    if args.metric in {"homepage", "employment"}:
+    if args.publish and args.metric not in {"homepage", "employment", "youth_participation"}:
+        parser.error(
+            "--publish is only supported with --metric homepage, employment, or youth_participation"
+        )
+    if args.metric in {"homepage", "employment", "youth_participation"}:
         if args.annual_start_roc > args.annual_end_roc:
             parser.error("--annual-start-roc must be less than or equal to --annual-end-roc")
         config = load_homepage_analytics_config(config_dir / "homepage_analytics.json")
@@ -75,6 +87,37 @@ def main(argv: list[str] | None = None) -> int:
                     homepage_result.get("_quality"),
                     output_dir=output_dir,
                     snapshot_id=args.snapshot_id,
+                )
+                print(f"published snapshot written: {published.snapshot_dir}")
+                print(f"published pointer written: {published.current_path}")
+            return 0
+
+        if args.metric == "youth_participation":
+            participation_result = generate_youth_participation_data(
+                resolver=resolver,
+                config=config,
+                config_dir=config_dir,
+            )
+            output_path, quality_path = write_youth_participation_data(
+                participation_result, output_dir=output_dir
+            )
+            print(f"analytics written: {output_path}")
+            print(f"quality written: {quality_path}")
+            if args.publish:
+                public_participation = {
+                    key: value
+                    for key, value in participation_result.items()
+                    if key != "_quality"
+                }
+                published = publish_homepage_snapshot(
+                    homepage_result,
+                    homepage_result.get("_quality"),
+                    output_dir=output_dir,
+                    snapshot_id=args.snapshot_id,
+                    analyses={"participation": public_participation},
+                    analysis_quality={
+                        "participation": participation_result.get("_quality", {})
+                    },
                 )
                 print(f"published snapshot written: {published.snapshot_dir}")
                 print(f"published pointer written: {published.current_path}")

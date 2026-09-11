@@ -351,7 +351,16 @@ def _build_tokenizer(
     try:
         import jieba  # type: ignore
     except ImportError:
-        return _fallback_tokenize, "fallback_char_ngrams"
+        protected_terms = tuple(
+            term for term in config.policy_terms if term and term not in {"青年"}
+        )
+
+        def fallback_tokenize(text: str) -> list[str]:
+            tokens = _fallback_tokenize(text)
+            tokens.extend(term for term in protected_terms if term in text)
+            return tokens
+
+        return fallback_tokenize, "fallback_char_ngrams"
     if config.userdict_path and config.userdict_path.exists():
         with config.userdict_path.open("rb") as userdict:
             jieba.load_userdict(userdict)
