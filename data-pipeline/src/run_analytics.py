@@ -3,10 +3,19 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from pathlib import Path
 
-from analytics.config import load_keyword_config, load_topic_rules, load_topic_weights
+from analytics.config import (
+    load_homepage_analytics_config,
+    load_keyword_config,
+    load_topic_rules,
+    load_topic_weights,
+)
+from analytics.homepage import generate_homepage_data, write_homepage_data
+from analytics.input_resolver import HomepageInputResolver
 from analytics.io import load_curated_dataset
+from analytics.published_snapshot import publish_homepage_snapshot
 from analytics.youth_keyword_frequency import (
     calculate_youth_keyword_frequency,
     write_youth_keyword_frequency,
@@ -19,14 +28,56 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--metric",
         required=True,
-        choices=("youth_topic_weight", "youth_keyword_frequency"),
+        choices=("youth_topic_weight", "youth_keyword_frequency", "homepage"),
     )
     parser.add_argument("--output-dir", default="data")
     parser.add_argument("--config-dir", default="config")
+    parser.add_argument("--annual-start-roc", type=int, default=110)
+    parser.add_argument("--annual-end-roc", type=int, default=114)
+    parser.add_argument("--population-reference-roc", type=int, default=114)
+    parser.add_argument(
+        "--publish",
+        action="store_true",
+        help="Publish the homepage analytics result as a versioned local snapshot",
+    )
+    parser.add_argument(
+        "--snapshot-id",
+        help="Optional safe id for the published homepage snapshot",
+    )
     args = parser.parse_args(argv)
 
     output_dir = Path(args.output_dir)
     config_dir = Path(args.config_dir)
+    if args.publish and args.metric != "homepage":
+        parser.error("--publish is only supported with --metric homepage")
+    if args.metric == "homepage":
+        if args.annual_start_roc > args.annual_end_roc:
+            parser.error("--annual-start-roc must be less than or equal to --annual-end-roc")
+        config = load_homepage_analytics_config(config_dir / "homepage_analytics.json")
+        annual_years = tuple(range(args.annual_start_roc, args.annual_end_roc + 1))
+        if args.population_reference_roc not in annual_years:
+            parser.error("--population-reference-roc must be within the annual ROC range")
+        config = replace(
+            config,
+            annual_years_roc=annual_years,
+            population_reference_year_roc=args.population_reference_roc,
+        )
+        resolver = HomepageInputResolver.from_paths(output_dir, config_dir)
+        result = generate_homepage_data(resolver=resolver, config=config)
+        output_path, quality_path = write_homepage_data(result, output_dir=output_dir)
+        print(f"analytics written: {output_path}")
+        print(f"quality written: {quality_path}")
+        if args.publish:
+            published = publish_homepage_snapshot(
+                result,
+                result.get("_quality"),
+                output_dir=output_dir,
+                snapshot_id=args.snapshot_id,
+            )
+            print(f"published snapshot written: {published.snapshot_dir}")
+            print(f"published pointer written: {published.current_path}")
+        return 0
+
     weights = load_topic_weights(config_dir / "youth_topic_weights.json")
     join_rows = load_curated_dataset("join_proposals", output_dir=output_dir)
     minute_rows = load_curated_dataset("youth_council_minutes", output_dir=output_dir)

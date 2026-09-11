@@ -98,8 +98,8 @@ class TestTransformCommon(unittest.TestCase):
             youth_eligibility="context_only",
             fetched_at=None,
         )
-        with self.assertRaises(TransformValueError):
-            build_common_metadata(**(required | {"geo_level": "village"}))
+        village_metadata = build_common_metadata(**(required | {"geo_level": "village"}))
+        self.assertEqual(village_metadata["geo_level"], "village")
         with self.assertRaises(TransformValueError):
             build_common_metadata(**(required | {"youth_eligibility": "eligible"}))
 

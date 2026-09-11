@@ -11,6 +11,7 @@ from analytics.config import load_topic_rules
 from .contracts import TransformResult
 from .budget import transform_youth_budgets
 from .childcare import transform_babysitting_places
+from .elections import transform_elections
 from .education import transform_college_majors, transform_graduate_majors
 from .geography import DistrictResolver
 from .housing import transform_house_prices, transform_rentals
@@ -18,10 +19,16 @@ from .labor import transform_job_vacancies, transform_job_vacancy_salaries, tran
 from .life_events import transform_births, transform_marriages
 from .mobility import transform_movement
 from .population import transform_population
+from .population_villages import transform_population_villages
 from .training import transform_talent_demand, transform_training_numbers, transform_vt_courses
 from .transport import transform_bike_stops, transform_bus_stops, transform_railway_stops
 from .join_proposals import transform_join_proposals
 from .youth_council_minutes import transform_youth_council_minutes
+from .service_points import (
+    load_youth_service_point_location_reference,
+    transform_youth_service_points,
+)
+from .village_boundaries import transform_village_boundaries
 
 
 class UnsupportedDatasetError(ValueError):
@@ -50,6 +57,7 @@ _ALIASES = {
 }
 _GEOGRAPHIC_TRANSFORMS = {
     "population": transform_population,
+    "population_villages": transform_population_villages,
     "movement": transform_movement,
     "births": transform_births,
     "marriages": transform_marriages,
@@ -62,6 +70,8 @@ _GEOGRAPHIC_TRANSFORMS = {
     "railway_stops": transform_railway_stops,
     "bike_stops": transform_bike_stops,
     "babysitting_places": transform_babysitting_places,
+    "elections": transform_elections,
+    "youth_service_points": transform_youth_service_points,
 }
 _PLAIN_TRANSFORMS = {
     "graduate_majors": transform_graduate_majors,
@@ -69,6 +79,7 @@ _PLAIN_TRANSFORMS = {
     "talent_demand": transform_talent_demand,
     "wages": transform_wages,
     "youth_budgets": transform_youth_budgets,
+    "village_boundaries": transform_village_boundaries,
 }
 _TOPIC_TRANSFORMS = {
     "join_proposals": transform_join_proposals,
@@ -110,6 +121,18 @@ def run_transform(
         envelope_fetched_at = metadata.get("fetched_at") if isinstance(metadata, Mapping) else None
         records = _record_list(records.get("records"), field="records")
         fetched_at = fetched_at or envelope_fetched_at
+    if canonical_dataset == "youth_service_points":
+        active_resolver = resolver or _default_resolver()
+        reference_dir = Path(config_dir) if config_dir is not None else _default_config_dir()
+        location_reference = load_youth_service_point_location_reference(
+            reference_dir / "reference" / "youth_service_points_locations.json"
+        )
+        return transform_youth_service_points(
+            _record_list(records, field="records"),
+            resolver=active_resolver,
+            fetched_at=fetched_at,
+            location_reference=location_reference,
+        )
     if canonical_dataset in _GEOGRAPHIC_TRANSFORMS:
         active_resolver = resolver or _default_resolver()
         return _GEOGRAPHIC_TRANSFORMS[canonical_dataset](

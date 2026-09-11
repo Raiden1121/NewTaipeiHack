@@ -178,6 +178,40 @@ class LocalRetentionTests(unittest.TestCase):
                 payload,
             )
 
+    def test_preserves_selected_election_terms_in_all_available_output(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            records = [
+                {
+                    "election_term": "2014",
+                    "period_start": "2014-11-29",
+                    "period_type": "snapshot",
+                },
+                {
+                    "election_term": "2022",
+                    "period_start": "2022-11-26",
+                    "period_type": "snapshot",
+                },
+            ]
+            path = root / "curated/elections/all.json"
+            raw_path = root / "raw/elections/11509_20260909T000000Z.json"
+            self._write_json(path, {"records": records})
+            self._write_json(raw_path, {"records": records, "documents": records})
+
+            report = prune_local_data(
+                root,
+                current_period="11509",
+                period_strategies={"elections": PeriodStrategy.ALL_AVAILABLE},
+            )
+
+            self.assertEqual(
+                json.loads(path.read_text(encoding="utf-8"))["records"], records
+            )
+            self.assertEqual(
+                json.loads(raw_path.read_text(encoding="utf-8"))["documents"], records
+            )
+            self.assertNotIn("curated/elections/all.json", report["rewritten_paths"])
+
 
 if __name__ == "__main__":
     unittest.main()

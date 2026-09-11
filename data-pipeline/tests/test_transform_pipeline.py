@@ -131,6 +131,53 @@ class TestTransformPipeline(unittest.TestCase):
         )
         self.assertEqual(minutes_result.records[0]["dataset"], "youth_council_minutes")
 
+    def test_youth_service_transform_loads_static_location_reference(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            config_dir = Path(tempdir)
+            reference_dir = config_dir / "reference"
+            reference_dir.mkdir()
+            (reference_dir / "youth_service_points_locations.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "records": [
+                            {
+                                "point_id": "innovation",
+                                "address": "新北市三重區重新路一段108號3樓",
+                                "source_district_name": "三重區",
+                                "x_3826": 300530.403775,
+                                "y_3826": 2772867.4135083,
+                                "source_url": "https://example.test/address",
+                                "source_type": "official_manual_reference",
+                                "verified_at": "2026-09-11",
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            result = run_transform(
+                "youth_service_points",
+                [
+                    {
+                        "point_id": "innovation",
+                        "point_type": "startup_base",
+                        "name": "新北創力坊",
+                        "address": None,
+                        "latitude": None,
+                        "longitude": None,
+                        "geocode_status": "not_attempted",
+                    }
+                ],
+                resolver=self.resolver,
+                config_dir=config_dir,
+            )
+
+            self.assertEqual(result.records[0]["geocode_status"], "matched")
+            self.assertEqual(result.records[0]["address"], "新北市三重區重新路一段108號3樓")
+
     def test_writes_hash_checked_source_artifact_with_relative_metadata(self):
         content = b"%PDF-test"
         digest = "sha256:" + hashlib.sha256(content).hexdigest()

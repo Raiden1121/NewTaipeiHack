@@ -30,8 +30,11 @@ from collectors.vt_course import fetch_vt_courses
 from collectors.wage import fetch_wage
 from collectors.contracts import CollectedPayload
 from collectors.join_proposals import fetch_join_proposals
+from collectors.elections import fetch_elections
 from collectors.youth_council_minutes import fetch_youth_council_minutes
 from collectors.youth_budget import fetch_youth_budgets
+from collectors.youth_service_points import fetch_youth_service_points
+from collectors.village_boundaries import fetch_village_boundaries
 from collectors.errors import CollectorNoDataError
 from orchestration.contracts import CollectorSpec, ExecutionUnit, PeriodStrategy
 from orchestration.refresh import (
@@ -105,6 +108,18 @@ def _collect_youth_budgets(_period: str) -> CollectedPayload:
     return fetch_youth_budgets()
 
 
+def _collect_elections(_period: str) -> CollectedPayload:
+    """Fetch New Taipei T1/V1 candidate rosters for 2014/2018/2022."""
+
+    return fetch_elections()
+
+
+def _collect_youth_service_points(_period: str) -> CollectedPayload:
+    """Fetch the current Youth Bureau startup-base snapshot."""
+
+    return fetch_youth_service_points()
+
+
 def _collect_join_proposals(_period: str) -> CollectedPayload:
     """Fetch all available nationwide join proposals."""
 
@@ -119,6 +134,9 @@ def _collect_youth_council_minutes(_period: str) -> CollectedPayload:
 
 DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
     CollectorSpec("population", lambda period: fetch_population(period, county="新北市")),
+    CollectorSpec(
+        "population_villages", lambda period: fetch_population(period, county="新北市")
+    ),
     CollectorSpec("movement", lambda period: fetch_moving(period, county="新北市")),
     CollectorSpec("births", _collect_births, PeriodStrategy.ANNUAL),
     CollectorSpec("marriages", _collect_marriages, PeriodStrategy.ANNUAL),
@@ -142,6 +160,13 @@ DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
     ),
     CollectorSpec("talent_demand", lambda period: fetch_talent_demand(), PeriodStrategy.ALL_AVAILABLE),
     CollectorSpec("youth_budgets", _collect_youth_budgets, PeriodStrategy.ALL_AVAILABLE),
+    CollectorSpec("elections", _collect_elections, PeriodStrategy.ALL_AVAILABLE),
+    CollectorSpec(
+        "youth_service_points", _collect_youth_service_points, PeriodStrategy.SNAPSHOT
+    ),
+    CollectorSpec(
+        "village_boundaries", lambda period: fetch_village_boundaries(), PeriodStrategy.SNAPSHOT
+    ),
     CollectorSpec("join_proposals", _collect_join_proposals, PeriodStrategy.ALL_AVAILABLE),
     CollectorSpec(
         "youth_council_minutes", _collect_youth_council_minutes, PeriodStrategy.ALL_AVAILABLE
@@ -1001,7 +1026,11 @@ def _run_replay(
         fetched_at=fetched_at,
         config_dir=config_dir,
     )
-    period = "all" if canonical_dataset in {"join_proposals", "youth_council_minutes"} else None
+    period = "all" if canonical_dataset in {
+        "elections",
+        "join_proposals",
+        "youth_council_minutes",
+    } else None
     write_curated(result, dataset=canonical_dataset, output_dir=output_dir, period=period)
     return 0
 
@@ -1131,32 +1160,10 @@ def _write_authoritative_index(
     *,
     output_dir: str | Path,
 ) -> Path:
-    output_root = Path(output_dir)
-    entries: list[dict[str, Any]] = []
-    for unit, status in zip(units, statuses, strict=True):
-        if status.get("status") != "ok":
-            continue
-        curated_value = status.get("curated_path")
-        if not isinstance(curated_value, str):
-            continue
-        curated_path = Path(curated_value)
-        if not curated_path.is_file():
-            continue
-        try:
-            relative_path = curated_path.resolve().relative_to(output_root.resolve())
-        except ValueError:
-            continue
-        entries.append(
-            {
-                "dataset": _canonical_dataset_or_name(unit.spec.dataset),
-                "output_key": unit.output_key,
-                "path": relative_path.as_posix(),
-                "period_strategy": unit.spec.period_strategy.value,
-                "source_period": unit.source_period,
-                "transform_version": TRANSFORM_VERSION,
-            }
-        )
-    return write_dataset_index(entries, output_dir=output_root)
+    # A range run is commonly split by source family (annual, snapshot, TDX).
+    # Preserve existing successful entries so the next analytics run can still
+    # resolve datasets produced by an earlier command.
+    return _merge_refresh_index(units, statuses, output_dir=output_dir)
 
 
 def _merge_refresh_index(
@@ -1198,6 +1205,10 @@ def _merge_refresh_index(
         entry
         for key, entry in replacements.items()
         if key not in replaced
+    )
+    merged.sort(
+        key=lambda entry: (str(entry.get("dataset", "")), str(entry.get("output_key", ""))),
+        reverse=True,
     )
     return write_dataset_index(merged, output_dir=output_root)
 

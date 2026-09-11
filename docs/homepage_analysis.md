@@ -1,7 +1,22 @@
 # 主頁（首頁）參數分析、指數公式設計與資料源對應 (v8 最終版)
 
-> 本文件依據最新的前端 React 元件架構（`features/home`），嚴格對齊 Notion MD 公式定義，並完整對應 `data_description.md` 中實際可用的 18 個資料集。
+> 本文件依據最新的前端 React 元件架構（`features/home`），嚴格對齊 Notion MD 公式定義，並完整對應 `data_description.md` 中目前已登錄的 canonical datasets。
 > 所有計算皆由 Backend 完成後才拋給 Frontend 顯示。
+
+### Analytics 執行口徑
+
+目前的 analytics 實作位於 `data-pipeline/src/analytics/`，執行入口為
+`run_analytics.py --metric homepage`。年度資料固定選 ROC 110–114；ROC 109
+只用作 ROC 110 的人口 YoY 基準。YOI 則使用各資料集最新可得快照，人口錨點
+為 ROC 114，不計算 YOI YoY。輸出寫入
+`data/analytics/homepage/all.json`，品質與缺值說明寫入
+`data/quality/analytics_homepage.json`。
+
+2026-09-11 真實資料執行結果：`current_yoi.districts` 29 筆，年度資料輸出
+ROC 110–114；服務涵蓋率可計算為全市 49.2266230851%，狀態為
+`partial`（9 個青創基地有驗證座標、0 個排除；1,039 個里界中 1,032 個
+接上 ROC 114 里級人口）。其中 6 個頁面缺地址的基地，是由固定的官方地址參照
+資料補入後再進行 transform，沒有改寫 raw。
 
 ---
 
@@ -37,8 +52,8 @@
 
 | UI 顯示項目        | 對應欄位                          | 資料源                                        | 計算邏輯                                                                                                                                                                      |
 | ------------------ | --------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 青年參選率         | `youthParticipationIndex`         | **D**（選舉資料，待補）+ **A1**               | (該區 18–35 歲候選人數 ÷ 該區全體候選人數) × 100%                                                                                                                             |
-| 整體服務涵蓋率     | `serviceCoverageRate`（新增欄位） | **D4**（據點座標）+ **A1**（里級）+里界多邊形 | 圓形 buffer（直線距離）＋ 面積比例分攤（詳見下方說明）                                                                                                                        |
+| 青年參選率         | `youthParticipationIndex`         | **D** `elections`（2014/2018/2022 T1＋V1）+ **A1** | 先由 analytics 依選舉類型與 18–35 歲口徑決定分子；T1 保留選區粒度，不硬套單一行政區 |
+| 整體服務涵蓋率     | `serviceCoverageRate`（新增欄位） | **D4** `youth_service_points` + `population_villages` + `village_boundaries` | 圓形 buffer（直線距離）＋ 面積比例分攤（詳見下方說明） |
 | 平均生育率（全市） | `fertilityRate`                   | **E1** `births` + **A1** `population`         | 新北市 `births_mother_age_18_35` 加總 ÷ 新北市 `youth_18_35_female` 加總 × 1000‰ (這個部分會因為點選上面地圖而算出各地區的平均生育率，右邊那塊顯示全市平均讓他們知道量化差異) |
 | 對全市平均比       | `fertilityVsCityAvg`（新增欄位）  | 衍生自上兩項                                  | 各區 `fertilityRate` ÷ 全市平均 `fertilityRate` × 100%（後端計算後回傳）                                                                                                      |
 
@@ -50,15 +65,15 @@
   2. 對每個里 `v`，計算里多邊形與 B 的交集面積比例 `f_v = area(polygon_v ∩ B) / area(polygon_v)`。_(需在等面積投影如 EPSG:3826 下計算)_
   3. 該里「被涵蓋的青年人口」= `f_v × youth_18_35(v)`（假設青年在里內均勻分布）。
   4. 匯總到區：`服務涵蓋率(區) = Σ_v [ f_v × youth_18_35(v) ] ÷ Σ_v youth_18_35(v)`
-- **資料阻塞點**：需取得青年局據點清單進行 geocoding (D4)，且需新增里級人口輸出與里界 GeoJSON。
+- **資料狀態**：9 筆基地全部保留；頁面已有地址的點由 collector 做官方門牌資料唯一匹配，固定參照檔補入的 6 筆則由 transform 依 `point_id` 合併官方地址與座標。只有最後 `geocode_status=matched` 的點才會進入 buffer。沒有可驗證座標的點會標記 `excluded_no_verified_coordinate`，不當成 0 覆蓋。里級人口與官方里界由 `population_villages`、`village_boundaries` 提供；若任何一項不足，結果會回傳 `unavailable` 或 `partial` 及 blocking reasons。
 
 > ✅ **`births` 資料確認**：`metric_id = births_mother_age_18_35`，即「生母 18–35 歲的出生數」，2019–2025 年共 29 區，`youth_eligibility = eligible`，可直接使用。
 >
-> ⚠️ **資料缺口**：
+> ✅ **analytics 已完成**：
 >
-> - **青年參選率**：需要各屆選舉候選人年齡與行政區資料（D），目前 Pipeline 無此資料。
-> - **服務涵蓋率**：需要青創基地完整地址清單（D4），目前 Pipeline 無此資料。
-> - 以上兩項建議前端先顯示「資料補充中」，待後端補上後再接入。
+> - **青年參選率**：以投票日的出生日期／出生年或來源年齡判定 18–35 歲；T1 輸出選舉區 grain，V1 輸出 29 區 grain。T1 不會被硬套到單一行政區。
+> - **服務涵蓋率**：使用 EPSG:3826 的里界 polygon、2.5 km buffer 聯集與面積比例分攤；無驗證座標的據點只在 quality 中列為排除。
+> - 前端若直接使用這份 analytics JSON，仍應依 `status`、`quality_status` 與 `null` 顯示資料狀態，不把缺值渲染成 0。
 
 ---
 
@@ -66,15 +81,14 @@
 
 | UI 顯示項目          | 對應欄位                          | 資料源                             | 計算邏輯                                                                                           |
 | -------------------- | --------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 青年局年度預算折線圖 | `budgetTrend`（新增欄位，為陣列） | **F1** `youth_budgets`             | 取各年 `row_type = total` 的 `value`（單位：千元），組成時間序列。現有 ROC 112–116 年共 5 個資料點 |
-| 青年總預算（當年）   | `TOTAL_BUDGET`                    | **F1** `youth_budgets`             | 取最新年度 `row_type = total` 的 `value`                                                           |
+| 青年局年度預算折線圖 | `budgetTrend`（新增欄位，為陣列） | **F1** `youth_budgets`             | 只取 ROC 110–114 的 `row_type = total` 法定預算；預算案不混入法定預算趨勢 |
+| 青年總預算（當年）   | `TOTAL_BUDGET`                    | **F1** `youth_budgets`             | 取年度範圍內最新法定預算的 `row_type = total` 值 |
 | 預算 YoY             | `BUDGET_YOY`                      | **F1** `youth_budgets`（跨年）     | `(今年 total value − 去年 total value) ÷ 去年 total value × 100%`                                  |
-| 預算執行率           | `BUDGET_EXECUTION_RATE`           | **F1** `youth_budgets`（待補決算） | `決算執行數 ÷ 法定預算數 × 100%`                                                                   |
+| 預算執行率           | `BUDGET_EXECUTION_RATE`           | **F1** `youth_budgets`（含 `final_settlement`） | `決算實現數 ÷ 法定預算數 × 100%`，公式留在 analytics |
 
-> ⚠️ **備註：執行率資料待補**
-> 目前 `youth_budgets` 的 `document_status` 只有 `legal_budget`（法定預算）與 `proposed_budget`（預算案），**沒有決算數 (`final_settlement`)**。
-> 需請後端工程師至青年局官網「統計專區」→「預決算公告」補抓決算 PDF，讓 pipeline 輸出 `document_status = final_settlement` 的 row，才能計算執行率。
-> **補抓完成前，前端此欄位顯示「資料補充中」。**
+> ✅ **備註：決算 analytics 已接**
+> `youth_budgets` 已從青年局「統計專區 → 預決算公告」取得 `final_settlement`；目前可安全解析 ROC 113，ROC 111／112 PDF 是影像型並已保存 failure/artifact。`realized_amount`、`settlement_amount` 等欄位已保留，執行率由 analytics 以 `realized_amount / legal_budget_amount × 100%` 計算。
+> 無法解析的年度輸出 `executionRate=null` 並保留 `execution_failure`，不以 settlement amount 代替 realized amount。
 >
 > ⚠️ **備註：達成率欄位已移除**
 > 原因：18 個資料集中均無「政策 KPI 目標數」或「KPI 達成數」，無法計算。不以無資料支撐的公式顯示任何數值。
@@ -121,7 +135,7 @@ S_job = 0.50 × norm(每萬青年職缺數)
 | ---------------- | ----------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | 每萬青年職缺數   | `(該區職缺總數 ÷ 該區 youth_18_35_total) × 10,000`                      | **C1.1** `job_vacancies` ÷ **A1** `population` | 使用 `position_count` 加總；只用 `geo_level=district` 的筆數                                                         |
 | 職業多樣性       | `H = −Σ pᵢ·ln(pᵢ)`，pᵢ = 職業類別 i 的職缺占比（依 raw 的職業類別欄位） | **C1.2** `job_vacancies`                       | Shannon Entropy，越高代表職業越多樣                                                                                  |
-| 人才需求趨勢 YoY | `(本年 new_demand_count − 上年) ÷ 上年 × 100%`                          | **C1.3** `talent_demand`                       | ⚠️ 此資料為**全國**粒度，29 區共用同一值，差異來自其他兩項；待補區級資料(若沒有可刪除這塊，比例改成剩下兩項0.6及0.4) |
+| 人才需求趨勢 YoY | `(本年 new_demand_count − 上年) ÷ 上年 × 100%`                          | **C1.3** `talent_demand`                       | ⚠️ 此資料為**全國**粒度；29 區共用同一值，品質報告標示為 national proxy，不宣稱為區級觀測值 |
 
 ---
 
@@ -219,7 +233,10 @@ S_transport = 0.35 × norm(每萬青年公車站數)
 
 ---
 
-## 三、Backend API 資料計算 Pseudocode
+## 三、Backend API 資料計算 Pseudocode（歷史公式示意）
+
+> 以下程式碼保留原始 MD 的公式說明，實際執行契約以
+> `data-pipeline/src/analytics/homepage.py` 為準；目前已接入 T1／V1、服務涵蓋率、決算狀態與缺值 quality metadata。
 
 ```python
 def generate_homepage_data(snapshot_date, year):
@@ -387,7 +404,7 @@ def generate_homepage_data(snapshot_date, year):
     budget_trend = [
         {"year": row.budget_year_roc, "value_thousand": row.value}
         for row in budgets if row.row_type == "total"
-    ]  # ROC 112–116 年各 1 筆
+    ]  # ROC 110–114；缺少來源的年度保留 unavailable
 
     # 計算預算 YoY（最新年 vs 前一年）
     sorted_budgets = sorted(budget_trend, key=lambda x: x["year"])
@@ -404,10 +421,10 @@ def generate_homepage_data(snapshot_date, year):
             "name":                 district_names[d],
             "opportunityIndex":     yoi,
             "retentionRiskLevel":   "low" if yoi >= q3 else ("high" if yoi <= q1 else "medium"),
-            # delta（YoY）：目前無歷年資料，後端補齊多年快照後再接入
-            # "delta": None,
-            "youthParticipationIndex": None,  # 待補選舉資料
-            # 服務涵蓋率 (需有里級人口及 GeoJSON 計算面積交集)
+            # YOI 不產生歷年 delta；T1 保留選舉區，V1 才能回填行政區。
+            # 正式輸出使用最新 V1 的 youth_candidacy_rate。
+            "youthParticipationIndex": v1_participation_by_district.get(d),
+            # 服務涵蓋率使用里級人口與 GeoJSON 面積交集；無驗證點不補成 0。
             # f_v = polygon_v.intersection(B).area / polygon_v.area
             # cov_rate = sum(f_v * pop_v) / pop_district
             "serviceCoverageRate":     calculate_areal_interpolation_coverage(d),
@@ -422,18 +439,21 @@ def generate_homepage_data(snapshot_date, year):
             "budgetTrend":          budget_trend,
             "currentBudget":        sorted_budgets[-1]["value_thousand"],
             "budgetYoY":            budget_yoy,
-            "executionRate":        None,  # ⚠️ 決算 PDF 待後端補抓後再計算
+            "executionRate":        latest_budget_execution_rate,
         }
     }
 ```
 
 ---
 
-## 四、後端補抓清單（Pending Actions）
+## 四、目前剩餘資料工作（不改公式）
 
 | 項目                | 說明                                                                                            | 影響欄位                       |
 | ------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------ |
-| 🔴 決算 PDF         | 至青年局「統計專區→預決算公告」補抓決算版 PDF，pipeline 輸出 `document_status=final_settlement` | `BUDGET_EXECUTION_RATE`        |
-| 🔴 選舉候選人資料   | 中選會各屆候選人名冊（含年齡或出生年）                                                          | `youthParticipationIndex`      |
-| 🔴 青創基地地址清單 | 新北市青年局 D4 據點清單，地理編碼後計算緩衝區                                                  | `serviceCoverageRate`          |
-| 🟡 各區面積 (A4)    | 由 GeoJSON 計算或從內政部行政區面積表取得                                                       | S_talent、S_transport 密度計算 |
+| 🟡 決算 OCR           | ROC 111／112 影像型決算 PDF 已保存 artifact；完成 OCR 後才能補齊這兩年的 `executionRate`       | `BUDGET_EXECUTION_RATE`        |
+| ✅ 真實資料刷新       | 已完成 ROC 110–114 年度資料與最新快照；後續依來源更新週期重跑即可更新 source periods、筆數與 failures             | 全部 quality metadata          |
+| 🟡 前端接線           | 前端 adapter 讀取 `analytics/homepage/all.json`，依 `status`／`null` 顯示缺值，不在前端重算 | 首頁各 UI 欄位                 |
+
+目前已完成的 analytics 包含：YOI 五個子指數、年度人口／生育率／預算、T1／V1
+青年參選事件，以及服務涵蓋率 spatial 計算。資料不足時輸出品質狀態，不以
+補零方式製造數值。

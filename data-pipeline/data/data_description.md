@@ -1,17 +1,25 @@
 # Data Pipeline 資料說明
 
-本文件依據 `data/curated/` 內的既有處理結果、2026-09-09 `11201`～`11601` range pipeline output，以及 2026-09-09 官方 CSV live check 撰寫，涵蓋目前已串接的 18 個既有 canonical datasets，並補充本次新增的 `babysitting_places` collector／transform 契約。範例值直接取自 generated JSON 或官方 live response，沒有自行編造或重新計算；新資料集首次 live 執行後才會產生最新 curated snapshot。
+本文件依據 `data/curated/` 內的既有處理結果、2026-09-11 真實資料刷新、官方來源 live check 與首頁 analytics 資料契約撰寫，涵蓋目前已串接的 canonical datasets。`elections`、`youth_service_points`、`population_villages`、`village_boundaries` 與 `youth_budgets` 決算來源均由 pipeline 管理；首頁 analytics 另寫入 `data/analytics/homepage/` 與品質報告。範例值直接取自 generated JSON 或官方 live response，沒有自行編造或重新計算；未能安全解析的來源會保留 raw artifact 並記錄在 `document_failures`。
 
 > 範例只展示標準化後較重要的欄位。完整來源內容仍保存在各筆資料的 `raw_record`、`raw_records`、`overview_raw_record` 或 `detail_raw_records`，因內容很大，不在本文件重複展開。
 
 ## 目前資料完整度
 
-- 目前 18 個既有 canonical datasets 都有至少一份實際 curated 輸出；`youth_budgets` 的 range 執行產生 1 份 `all` curated 輸出。
+- 2026-09-10 targeted range pipeline（`11509`，指定 `youth_budgets,elections,youth_service_points`）三個 execution units 全部成功：分別為 31、5,577、9 筆 raw → curated，`rows_rejected=0`。
+- 2026-09-11 真實資料刷新：年度人口／里級人口、出生、薪資與大專資料共 132 個成功 execution units、3 個官方來源無法取得；snapshot／空間資料 10 個成功、村里界 1,039 筆 curated，另補抓 elections 5,577 筆與 talent demand 117 筆。
+- `youth_budgets` 現在會同時讀取預算公告與「統計專區 → 預決算公告」；本次解析 6 份文件、8 份 PDF artifact，另有 111、112 年影像型決算 PDF 解析失敗紀錄，沒有丟棄來源檔。
+- `elections` 只收錄中選會 2014／2018／2022 新北市直轄市議員 T1 與村里長 V1：T1 337 筆、V1 5,240 筆；不混入總統、立委或市長資料。
+- `youth_service_points` 取得青年局青創基地 9 筆詳細頁；collector 原始頁面中 3 筆地址可由新北市門牌位置資料唯一匹配，另外 6 筆使用版本控管的官方地址參照資料補入地址與座標。transform 後 9 筆均有可驗證的 EPSG:3826 座標，沒有把地址猜測成座標。
+- `college_majors` 的 114 學年度年度 canonical 輸出 `data/curated/college_majors/114.json` 為 919 筆、`geo_level=district`，學校所在地可對應 13 個新北市行政區；進行 29 區 analytics 時應使用此年度檔。
+- 首頁 analytics 已實際產出：29 區 YOI、ROC 110–114 年人口／生育率／預算序列、2014／2018／2022 選舉事件，以及服務涵蓋率全市 49.2266230851%（`partial`；9 verified、0 excluded；1,039 個里界中 1,032 個接上里級人口）。
 - `babysitting_places` 已加入 collector、transform 與 pipeline registry；2026-09-09 live smoke 取得私托 261 筆、公托 130 筆，共 391 筆，391 筆均通過 transform，來源本身沒有歷史年度參數。
 - 2026-09-04 的 TDX 執行成功取得 `bus_stops`、`railway_stops`、`bike_stops`。
 - 2026-09-09 的 `11201`～`11601` range 執行結果為 102 組成功、28 組來源無資料、1 組傳輸失敗；唯一失敗的是 `population` 的 `11206`，原因為 HTTP 回應中途截斷 (`IncompleteRead`)。
-- `data/quality/collection_range.json` 記錄本次 range 執行結果；`data/quality/dataset_index.json` 只列本次成功的 execution units，因此不包含失敗的 `population/11206`，也不包含本次未使用 `--include-tdx` 的 TDX 資料。歷史期間仍需參考下列各資料夾。
+- `data/quality/collection_range.json` 記錄本次 `11509` range 執行結果；三個新增／擴充 dataset 的 status 都是 `ok`，詳細的 111／112 年決算 PDF 解析失敗則在 raw envelope 的 `document_failures` 保存。
 - 資料來源沒有提供的期間不會以 0 補值；缺失欄位一律保留為 JSON `null`。
+- 首頁年度指標固定使用 ROC 110–114；ROC 109 只作 ROC 110 的人口 YoY 基準。YOI 使用各資料集最新可得快照，不回填成歷史年度，也不計算 YOI YoY。
+- `population_villages` 與 `village_boundaries` 是服務涵蓋率專用輸入；沒有驗證座標的青創基地會保留 raw／curated，但 analytics 會排除並記錄 excluded count，不把它當成 0 覆蓋。
 
 ## 共同資料結構
 
@@ -22,7 +30,7 @@
 | `dataset` | canonical 資料集名稱 |
 | `source` | 資料來源識別名稱 |
 | `source_record_id` | 可穩定辨識來源資料的 ID |
-| `geo_level` | 地理粒度：`district`、`county`、`national` 或 `organization` |
+| `geo_level` | 地理粒度：`district`、`village`、`county`、`national` 或 `organization` |
 | `district_id` | 新北市行政區代碼；無可靠區級資料時為 `null` |
 | `district_name` | 新北市行政區名稱；無可靠區級資料時為 `null` |
 | `period_start` | 資料代表期間起日 |
@@ -70,6 +78,7 @@
 | 資料集 | 目前 JSON 路徑規則 |
 |---|---|
 | `population`、`movement` | `data/curated/<dataset>.json`、`data/curated/<dataset>/<yyyMM>.json` |
+| `population_villages` | `data/curated/population_villages/<yyyMM>.json` |
 | `births`、`marriages`、`wages` | `data/curated/<dataset>/<period>.json` |
 | `house_prices`、`rentals` | `data/curated/<dataset>.json`、`data/curated/<dataset>/<period>.json`、`latest.json` |
 | `job_vacancies`、`job_vacancy_salaries` | `data/curated/<dataset>.json`、`data/curated/<dataset>/latest.json` |
@@ -79,6 +88,10 @@
 | `bus_stops`、`railway_stops`、`bike_stops` | `data/curated/<dataset>.json` |
 | `youth_budgets` | `data/curated/youth_budgets/all.json` |
 | `babysitting_places` | `data/curated/babysitting_places/latest.json` |
+| `elections` | `data/curated/elections/all.json` |
+| `youth_service_points` | `data/curated/youth_service_points/latest.json` |
+| `village_boundaries` | `data/curated/village_boundaries/latest.json` |
+| `homepage` analytics | `data/analytics/homepage/all.json`；品質報告為 `data/quality/analytics_homepage.json` |
 | `join_proposals` | `data/curated/join_proposals/all.json` |
 | `youth_council_minutes` | `data/curated/youth_council_minutes/all.json` |
 
@@ -173,7 +186,11 @@ ROC 114 的前 10 筆實際欄位如下；`weight` 是前端文字大小使用�
 | `vt_courses` | 公共職訓課程區域數量 | 2026-09-01 取得的快照 | 2 區 | 背景指標 |
 | `training_numbers` | 新北市訓練課程、人數與費用 | 2026-08-14～2027-01-16 | 新北市整體 | 背景指標 |
 | `talent_demand` | 全國職類人才需求與僱用 | 2013～2025 | 全國 | 背景指標 |
-| `youth_budgets` | 青年局年度預算「計畫及預算統計表」 | ROC 112、113 法定預算；ROC 114、115 法定版；ROC 116 預算案 | organization | 背景指標 |
+| `youth_budgets` | 青年局年度預算與單位決算 | ROC 112～116 預算；ROC 113 已解析決算，ROC 111／112 決算 PDF 已保存但待 OCR | organization | 背景指標 |
+| `elections` | 中選會新北市 T1 議員與 V1 村里長候選人名冊 | 2014、2018、2022 選舉屆次 | T1 選區／V1 行政區 | 青年參選 analytics 原始資料 |
+| `youth_service_points` | 青年局青創基地詳細頁與地址 | 2026-03-31 最新頁面快照 | 點位／可對應行政區 | 服務涵蓋 analytics 原始資料 |
+| `population_villages` | ODRP014 村里戶數及單一年齡人口的里級彙總 | 依月份 | 新北市村里 | 服務涵蓋青年人口分母 |
+| `village_boundaries` | 國土測繪中心村里界 polygon | 最新下載快照 | 新北市村里 | 服務涵蓋面積交集 |
 | `bus_stops` | TDX 公車站點與業者 | 2026-09-03 快照 | 新北市 29 區／未對應 | 背景指標 |
 | `railway_stops` | 臺鐵、高鐵、捷運及輕軌站點 | 2026-09-03 取得的快照 | 新北市 18 區 | 背景指標 |
 | `bike_stops` | YouBike 靜態站點與容量 | 2026-09-04 快照 | 新北市 29 區／未對應 | 背景指標 |
@@ -208,6 +225,27 @@ ROC 114 的前 10 筆實際欄位如下；`weight` 是前端文字大小使用�
 - 代表檔：`data/curated/population.json`；歷史檔在 `data/curated/population/{yyyMM}.json`。
 - 可用民國年月為 10701～11507，共 102 個月，11308 缺資料；10501～10612 來源查無資料。
 - 每月 29 區，最新檔 116 筆，即 29 區 × 4 個指標。
+
+### 1.1 `population_villages`：里級青年人口
+
+這是與 `population` 分開保存的同一 ODRP014 原始資料彙總。既有
+`population` 維持 29 區相容輸出；本資料集每個「村里＋月份」輸出一筆，讓
+服務涵蓋率可以用穩定的 `village_code` 與里界 polygon join，不需要 analytics
+解析 `population.raw_records`。
+
+### 處理後 Keys
+
+除共同 Keys 外，包含 `geo_level=village`、`village_code`、`village_name`、
+`people_total`、`youth_18_35_male`、`youth_18_35_female`、
+`youth_18_35_total`、`source_period` 與 `raw_records`。任一年齡欄位缺失時，
+青年欄位保留 `null`，並在 quality warning 標記
+`incomplete_youth_age_fields`，不把缺值當成 0。
+
+### 其他說明
+
+- 輸出路徑：`data/curated/population_villages/{yyyMM}.json`。
+- 這個 dataset 只供里級空間 analytics；不要用它取代既有區級 `population`。
+- 2026-09-11 刷新後，ROC 110–114 除來源無資料的 11308 外，每月約 1,032 個里級 records；ROC 114 的 12 個月份共 12,384 筆，供本次服務涵蓋率使用。
 
 ## 2. `movement`：人口遷徙資料
 
@@ -476,6 +514,7 @@ Keys 與 `job_vacancies` 相同：共同 Keys，加上 `position_count`、`posit
 
 - 歷史檔在 `data/curated/college_majors/{academic-year}.json`。
 - 學年度 105～114 可用；115 尚無資料。重新執行 pipeline 後，資料粒度為學校所在地行政區，不是學生戶籍行政區。
+- `data/curated/college_majors/114.json` 是 114 學年度的年度 canonical 檔；目前同目錄的 `11412.json` 實際為 `geo_level=county` 且 `district_id=null` 的期間輸出，不作 29 區 analytics 輸入。選取資料時必須依 `geo_level` 與 `district_id` 檢查，而不能只依檔名中的期間。
 - `district_id` 與 `district_name` 是正式的行政區欄位；本表的 `district_name` 來自學校地址對照，前五筆的國立臺北大學位於三峽區。
 - 學校所在地對照來源為教育部大專校院名錄；`school_code` 以代碼對照，`school_location_status=matched` 才代表成功映射。對不到的學校保留 `district_id=null`，不使用最近行政區猜測。
 - `1084`（亞東科技大學）與 `1085`（馬偕醫學大學）使用教育部校碼沿革對應至名錄中的歷史代碼，確保不同學年度仍可映射到校址行政區。
@@ -664,7 +703,7 @@ TDX 新北市 YouBike 靜態站點，保留站點名稱、座標與容量。coll
 
 ### 資料名稱與統計內容
 
-資料來自新北市政府青年局官方預算公告列表，collector 動態追蹤詳情 URL，下載 PDF 後只抽取「計畫及預算統計表」。2026-09-09 的實際 range output 發現 5 份文件、5 個 PDF artifact、20 筆 raw row 與 20 筆 curated row，且沒有文件解析失敗：
+資料來自新北市政府青年局兩個官方公告列表：預算公告與「統計專區 → 預決算公告」。collector 動態追蹤詳情 URL、保存 PDF artifact，預算版抽取「計畫及預算統計表」，決算版抽取「歲出機關別決算表」。2026-09-10 live output 為 31 筆 raw／31 筆 curated；成功解析 6 份文件、保存 8 份 PDF，quality 為 `rows_rejected=0`。
 
 | budget_year_roc | document_status | document_status_label | published_date | updated_date | source_page_number | row_count |
 |---|---|---|---|---|---:|---:|
@@ -673,6 +712,9 @@ TDX 新北市 YouBike 靜態站點，保留站點名稱、座標與容量。coll
 | 114 | `legal_budget` | 法定版 | 113-08-29 | 114-02-10 | 26 | 4 |
 | 113 | `legal_budget` | 法定預算 | 113-01-29 | 113-01-29 | 27 | 4 |
 | 112 | `legal_budget` | 法定預算 | 113-10-11 | 113-10-11 | 25 | 4 |
+| 113 | `final_settlement` | 單位決算 | 114-08-01 | 114-08-01 | 13 | 11 |
+
+111、112 年決算公告 PDF 也已下載並保存，但兩份是影像型表格，現有 `pypdf` 文字層不足以安全辨識數值，因此 raw envelope 的 `document_failures` 分別記錄 `target settlement table was not found in PDF`；不可把這兩份視為已完成的 curated 決算資料。
 
 ### 實際 curated rows
 
@@ -698,15 +740,112 @@ TDX 新北市 YouBike 靜態站點，保留站點名稱、座標與容量。coll
 | 112 | legal_budget | detail | 一般行政 | 51291 | 34.42 | 2023-01-01 |
 | 112 | legal_budget | detail | 青年發展業務 | 97438 | 65.38 | 2023-01-01 |
 | 112 | legal_budget | detail | 第一預備金 | 300 | 0.20 | 2023-01-01 |
+| 113 | final_settlement | total | 合計 | 151676193 | null | 2024-01-01 |
+| 113 | final_settlement | detail | 新北市政府青年局主管 | 148567285 | null | 2024-01-01 |
 
 ### 其他說明
 
-- curated output：`curated/youth_budgets/all.json`；raw envelope 的 `documents` 有 5 筆、`source_artifacts` 有 5 筆，PDF 存在 `raw/youth_budgets/artifacts/`。
-- `value` 單位為 `TWD_thousand`，保留來源千元，不換算成元；`budget_ratio_percent` 是來源提供的比率，不由 pipeline 重算。
+- curated output：`curated/youth_budgets/all.json`；raw envelope 的成功 `documents` 有 6 筆、`source_artifacts` 有 8 筆（含 111／112 影像型決算 PDF），PDF 存在 `raw/youth_budgets/artifacts/`。
+- 預算列的 `value` 單位為 `TWD_thousand`，保留來源千元，不換算成元；決算列的 `value` 是 `settlement_amount`，單位為 `TWD`。
+- 決算 raw／curated 保留 `budget_amount`、`original_budget_amount`、`budget_adjustment_amount`、`realized_amount`、`payable_amount`、`reserved_amount`、`settlement_amount`、`surplus_amount` 與來源 `source_execution_ratio_percent`。執行率不在 collector／transform 計算，analytics 才能依定義計算。
 - 所有 curated rows 的 `geo_level` 是 `organization`，`district_id` 與 `district_name` 是 JSON `null`，`youth_eligibility` 是 `context_only`；不可拆配到新北市 29 區，也不是精確 18–35 歲指標。
-- 列表頁目前可發現的文件不代表歷史年度完整性；若要追蹤新版本，應重新執行 collector 並保留新的 raw snapshot 與 PDF hash。
+- 首頁年度範圍雖固定為 ROC 110–114，但目前官方預算 curated 只提供 ROC 112–114 法定預算；ROC 110／111 在 `budgetTrend` 保留為 `unavailable`，不以 112 年以前的資料補值。ROC 113 可依單位換算後計算執行率，其他年度若沒有可解析 `realized_amount` 則保留 `execution_rate=null`。
+- 實際輸出：`data/curated/youth_budgets/all.json`、`data/quality/youth_budgets/all.json`、`data/raw/youth_budgets/11509_20260910T192425616501Z.json`；PDF 位於 `data/raw/youth_budgets/artifacts/`。
+- 預算來源列表：<https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=108>；決算來源列表：<https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=109>。列表頁目前可發現的文件不代表歷史年度完整性；若要追蹤新版本，應重新執行 collector 並保留新的 raw snapshot 與 PDF hash。
 
-## 19. `babysitting_places`：私托與公托名冊
+## 19. `elections`：中選會新北市 T1／V1 候選人
+
+### 資料名稱與統計內容
+
+collector 下載中選會官方 <https://data.cec.gov.tw/選舉資料庫/votedata.zip>，從 ZIP 只選取 2014、2018、2022 三屆的新北市代碼 `65`，以及直轄市區域議員 `T1`、村里長 `V1` 候選人檔與選區／村里名稱檔。沒有把總統、立法委員或市長資料混入本資料集。
+
+2026-09-10 live output：5,577 筆，2014／2018／2022 分別為 1,819／1,956／1,802 筆；T1 為 337 筆、V1 為 5,240 筆，`data/quality/elections/all.json` 的 `rows_rejected=0`、`unmapped_district_count=0`。
+
+### 地理與年齡契約
+
+| Field | Contract |
+|---|---|
+| `source_code` | `T1`（直轄市區域議員）或 `V1`（村里長） |
+| `election_term` | `2014`、`2018`、`2022`；`period_type=snapshot` |
+| `birth_date_roc`, `birth_year_roc`, `birth_date`, `source_age` | 出生日期／年次與中選會原始年齡並存；不在 collector 推導青年資格 |
+| T1 geography | 保留 `election_district_code`／`election_district_name`，`district_id=null`；不把跨行政區選區硬套單一 29 區 |
+| V1 geography | 以來源 `district_name` 精確對應 29 區，另保留 `village_code`／`village_name` |
+| raw provenance | `source_zip_sha256`、`source_zip_member`、`raw_fields`／`raw_record` |
+
+候選人、政黨、性別、現任／當選標記、教育、出生地與選區代碼等原始欄位都保留。`age_scope=all_ages`、`youth_eligibility=context_only`；18–35 歲篩選、候選人率與分區 analytics 留在後續 analytics，不在 collector／transform 計算。
+
+### 實際欄位範例
+
+| election_term | source_code | candidate_name | birth_date_roc | source_age | election_district_code | district_id |
+|---:|---|---|---|---:|---|---|
+| 2022 | T1 | 鄭宇恩 | 0750407 | 36 | 01 | `null` |
+| 2022 | V1 | 黃承亮 | 0430101 | 68 | 00／留侯里 | 65000010（板橋區） |
+
+### 實際輸出
+
+- curated：`data/curated/elections/all.json`；raw：`data/raw/elections/11509_20260910T192456277782Z.json`。
+- 中選會 ZIP artifact：`data/raw/elections/artifacts/`；quality：`data/quality/elections/all.json`；本次 `failures=[]`。
+- 此資料集採 `all_available`；retention 會保留帶有 `election_term` 的歷屆選舉 records，不因 snapshot 日期超過五年而刪除 2014／2018。
+
+## 20. `youth_service_points`：青年局青創基地
+
+### 資料名稱與統計內容
+
+collector 讀取青年局「找基地」列表 <https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0001&id=145>，逐頁擷取 9 個青創基地詳細頁。每列固定 `point_type=startup_base`，保存名稱、地址、區名、電話、Email、公告／更新日期、詳細頁 URL、完整 `content_text` 與 HTML artifact。
+
+2026-09-11 live output：9 筆 raw／9 筆 curated，`data/quality/youth_service_points/latest.json` 的 `rows_rejected=0`。collector 原始 envelope 的 `matched_count=3` 代表頁面地址直接匹配成功 3 筆；另外 6 筆由固定參照檔 `config/reference/youth_service_points_locations.json` 補入官方公告地址與官方門牌位置資料座標。transform 後 9 筆均為 `geocode_status=matched`。
+
+座標 lookup 來源為新北市政府「新北市門牌位置數值資料」：
+`https://data.ntpc.gov.tw/api/datasets/d7b568ab-3819-40c8-a6e7-a6b199443101/csv/zip`。
+
+### 地理與服務範圍契約
+
+| Field | Contract |
+|---|---|
+| `point_type` | 固定 `startup_base` |
+| `address`, `source_district_name` | 先保留來源文字；缺值為 JSON `null` |
+| `latitude`, `longitude` | 官方新北門牌座標唯一匹配後轉成 WGS84；無法驗證時為 `null` |
+| `x_3826`, `y_3826` | 官方門牌資料的 TWD97 / TM2 121 分帶座標；空間計算優先使用這兩欄 |
+| `geocode_status` | `matched` 或 `excluded_no_verified_coordinate`；舊快照尚未重抓時可能為 `not_attempted` |
+| `geocode_provider`, `geocode_crs`, `geocode_source_period`, `geocode_source_url` | 座標來源與來源快照 provenance |
+| `location_source_type`, `location_source_url`, `location_verified_at` | 固定地址參照的來源類型、官方公告來源與驗證日期；沒有參照合併時為 `null` |
+| `geocode_query`, `address_alternatives` | 固定參照使用的門牌查詢字串與官方公告的其他地址寫法 |
+| `detail_url`, `source_html_sha256`, `artifact_filename`, `content_text` | 原始頁面 provenance |
+
+collector 對頁面已有地址做官方門牌資料的「唯一、精確」匹配；不以最近點或猜測地址補座標。對固定且不常變動的 6 筆地址，transform 另依 `point_id` 讀取 `config/reference/youth_service_points_locations.json`，合併官方公告地址與官方門牌座標；不覆寫 raw。analytics 只選 `geocode_status=matched` 的點做 2.5 km buffer；若未來仍有無法驗證的點，會保留但在服務涵蓋率的 `excluded_point_count` 與 quality 報告中列出，不當成 0 km 覆蓋。
+
+### 實際欄位範例
+
+| name | point_type | address | district_name | latitude | geocode_status |
+|---|---|---|---|---:|---|
+| 新北創力坊 | `startup_base` | 新北市三重區重新路一段108號3樓 | 三重區 | 25.063165 | `matched` |
+| 新北青創土城綠創基地 | `startup_base` | 新北市土城區莊園街151號2樓 | 土城區 | 24.981714 | `matched` |
+
+### 實際輸出
+
+- curated：`data/curated/youth_service_points/latest.json`；raw：`data/raw/youth_service_points/11509_20260911T030212277094Z.json`。
+- 固定地址參照：`config/reference/youth_service_points_locations.json`；HTML 與門牌 ZIP artifacts：`data/raw/youth_service_points/artifacts/`；quality：`data/quality/youth_service_points/latest.json`；本次 `document_failures=[]`，collector `matched_count=3`，curated `geocode_status=matched` 為 9 筆。
+
+## 20.1 `village_boundaries`：官方村里界
+
+collector 下載國土測繪中心的「村(里)界(TWD97_121分帶)」ZIP，保存 ZIP
+artifact、SHA-256、來源 URL 與 SHP member metadata；transform 僅保留新北市
+代碼 `65`，並以 `village_code`、`district_id` 作為穩定 join key。
+
+來源 URL：`https://maps.nlsc.gov.tw/download/村(里)界(TWD97_121分帶).zip`。
+
+### 處理後 Keys
+
+- `village_code`、`village_name`、`district_id`、`district_name`。
+- `geometry`：GeoJSON Polygon／MultiPolygon；`geometry_crs=EPSG:3826`。
+- `raw_properties`：來源 SHP 屬性；未知行政區、重複里代碼與無效 geometry 進 quarantine。
+
+2026-09-11 live output 為 1,039 個新北市村里 polygon；輸出為
+`data/curated/village_boundaries/latest.json`，供
+`service_coverage` 在 EPSG:3826 等面積座標系計算 buffer 與里界交集；不以
+centroid 或單一經緯度取代 polygon。
+
+## 21. `babysitting_places`：私托與公托名冊
 
 ### 資料名稱與統計內容
 
@@ -751,25 +890,88 @@ TDX 新北市 YouBike 靜態站點，保留站點名稱、座標與容量。coll
 - 公托與私托的定義、欄位與更新內容由來源機關維護；兩者可以分別統計，也可以用 `care_type` 做資源比較。
 - 若需行政區托育據點數、私托容量總和或人均資源，應在 `analytics/` 依可靠 `district_id` 計算；collector 與 transform 只保存單一機構資料。
 
-## 20. `join_proposals`：公共政策提案
+## 22. `join_proposals`：公共政策提案
 
 來源為 data.gov.tw 公共政策網路參與平臺「提點子」，必要時退回 join.gov.tw 列表／detail。此來源沒有提案人年齡與新北行政區，因此 curated 使用 `geo_level=national`、`district_id=null`、`age_scope=not_age_specific`、`youth_eligibility=context_only`。`youth_topic_proxy` 只代表命中青年相關機關或關鍵字，不是 18–35 歲身分證明。
 
 主要欄位：`proposal_id`、`proposal_url`、`title`、`content`、`endorsement_count`、`submitted_at`、`year_roc`、`status`、`agency`、`category`、`proxy_reasons`、`raw_record`。附議跨年仍依 `submitted_at` 的 ROC 年度分箱。all-available 輸出為 `data/curated/join_proposals/all.json`；尚未執行 live collector 前，不在本文件填入 mutable row count。
 
-## 21. `youth_council_minutes`：青年局會議紀錄
+## 23. `youth_council_minutes`：青年局會議紀錄
 
 來源為新北市青年局公開會議紀錄 PDF。collector 保存 `data/raw/youth_council_minutes/artifacts/` 下的原始 PDF、SHA-256 與逐頁文字；transform 再拆出提案項目。curated 使用 `geo_level=organization`、`organization_name=新北市青年局`，以會議日期的 ROC 年度分箱。
 
 主要欄位：`meeting_id`、`meeting_name`、`meeting_date`、`term`、`item_no`、`source_page_start`、`source_page_end`、`topic_text`、`discussion_text`、`resolution_text`、`source_text`、`discussed`、`resolved`、`escalated`、`parse_status`、`manual_review_required`、`source_pdf_sha256`、`raw_record`。`topic_text` 保存提案／議題標題，供關鍵字 analytics 提高政策議題辨識度；`discussion_text` 與 `resolution_text` 保留分段文字。PDF 版面無法辨識決議段落時，保留 partial record 並標記人工檢查，不補推 `resolved=true`。all-available 輸出為 `data/curated/youth_council_minutes/all.json`。
 
-## 22. `youth_topic_weight` analytics
+## 24. `youth_topic_weight` analytics
 
 analytics 只讀 `data/quality/dataset_index.json` 指向的兩份 curated all-available 檔案，使用 `config/youth_topic_rules.json` 與 `config/youth_topic_weights.json`。輸出為 `data/analytics/youth_topic_weight/all.json`，每個可用 `year_roc` 固定輸出 22 個 topic：`label`、`weight`、`signal`、`join_mentions`、`minutes_mentions`、`resolved`、`escalated` 與計算追蹤欄位。`weight` 範圍固定 1–5；會議訊號至少為 3，`escalated` 為 5。Frontend 只負責依 weight 排版文字雲。
 
-## 23. `youth_keyword_frequency` analytics
+## 25. `youth_keyword_frequency` analytics
 
 此 analytics 從青年 proxy 提案與青年局會議提案文字動態抽取關鍵字，不限制於 22 個固定議題。設定檔為 `config/youth_keyword_config.json`，目前使用 `jieba`、keyword user dictionary、政策加分詞典、政策領域錨點與行政／流程停用詞。政策詞不是候選白名單；詞先依 `min_document_frequency` 篩選，詞典以外的三字以上複合詞若出現在議題／提案文字，或同時出現在 join 與會議來源且達 `min_dynamic_frequency`，也可進入正式候選；二字詞則需額外具備議題重複證據或跨來源政策錨點。局處、會議程序與一般行政詞會排除。會議詞的 `resolved`／`escalated` 只在該詞實際出現在 `resolution_text` 時成立。`raw_score` 納入對數化的 `term_frequency`，避免長文件單純重複造成過度放大。輸出為 `data/analytics/youth_keyword_frequency/all.json`，每年最多輸出 `top_n` 個 keyword，包含 `term`、`term_frequency`、`document_count`、`join_mentions`、`minutes_mentions`、`frequency_score`、`raw_score`、`ranking_score`、`policy_relevance`、`topic_mentions`、`weight`、`resolved` 與 `escalated`。
+
+## 26. `homepage` analytics
+
+執行 `run_analytics.py --metric homepage` 會讀取 curated dataset，不讀 raw
+artifact，也不在 request time 重新抓資料。輸出：
+
+- `data/analytics/homepage/all.json`：首頁可讀的年度指標、最新快照 YOI、選舉事件與服務涵蓋率。
+- `data/quality/analytics_homepage.json`：實際輸入期間、筆數、proxy／imputation、排除數與阻塞原因。
+
+時間口徑固定如下：
+
+- 年度人口、生育率與預算趨勢：ROC 110–114；ROC 109 只作 ROC 110 YoY 基準。
+- YOI：每個資料集的最新可得 snapshot，人口錨點使用 ROC 114；不產生 YOI YoY。
+- 選舉：2014／ROC 103、2018／ROC 107、2022／ROC 111；T1 保留選舉區，V1 才按 29 區。
+
+YOI 依 `docs/homepage_analysis.md` 的五個子指數與權重計算。已知缺值會
+保留 `null` 並標記品質資訊：VT 以觀察到的最低課程數補值、缺租金／房價
+以觀察最低值作 proxy、房價只以住宅資料計算（平溪可回退全部類型）、
+無鐵路站為 structural zero；公車與自行車無法可靠對應行政區的列不納入。
+職缺薪資只有同時有上下限的 `salary_midpoint` 才納入中位數。
+
+服務涵蓋率使用 `population_villages`、`village_boundaries` 與已驗證座標的
+青創基地，對聯集 2.5 km buffer 做里界面積比例分攤。沒有可驗證座標的
+據點不會被當成 0 覆蓋；結果會回傳 `unavailable` 或 `partial`，並列出
+`blocking_reasons`、`verified_point_count` 與 `excluded_point_count`。
+
+2026-09-11 實際輸出摘要：`current_yoi.districts` 29 筆；年度人口、生育率
+與預算均為 ROC 110–114；T1 31 個選舉區列與 V1 87 個行政區／年度列均保留
+各自 grain；服務涵蓋率全市 `49.2266230851`%、狀態 `partial`，9 個據點
+通過座標驗證、0 個據點排除，里界 1,039 筆中有 1,032 筆接上里級人口。
+品質報告另記錄 3,111 筆職缺薪資中 2,270 筆有完整上下限可作 midpoint、
+公車 4,149 筆與自行車 5 筆無法對應行政區，以及平溪／坪林租金缺區的
+observed-minimum proxy。
+
+## 27. 開發用 published snapshot
+
+首頁 analytics 可用 `run_analytics.py --metric homepage --publish` 發布為
+Backend 可讀的版本化本機 snapshot。發布層只讀已產生的 homepage analytics，
+不重新抓政府 API，也不重新計算指標。使用目前真實資料產生開發 snapshot 的指令為：
+
+```bash
+cd data-pipeline
+.venv/bin/python src/run_analytics.py \
+  --metric homepage \
+  --publish \
+  --snapshot-id dev-homepage-20260911
+```
+
+本次輸出為：
+
+```text
+data/analytics/published/dev-homepage-20260911/manifest.json
+data/analytics/published/dev-homepage-20260911/dashboard_overview.json
+data/analytics/published/dev-homepage-20260911/district_details.json
+data/analytics/published/current.json
+```
+
+`current.json` 只保存目前 snapshot id；Backend 先讀取此指標，再依
+`manifest.json` 的相對 artifact 路徑讀取同一個 snapshot。overview 保留首頁
+KPI、29 區、年度資料、選舉、預算與服務涵蓋率；district details 將 29 區列
+拆成行政區與 metrics。`null`、`partial`、`unavailable` 會保留，不轉成 0。
+發布 artifact 不包含 `raw_record`、`raw_records` 或原始 PDF；完整缺值與來源
+品質仍保留在 `data/quality/analytics_homepage.json`。
 
 ## 使用建議
 

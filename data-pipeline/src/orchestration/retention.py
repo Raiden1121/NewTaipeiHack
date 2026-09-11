@@ -265,6 +265,13 @@ def _record_is_retained(value: Any, window: RetentionWindow) -> bool:
 
 
 def _record_period(value: Mapping[str, Any]) -> tuple[str, PeriodStrategy] | None:
+    # Election rosters are intentionally all-available snapshots.  Their
+    # election date may be older than the rolling local-data window, but the
+    # selected terms are part of the dataset contract and must remain queryable.
+    election_term = value.get("election_term")
+    if election_term is not None and str(election_term).strip():
+        return str(election_term).strip(), PeriodStrategy.ALL_AVAILABLE
+
     period_type = value.get("period_type")
     for key in ("budget_year_roc", "year_roc", "roc_year", "academic_year", "統計期", "學年度"):
         if key in value:

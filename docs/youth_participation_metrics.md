@@ -4,20 +4,29 @@
 `ParticipationOverviewCard`），逐一列出每個畫面元件背後需要的資料源與計算式，作為
 data-pipeline collector / transform / analytics 的開發依據。
 
-> 現況：青年參政頁所有數字都是 **前端佔位資料**，data-pipeline 尚無任何對應 collector。
-> 目前 pipeline 只有 `population` 與 `youth_budgets` 兩個資料集可部分支援本頁，其餘全部缺。
+> 現況：青年參政頁的數字仍是 **前端佔位資料**；data-pipeline 已完成 `elections`、`youth_service_points` 與青年局決算來源的 raw／curated pipeline，但跨資料集 analytics 與前端接線尚未完成。
+> 目前 pipeline 可提供 `population`、`elections`、`youth_service_points`、`youth_budgets` 等原始／標準化資料，服務涵蓋率仍缺 geocoding、里界與地理計算。
 > 跨資料集 analytics 層（`src/analytics/`）尚未建立。
 
 ---
 
 ## 0. 現況總結
 
+### 0.1 已確認的選舉資料範圍：方案 B
+
+本專案採用方案 B：`elections` 只保存 2014／2018／2022 新北市直轄市議員 `T1` 與村里長 `V1`。
+
+- `T1` 是主要青年參選指標來源，保留選區代碼與名稱；因選區可能跨越多個行政區，不把 `district_id` 硬套成單一新北 29 區。
+- `V1` 分開保存，使用來源行政區與村里欄位；可作青年里長占比等獨立 analytics。
+- 總統、立法委員、市長與其他選舉類型不進入 29 區指標的 `elections` 輸出。
+- 候選人年齡篩選仍由 analytics 以投票日與出生日期／年次處理；collector／transform 只保存來源年齡與日期欄位。
+
 | 前端元件 | 呈現內容 | 目前資料來源 | 需要的真實資料源 | 狀態 |
 |---|---|---|---|---|
-| `ParticipationHotspotMap` / `ParticipationHotspotList` | 29 區青年參選率分層設色圖＋排名 | `fixtures/districts.csv` 的 `youthParticipationIndex` 欄（寫死） | 中選會候選人名單 + `population` | ❌ 無 collector |
-| `ParticipationKpiGrid` → 服務涵蓋率 | 單一 KPI 卡 | `placeholderMetrics.ts` 種子亂數 | 青年局服務據點座標 + `population`（里級） | ❌ 無 collector |
-| `ParticipationKpiGrid` → 青年里長占比 | 單一 KPI 卡 | 同上種子亂數 | 中選會里長選舉結果 + 村里數 | ❌ 無 collector |
-| `ParticipationKpiGrid` → YRR | 單一 KPI 卡 | 同上種子亂數 | 中選會（席次 + 選舉人年齡結構） | ❌ 無 collector |
+| `ParticipationHotspotMap` / `ParticipationHotspotList` | 29 區青年參選率分層設色圖＋排名 | `fixtures/districts.csv` 的 `youthParticipationIndex` 欄（寫死） | 中選會候選人名單 + `population` | ⚠️ `elections` 已有，analytics 尚缺 |
+| `ParticipationKpiGrid` → 服務涵蓋率 | 單一 KPI 卡 | `placeholderMetrics.ts` 種子亂數 | 青年局服務據點座標 + `population`（里級） | ⚠️ `youth_service_points` 已有，仍待 geocode／analytics |
+| `ParticipationKpiGrid` → 青年里長占比 | 單一 KPI 卡 | 同上種子亂數 | 中選會里長選舉結果 + 村里數 | ⚠️ `elections` 已有，analytics 尚缺 |
+| `ParticipationKpiGrid` → YRR | 單一 KPI 卡 | 同上種子亂數 | 中選會（席次 + 選舉人年齡結構） | ⚠️ 候選人資料已部分具備，選民年齡分母尚缺 |
 | `YouthActProgress`（重新定義） | 青年提案落實進度漏斗（5 階段件數） | 元件內寫死 `STAGES` | `youth_council_minutes` ＋ 青年局提案列管表 | ❌ 無 collector |
 | `ResourceIoCharts` → 補助地區分布 | 長條圖 | 元件內寫死 `GRANT_BY_AREA` | 青年局對民間團體補（捐）助明細 | ❌ 無 collector |
 | `ResourceIoCharts` → 補助金額年度趨勢 | 折線圖 | 元件內寫死 `GRANT_TREND` | 同上（依年度彙總） | ❌ 無 collector |
@@ -43,8 +52,8 @@ data-pipeline collector / transform / analytics 的開發依據。
 **青年參選率 = 該區 18–35 歲候選人數 ÷ 該區 18–35 歲人口。**
 
 - 建議單位：`每十萬青年人`（分子 × 100,000），避免數值過小；也可用 `%`。
-- 選舉範圍：以新北市 **直轄市議員** 為主，可另計 **里長**（分開呈現或合併，需與青年局確認）。
-- 期間：以最近一屆各該選舉為準；保留歷屆以做趨勢。
+- 選舉範圍：2014／2018／2022 新北市 **直轄市議員 T1** 為主要指標，**村里長 V1** 分開保存與呈現。
+- 期間：固定保留三屆，使用 `all_available` 以做趨勢。
 
 ### 計算式
 
@@ -58,20 +67,20 @@ youth_candidacy_rate(區) = candidates_18_35(區) / P_18_35(區) × 100000
 
 | 資料 | 欄位 | 資料源 | 粒度 | 現況 |
 |---|---|---|---|---|
-| 候選人名單（18–35） | 出生年次 / 出生日期、性別、參選職務、行政區 / 選區 | 中選會選舉及公投資料庫 | 區（里長可到里） | ❌ 無 collector |
+| 候選人名單（18–35） | 出生年次／出生日期、來源年齡、性別、參選職務、行政區／選區 | 中選會 `elections` | T1 選區、V1 區／里 | ✅ collector／transform；analytics 待建 |
 | 青年人口 `P_18_35` | `youth_18_35_total` | `population`（戶政 ODRP014） | 區 | ✅ 已有 |
 
 ### 資料源細節
 
 **中選會選舉及公投資料庫**
-- 網站：<https://db.cec.gov.tw/>（提供 CSV / Excel 下載，非即時 REST API）
-- 需要的檔案：候選人名單 / 得票明細（含出生年次、擬參選職務、行政區 / 選區）。
-- 適用選舉：新北市直轄市議員、里長（村里長）。
-- 期間策略：`all_available`（選舉為不定期事件，非月 / 年週期）；以「選舉屆別」為 key。
+- 網站：<https://data.cec.gov.tw/選舉資料庫/votedata.zip>（官方 ZIP 候選人與區域檔）
+- 已接 collector：只抓 2014／2018／2022、新北市代碼 `65`、`T1`／`V1`。
+- 需要的欄位：候選人名單中的出生日期／年次、來源年齡、職務、政黨、行政區／選區與村里代碼。
+- 期間策略：`all_available`（選舉為不定期事件，非月／年週期）；以選舉屆別與 `source_code` 保存。
 - 阻塞點：
   - 候選人年齡欄位各年度格式不一（常只有民國「出生年次」）→ 以投票日回推足歲。
-  - 里長選舉資料須能對應到新北市 29 區 + 村里名稱。
-  - 市議員為「選區」，需建立選區 → 行政區對應表；跨區選區的分子 / 分母需按比例分攤或標註。
+  - 里長選舉資料需對應到新北市 29 區 + 村里名稱；目前 V1 已做來源行政區的精確 mapping。
+  - 市議員為「選區」，目前刻意保留選區粒度，不做跨區分子／分母硬分攤；若 analytics 要產生行政區圖，需另定分攤方法。
 
 **population（已存在）**
 - 已輸出 `youth_18_35_total`（區級），可直接當分母，本指標不需額外擴充。
@@ -126,7 +135,7 @@ id 為種子的亂數（`buildParticipationMetrics`）。以下為每項的真�
 - 需要：
   | 資料 | 資料源 | 粒度 | 現況 |
   |---|---|---|---|
-  | 青年服務據點座標 | 青年局內部（青年職涯發展中心、據點、青年住宅等清單 + 地址→geocode） | 點位 | ❌ 需青年局提供或自建 collector |
+  | 青年服務據點座標 | `youth_service_points`（青年局青創基地地址；後續地址→geocode） | 點位 | ⚠️ collector 已有，尚待 geocode |
   | 里級青年人口 | 戶政 ODRP014（`population` collector 的 raw 已是村里粒度） | 里 | ⚠️ 需新增里級 transform 輸出 |
   | 里界多邊形 | 新北市村里界圖 GeoJSON（國土測繪中心 / 新北 open data） | 里 | ❌ 需新增（面積分攤必要） |
 - 半徑參數：預設 2.5 km，設為可調。
@@ -250,13 +259,12 @@ id 為種子的亂數（`buildParticipationMetrics`）。以下為每項的真�
 - 前端：寫死 `BUDGET_EXECUTION = 92`。
 - 計算式：`預算執行率 = 決算實現數 / 法定預算數 × 100%`（可分「歲出」總額或「青年發展業務」）。
 - 現有資料：`youth_budgets`（`data/curated/youth_budgets/all.json`）
-  - **只有預算面**：ROC 112–116 的「計畫及預算統計表」——法定 / 預算案的預算數與比率。
-  - 欄位：`budget_year_roc`、`document_status`、`row_type`(total/detail)、`business_plan`、
+  - 已接預算與決算：ROC 112–116 的「計畫及預算統計表」，以及目前可解析的 ROC 113「歲出機關別決算表」；111／112 決算 PDF 已保存但為影像型待 OCR。
+  - 預算欄位：`budget_year_roc`、`document_status`、`row_type`(total/detail)、`business_plan`、
     `value`（單位 `TWD_thousand`）、`budget_ratio_percent`。
+  - 決算欄位：`budget_amount`、`realized_amount`、`payable_amount`、`reserved_amount`、`settlement_amount`、`surplus_amount`。
   - `geo_level=organization`，**不可拆到 29 區**，`youth_eligibility=context_only`。
-- 缺口：**決算 / 實現數**。需另接：
-  - 新北市政府決算書（歲出政事別 / 機關別決算）— 主計處年度決算公開。
-  - 或青年局年度施政績效報告中的預算執行率。
+- 缺口：**analytics 執行率與影像型決算 OCR**。collector 已保存可用決算欄位；執行率仍應由 analytics 依選定分子／分母計算，不由 collector／transform 直接產生。
 - 期間策略：`annual`；與 `youth_budgets` 同層級（organization）。
 - 建議：新增 `youth_budget_execution` dataset 或擴充 `youth_budgets` 加入 `actual_value`。
 
@@ -402,6 +410,8 @@ raw_score(term, year) =
 | dataset | 用途 | 限制 |
 |---|---|---|
 | `population` | 各區青年人口（青年參選率、服務涵蓋率等的分母）；raw 為村里粒度可支援里級 | transform 目前只輸出區級 18–35 合計與總人口 |
-| `youth_budgets` | 青年局年度預算數、青年發展業務占比 | organization 層級、無執行率、不可拆 29 區、ROC 112–116 |
+| `elections` | 2014／2018／2022 新北 T1＋V1 候選人原始資料 | T1 保留選區、不硬套行政區；18–35 與分區 analytics 尚未計算 |
+| `youth_service_points` | 青年局青創基地名稱與地址 | 9 筆 snapshot；目前 3 筆有地址，尚未 geocode／buffer |
+| `youth_budgets` | 青年局年度預算、可解析的 113 年決算欄位 | organization 層級、執行率仍由 analytics、不可拆 29 區；111／112 決算待 OCR |
 
-其餘 17 個 dataset（就業、居住、交通、教育、生育等）與青年參政頁無直接關係。
+其餘 dataset（就業、居住、交通、教育、生育等）與青年參政頁無直接關係。

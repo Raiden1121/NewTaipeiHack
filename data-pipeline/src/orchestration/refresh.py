@@ -22,6 +22,7 @@ PROFILE_NAMES: tuple[str, ...] = ("daily", "weekly", "monthly")
 
 SUPPORTED_DATASETS: tuple[str, ...] = (
     "population",
+    "population_villages",
     "movement",
     "births",
     "marriages",
@@ -36,6 +37,9 @@ SUPPORTED_DATASETS: tuple[str, ...] = (
     "training_numbers",
     "talent_demand",
     "youth_budgets",
+    "elections",
+    "youth_service_points",
+    "village_boundaries",
     "join_proposals",
     "youth_council_minutes",
     "babysitting_places",

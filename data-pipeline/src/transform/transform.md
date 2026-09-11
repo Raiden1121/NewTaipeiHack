@@ -103,6 +103,8 @@ python src/run_pipeline.py --dataset population --input data/raw/population/exam
 | `training_numbers` | `training_nums` | `{"records": [...]}` |
 | `talent_demand` | — | `{"records": [...]}` |
 | `youth_budgets` | — | `{"records": [...], "documents": [...], "source_artifacts": [...]}` |
+| `elections` | — | `{"records": [...], "source_artifacts": [...]}` |
+| `youth_service_points` | — | `{"records": [...], "source_artifacts": [...]}` |
 | `bus_stops` | `bus_stop` | `{"records": [...]}` |
 | `railway_stops` | `railway_stop` | `{"records": [...]}` |
 | `bike_stops` | `bike_stop` | `{"records": [...]}` |
@@ -118,7 +120,7 @@ curated record 使用 district grain；`areacode` 優先透過 `config/districts
 
 ## `youth_budgets`：青年局年度預算
 
-collector 只保存官方 PDF 的「計畫及預算統計表」；raw envelope 另含 `documents` 與 `source_artifacts`，PDF artifact 以 SHA-256 命名，讓 raw replay 不必重新下載來源文件。`proposed_budget` 與 `legal_budget` 由 `document_id`、ROC 年度、版本與 PDF hash 區分，不能用年度單一 key 覆蓋。
+collector 保存官方預算與決算 PDF；預算版抽取「計畫及預算統計表」，決算版抽取「歲出機關別決算表」。raw envelope 另含 `documents` 與 `source_artifacts`，PDF artifact 以 SHA-256 命名，讓 raw replay 不必重新下載來源文件。`proposed_budget`、`legal_budget` 與 `final_settlement` 由 `document_id`、ROC 年度、版本與 PDF hash 區分，不能用年度單一 key 覆蓋。
 
 curated record 使用 organization grain，不將機關預算分配到新北市 29 區：
 
@@ -127,12 +129,30 @@ curated record 使用 organization grain，不將機關預算分配到新北市 
 | `geo_level` | `organization` |
 | `district_id`, `district_name` | JSON `null` |
 | `period_type` | `year`；ROC 年轉 Gregorian 年邊界 |
-| `metric_id`, `value`, `unit` | `budget_amount`、解析後整數、`TWD_thousand` |
+| `metric_id`, `value`, `unit` | 預算：`budget_amount`／`TWD_thousand`；決算：`settlement_amount`／`TWD` |
 | `age_scope`, `youth_eligibility` | `not_age_specific`、`context_only` |
-| `budget_ratio_percent` | 來源提供的比率；不由 pipeline 重算 |
+| `budget_ratio_percent` | 預算來源提供的比率；不由 pipeline 重算 |
+| settlement fields | `budget_amount`、`original_budget_amount`、`budget_adjustment_amount`、`realized_amount`、`payable_amount`、`reserved_amount`、`settlement_amount`、`surplus_amount`、`source_execution_ratio_percent` |
 | domain fields | `organization_name`、`budget_year_roc`、`document_status`、`row_type`、`business_plan`、`work_plan`、`source_pdf_sha256`、`raw_record` |
 
 total row 與 detail row 分別保存；不加總 detail、不把千元換算成元。缺少 business/work plan、未知版本、非有限或負數值會進 quarantine，且保留 `raw_record`。
+
+`final_settlement` 的 `source_execution_ratio_percent` 只是 PDF 原始欄位；執行率公式留給 analytics，不在 collector／transform 計算。影像型決算 PDF 若無法安全抽取會留在 `source_artifacts`，並在 collection metadata 的 `document_failures` 記錄原因，不產生猜測列。
+
+## `elections`：中選會候選人名冊
+
+collector 下載中選會 `votedata.zip`，只選取 2014／2018／2022 新北市代碼 `65` 的 `T1`（直轄市區域議員）與 `V1`（村里長）。transform 一列對應一名候選人，保存 `birth_date_roc`／`birth_year_roc`／`birth_date`、`source_age`、候選人／政黨／性別／當選標記、選舉類型、選區／村里代碼，以及 `raw_record`。
+
+- T1 是選舉區粒度：保留 `election_district_code`／`election_district_name`，`district_id` 故意為 `null`，不把跨行政區選區硬套成單一新北行政區。
+- V1 的來源 `district_name` 才用 `DistrictResolver` 精確映射到 29 區，並保留村里欄位；無法對應時保留原名並加 `unmapped_district`。
+- 年齡資格、18–35 歲候選人篩選與候選人率屬 analytics；transform 固定使用 `age_scope=all_ages`、`youth_eligibility=context_only`。
+- 來源排程是 `all_available`，輸出 `curated/elections/all.json`；不得把總統、立委或市長資料混入此 canonical dataset。
+
+## `youth_service_points`：青年局青創基地
+
+collector 先從青年局「找基地」列表發現詳細頁，再保存每頁 HTML 與逐列 raw record。transform 固定 `point_type=startup_base`，保留名稱、地址、來源行政區、電話、Email、公告／更新日期、原始內容與 provenance。
+
+`latitude`／`longitude` 保持 `null`、`geocode_status=not_attempted`；只對來源明確提供的行政區做 `DistrictResolver` 精確映射，不猜最近區。地理編碼、2.5 km buffer、里界面積分攤與服務涵蓋率屬後續 geospatial analytics。此資料集使用 `snapshot`／`latest.json`，不在 transform 計算涵蓋率。
 
 ## `join_proposals`
 

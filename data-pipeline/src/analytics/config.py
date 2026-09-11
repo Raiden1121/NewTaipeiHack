@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 _REQUIRED_WEIGHTS = ("w_join", "w_minutes", "w_resolved", "w_escalated")
 _SUPPORTED_NORMALIZATIONS = frozenset({"yearly_max"})
+_SUPPORTED_HOMEPAGE_NORMALIZATIONS = frozenset({"p5_p95"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +62,67 @@ class KeywordConfig:
     policy_relevance_bonus: float = 0.8
     frequency_weight: float = 1.0
     min_dynamic_frequency: int = 5
+
+
+@dataclass(frozen=True, slots=True)
+class HomepageAnalyticsConfig:
+    """Time, normalization, and weighting policy for homepage analytics."""
+
+    version: str
+    annual_years_roc: tuple[int, ...]
+    population_reference_year_roc: int
+    election_years_roc: tuple[int, ...]
+    service_radius_m: float
+    normalization: Mapping[str, Any]
+    yoi_weights: Mapping[str, float]
+
+
+def load_homepage_analytics_config(path: str | Path) -> HomepageAnalyticsConfig:
+    """Load and validate the explicit homepage time and score policy."""
+
+    config_path = Path(path)
+    payload = _load_object(config_path)
+    version = _required_text(payload, "version")
+    annual_years = _roc_years(payload.get("annual_years_roc"), "annual_years_roc")
+    election_years = _roc_years(payload.get("election_years_roc"), "election_years_roc")
+    population_year = payload.get("population_reference_year_roc")
+    if isinstance(population_year, bool) or not isinstance(population_year, int):
+        raise ValueError("population_reference_year_roc must be an integer")
+    if population_year not in annual_years:
+        raise ValueError("population_reference_year_roc must be in annual_years_roc")
+    radius = payload.get("service_radius_m")
+    if isinstance(radius, bool) or not isinstance(radius, (int, float)) or radius <= 0:
+        raise ValueError("service_radius_m must be a positive number")
+    normalization = payload.get("normalization")
+    if not isinstance(normalization, Mapping):
+        raise ValueError("normalization must be an object")
+    method = normalization.get("method")
+    if method not in _SUPPORTED_HOMEPAGE_NORMALIZATIONS:
+        raise ValueError(f"unsupported homepage normalization: {method!r}")
+    constant = normalization.get("constant_value", 50)
+    if isinstance(constant, bool) or not isinstance(constant, (int, float)):
+        raise ValueError("normalization.constant_value must be numeric")
+    raw_weights = payload.get("yoi_weights")
+    if not isinstance(raw_weights, Mapping):
+        raise ValueError("yoi_weights must be an object")
+    required_weights = ("job", "salary", "talent", "housing", "transport")
+    weights: dict[str, float] = {}
+    for key in required_weights:
+        value = raw_weights.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            raise ValueError(f"yoi_weights.{key} must be non-negative")
+        weights[key] = float(value)
+    if not weights or sum(weights.values()) <= 0:
+        raise ValueError("yoi_weights must have a positive total")
+    return HomepageAnalyticsConfig(
+        version=version,
+        annual_years_roc=annual_years,
+        population_reference_year_roc=population_year,
+        election_years_roc=election_years,
+        service_radius_m=float(radius),
+        normalization={str(key): value for key, value in normalization.items()},
+        yoi_weights=weights,
+    )
 
 
 def load_topic_rules(path: str | Path) -> YouthTopicRules:
@@ -226,6 +288,19 @@ def _positive_int(payload: Mapping[str, Any], key: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"keyword config {key} must be a positive integer")
     return value
+
+
+def _roc_years(value: Any, field: str) -> tuple[int, ...]:
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"{field} must be a non-empty array")
+    years: list[int] = []
+    for item in value:
+        if isinstance(item, bool) or not isinstance(item, int) or item <= 0 or item > 999:
+            raise ValueError(f"{field} must contain positive ROC years")
+        if item in years:
+            raise ValueError(f"{field} must not contain duplicate years")
+        years.append(item)
+    return tuple(years)
 
 
 def _unique_texts(values: Any, *, field: str) -> tuple[str, ...]:
