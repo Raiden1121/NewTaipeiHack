@@ -10,7 +10,10 @@ from analytics.config import load_topic_rules
 
 from .contracts import TransformResult
 from .budget import transform_youth_budgets
-from .childcare import transform_babysitting_places
+from .childcare import (
+    load_babysitting_place_location_reference,
+    transform_babysitting_places,
+)
 from .elections import transform_elections
 from .education import transform_college_majors, transform_graduate_majors
 from .geography import DistrictResolver
@@ -130,6 +133,18 @@ def run_transform(
             reference_dir / "reference" / "youth_service_points_locations.json"
         )
         return transform_youth_service_points(
+            _record_list(records, field="records"),
+            resolver=active_resolver,
+            fetched_at=fetched_at,
+            location_reference=location_reference,
+        )
+    if canonical_dataset == "babysitting_places":
+        active_resolver = resolver or _default_resolver()
+        reference_dir = Path(config_dir) if config_dir is not None else _default_config_dir()
+        location_reference = load_babysitting_place_location_reference(
+            reference_dir / "reference" / "babysitting_places_locations.json"
+        )
+        return transform_babysitting_places(
             _record_list(records, field="records"),
             resolver=active_resolver,
             fetched_at=fetched_at,

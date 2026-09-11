@@ -1,6 +1,6 @@
 # Data Pipeline 資料說明
 
-本文件依據 `data/curated/` 內的既有處理結果、2026-09-11 真實資料刷新、官方來源 live check 與 analytics 資料契約撰寫，涵蓋目前已串接的 canonical datasets。`elections`、`youth_service_points`、`population_villages`、`village_boundaries`、`youth_budgets` 與 `youth_grants` 均由 pipeline 管理；首頁、青年就業與青年參政 analytics 分別寫入 `data/analytics/homepage/`、`data/analytics/employment/`、`data/analytics/youth_participation/`，並各自產生品質報告。範例值直接取自 generated JSON 或官方 live response，沒有自行編造或重新計算；未能安全解析的來源會保留 raw artifact 並記錄在 `document_failures`。
+本文件依據 `data/curated/` 內的既有處理結果、2026-09-12 真實資料刷新、官方來源 live check 與 analytics 資料契約撰寫，涵蓋目前已串接的 canonical datasets。`elections`、`youth_service_points`、`population_villages`、`village_boundaries`、`youth_budgets`、`youth_grants` 與 `babysitting_places` 均由 pipeline 管理；首頁、青年就業、青年參政與生育 analytics 分別寫入 `data/analytics/homepage/`、`data/analytics/employment/`、`data/analytics/youth_participation/`、`data/analytics/fertility/`，並各自產生品質報告。範例值直接取自 generated JSON 或官方 live response，沒有自行編造或重新計算；未能安全解析的來源會保留 raw artifact 並記錄在 `document_failures`。
 
 > 範例只展示標準化後較重要的欄位。完整來源內容仍保存在各筆資料的 `raw_record`、`raw_records`、`overview_raw_record` 或 `detail_raw_records`，因內容很大，不在本文件重複展開。
 
@@ -15,7 +15,8 @@
 - 首頁 analytics 已實際產出：29 區 YOI、ROC 110–114 年人口／生育率／預算序列、2014／2018／2022 選舉事件，以及服務涵蓋率全市 49.2266230851%（`partial`；9 verified、0 excluded；1,039 個里界中 1,032 個接上里級人口）。青年就業 analytics 另產出 29 區資料與兩張各 29 點散點圖；職缺與房價來源期間為 `11509`。
 - 青年參政 analytics 已實際產出：V1 村里長 2014／2018／2022 三屆 29 區結果、T1 選舉區結果、提案漏斗、補助年度趨勢、預算執行率與文字雲；公開結果為 `data/analytics/youth_participation/all.json`，品質報告為 `data/quality/analytics_youth_participation.json`。
 - `youth_grants` 2026-09-11 live output 為 110 筆（ROC 111–115）；官方 PDF 沒有可可靠解析的計畫執行地或受補助單位地址，因此 110 筆保留原始補助欄位但 `district_id=null`、`geo_basis=unresolved`，年度金額趨勢可算，行政區分布標示 `partial`。
-- `babysitting_places` 已加入 collector、transform 與 pipeline registry；2026-09-09 live smoke 取得私托 261 筆、公托 130 筆，共 391 筆，391 筆均通過 transform，來源本身沒有歷史年度參數。
+- `babysitting_places` 已加入 collector、transform 與 pipeline registry；2026-09-11 live refresh 取得私托 261 筆、公托 130 筆，共 391 筆，391 筆均通過 transform，來源本身沒有歷史年度參數。
+- Fertility analytics 已實際產出 ROC 110–114 年度生育率／青年人口占比、最新參考年度 29 區資料、1 km 托育覆蓋率、FaFI 與 YOI × 生育率 OLS；ROC 113 因缺 1 個人口月份為 `partial`。2026-09-12 托育名冊 391 筆中，220 筆由固定的官方門牌參照檔取得可驗證座標，171 筆保留但標記 `excluded_no_verified_coordinate`，托育覆蓋率因此為 `partial`。
 - 2026-09-04 的 TDX 執行成功取得 `bus_stops`、`railway_stops`、`bike_stops`。
 - 2026-09-09 的 `11201`～`11601` range 執行結果為 102 組成功、28 組來源無資料、1 組傳輸失敗；唯一失敗的是 `population` 的 `11206`，原因為 HTTP 回應中途截斷 (`IncompleteRead`)。
 - `data/quality/collection_range.json` 記錄本次 `11509` range 執行結果；三個新增／擴充 dataset 的 status 都是 `ok`，詳細的 111／112 年決算 PDF 解析失敗則在 raw envelope 的 `document_failures` 保存。
@@ -97,6 +98,7 @@
 | `homepage` analytics | `data/analytics/homepage/all.json`；品質報告為 `data/quality/analytics_homepage.json` |
 | `employment` analytics | `data/analytics/employment/all.json`；品質報告為 `data/quality/analytics_employment.json` |
 | `youth_participation` analytics | `data/analytics/youth_participation/all.json`；品質報告為 `data/quality/analytics_youth_participation.json` |
+| `fertility` analytics | `data/analytics/fertility/all.json`；品質報告為 `data/quality/analytics_fertility.json` |
 | `join_proposals` | `data/curated/join_proposals/all.json` |
 | `youth_council_minutes` | `data/curated/youth_council_minutes/all.json` |
 
@@ -897,6 +899,9 @@ analytics 會輸出 ROC 110–114 的年度金額（單位 `TWD_thousand`），�
 - `capacity`：私托來源 `person` 解析後的可收托人數；公托來源沒有此欄位時為 `null`。
 - `capacity_unit`：有 `capacity` 時為 `child_slots`，缺失時為 `null`。
 - `source_dataset_id`、`source_row_id`：來源資料集與來源序號。
+- `latitude`、`longitude`、`x_3826`、`y_3826`：固定官方門牌參照檔提供的座標；未驗證的機構保留為 `null`。
+- `geocode_status`：`matched` 或 `excluded_no_verified_coordinate`。
+- `geocode_provider`、`geocode_crs`、`geocode_source_url`、`geocode_source_period`、`location_source_type`、`location_verified_at`：座標來源與驗證 provenance。
 - `raw_record`：未覆寫的來源列與 collector 加入的來源類型標記。
 
 ### 前五筆實際資料
@@ -911,17 +916,19 @@ analytics 會輸出 ROC 110–114 的年度金額（單位 `TWD_thousand`），�
 
 ### 其他說明
 
-- 實際檔案：`data/curated/babysitting_places/latest.json`，391 筆；私托 261 筆、公托 130 筆；快照日期為 2026-09-09。
+- 實際檔案：`data/curated/babysitting_places/latest.json`，391 筆；私托 261 筆、公托 130 筆；快照日期為 2026-09-11。
 - 來源 API：私托 <https://data.ntpc.gov.tw/api/datasets/69cecdb0-7796-48df-84e5-99e4f1274245/json>；公托 <https://data.ntpc.gov.tw/api/datasets/b3faf2aa-e96b-4f2f-b647-da47dc094860/json>。
 - 完整查詢使用 `?page=0&size=1000`，collector 會持續分頁直到取得完整名冊。
 - 官方資料頁：<https://data.ntpc.gov.tw/datasets/69cecdb0-7796-48df-84e5-99e4f1274245>、<https://data.ntpc.gov.tw/datasets/b3faf2aa-e96b-4f2f-b647-da47dc094860>。
+- 座標參照檔：`config/reference/babysitting_places_locations.json`，以 `source_record_id` 對應；使用新北市官方門牌位置資料的 EPSG:3826 座標，pipeline 執行時不呼叫 geocoding API。2026-09-12 版本包含 220 筆唯一匹配；其餘 171 筆不猜測座標，保留名冊列並標記排除。
 - 此資料集是 `snapshot` source strategy，不把目前名冊複製成過去年度。輸出位置為 `data/raw/babysitting_places/`、`data/curated/babysitting_places/latest.json`、`data/quality/babysitting_places/latest.json` 與 `data/quarantine/babysitting_places/latest.json`。
 - 執行命令：`PYTHONPATH=src .venv/bin/python src/run_pipeline.py --refresh-profile monthly --datasets babysitting_places --output-dir data`。此命令只更新 `babysitting_places`。
 - `areacode` 優先用來對應 `config/districts.json`；無法可靠對應時保留 `district_id=null`，不使用最近行政區猜測。
 - `capacity` 只代表來源列提供的私托可收托人數；公托沒有此欄位時保留為 `null`，不補成 0。
 - 資料沒有年齡欄位，因此 `age_scope=not_age_specific`、`youth_eligibility=context_only`，只能作托育資源背景，不是 18–35 歲核心指標。
 - 公托與私托的定義、欄位與更新內容由來源機關維護；兩者可以分別統計，也可以用 `care_type` 做資源比較。
-- 若需行政區托育據點數、私托容量總和或人均資源，應在 `analytics/` 依可靠 `district_id` 計算；collector 與 transform 只保存單一機構資料。
+- Fertility analytics 使用公托與私托所有 `geocode_status=matched` 的據點，以 EPSG:3826 的 1,000 公尺 buffer 聯集，按村里界面積比例分攤里級 `youth_18_35_female`；未驗證據點不當成 0 覆蓋，並輸出 `verified_point_count`、`excluded_point_count`、里界／人口匹配率與 `blocking_reasons`。
+- 若需行政區托育據點數、私托容量總和或人均資源，仍應在 `analytics/` 依可靠 `district_id` 計算；collector 與 transform 只保存單一機構資料。
 
 ## 22. `join_proposals`：公共政策提案
 
@@ -969,6 +976,37 @@ analytics 只讀 `data/quality/dataset_index.json` 指向的兩份 curated all-a
 V1 的 YRR 目前使用 `population` 的 18–35 歲人口比例作為選舉人年齡比例 proxy，資料列會標記 `denominator_type=population_proxy`、`proxy=true`；這不是年齡別選舉人名冊。所有子指標都帶有 `status`、`source_period`、`blocking_reasons` 或品質欄位，`observed`、`partial`、`unavailable` 的意義由實際輸入覆蓋率決定。
 
 目前真實輸出可由品質報告確認：V1 最新一屆為 ROC 111、29 區；服務涵蓋率因里級人口未完整接合為 `partial`；提案第 4–5 階因沒有列管表為 `null`；補助年度趨勢可算，但因官方 PDF 未提供地址，行政區分布為 `partial`；預算只有已解析決算年度能計算執行率。
+
+## 25.2 `fertility` analytics
+
+執行 `run_analytics.py --metric fertility` 會只讀 curated datasets，輸出 ROC 110–114 年度生育率與青年人口占比，並以最新參考年度整合托育覆蓋率、FaFI 與 YOI × 生育率散點圖。公開輸出為 `data/analytics/fertility/all.json`，品質報告為 `data/quality/analytics_fertility.json`；公開 JSON 不含 `raw_record`、`raw_records` 或 PDF 全文。
+
+### 時間、人口與公式
+
+- 年度序列固定使用 ROC 110–114。生育率是 18–35 歲生母出生數除以該年度可取得月份的 18–35 歲女性人口月平均，再乘以 1,000；不是總和生育率（TFR）。
+- 青年人口占比是 18–35 歲總人口除以全體人口，再乘以 100；使用該年度最新可得人口月份。
+- 全市生育率使用全市出生數除以全市女性人口分母，不平均 29 區比率。缺少人口月份不補 0、不借用其他年度，年度狀態標記為 `partial`；無法計算的行政區保留 `null`。
+- 最新參考年度由 `--population-reference-roc` 指定，預設為 ROC 114。托育與 YOI 是最新可得 snapshot，不倒填到 ROC 110–114 的年度序列。
+
+### 公開輸出結構
+
+| JSON 區塊 | 內容 |
+|---|---|
+| `annual.years` | ROC 110–114 的年度 `totalBirths`、`fertilityRate`、`youthRatio`、可用月份與 29 區資料；缺值為 `null`。 |
+| `districts`、`citySummary` | 最新參考年度的 29 區與全市摘要；每區合併生育率、青年人口占比、托育覆蓋率、FaFI 與 YOI `opportunityIndex`。 |
+| `daycareCoverage` | 公托／私托有效座標的 1 km buffer 聯集，按里界面積比例分攤 `youth_18_35_female`；包含 `verified_point_count`、`excluded_point_count`、`population_coverage_ratio` 與狀態。 |
+| `fafi` | `norm(daycareCoverage)`、既有 YOI housing score、既有青年薪資的等權平均；各輸入以 P5/P95 clipping，必要組件缺失時 `fafiScore=null`。 |
+| `scatter.regression` | 29 區 `opportunityIndex`（X）與 `fertilityRate`（Y）的純 Python OLS；`null` 點不納入，點數不足或 X 無變異時係數為 `null`。 |
+
+FaFI 分級使用 29 區有效 `fafiScore` 的 Q1/Q3。托育座標以固定參照檔 `config/reference/babysitting_places_locations.json` 提供；無法唯一匹配的機構保留在 curated，但以 `excluded_no_verified_coordinate` 排除於空間計算，並使相關結果標記 `partial`，不把排除列當成零覆蓋。
+
+2026-09-12 實際輸出摘要：年度生育率的 ROC 110、111、112、114 為 `observed`，ROC 113 因缺 1 個人口月份為 `partial`；最新參考年度輸出 29 區。托育名冊 391 筆中 220 筆有驗證座標、171 筆排除，托育覆蓋率約 80.4622%，狀態為 `partial`；FaFI 也保留對應品質狀態。Published snapshot 的 artifact 為：
+
+```text
+data/analytics/published/<snapshot_id>/analyses/fertility.json
+data/analytics/published/<snapshot_id>/manifest.json
+data/analytics/published/current.json
+```
 
 ## 26. `homepage` analytics
 

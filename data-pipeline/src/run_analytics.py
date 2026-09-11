@@ -14,6 +14,7 @@ from analytics.config import (
 )
 from analytics.homepage import generate_homepage_data, write_homepage_data
 from analytics.employment import generate_employment_data, write_employment_data
+from analytics.fertility import generate_fertility_data, write_fertility_data
 from analytics.input_resolver import HomepageInputResolver
 from analytics.io import load_curated_dataset
 from analytics.published_snapshot import publish_homepage_snapshot
@@ -39,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
             "homepage",
             "employment",
             "youth_participation",
+            "fertility",
         ),
     )
     parser.add_argument("--output-dir", default="data")
@@ -59,11 +61,11 @@ def main(argv: list[str] | None = None) -> int:
 
     output_dir = Path(args.output_dir)
     config_dir = Path(args.config_dir)
-    if args.publish and args.metric not in {"homepage", "employment", "youth_participation"}:
+    if args.publish and args.metric not in {"homepage", "employment", "youth_participation", "fertility"}:
         parser.error(
-            "--publish is only supported with --metric homepage, employment, or youth_participation"
+            "--publish is only supported with --metric homepage, employment, youth_participation, or fertility"
         )
-    if args.metric in {"homepage", "employment", "youth_participation"}:
+    if args.metric in {"homepage", "employment", "youth_participation", "fertility"}:
         if args.annual_start_roc > args.annual_end_roc:
             parser.error("--annual-start-roc must be less than or equal to --annual-end-roc")
         config = load_homepage_analytics_config(config_dir / "homepage_analytics.json")
@@ -118,6 +120,35 @@ def main(argv: list[str] | None = None) -> int:
                     analysis_quality={
                         "participation": participation_result.get("_quality", {})
                     },
+                )
+                print(f"published snapshot written: {published.snapshot_dir}")
+                print(f"published pointer written: {published.current_path}")
+            return 0
+
+        if args.metric == "fertility":
+            fertility_result = generate_fertility_data(
+                resolver=resolver,
+                config=config,
+                homepage_result=homepage_result,
+            )
+            output_path, quality_path = write_fertility_data(
+                fertility_result, output_dir=output_dir
+            )
+            print(f"analytics written: {output_path}")
+            print(f"quality written: {quality_path}")
+            if args.publish:
+                public_fertility = {
+                    key: value
+                    for key, value in fertility_result.items()
+                    if key != "_quality"
+                }
+                published = publish_homepage_snapshot(
+                    homepage_result,
+                    homepage_result.get("_quality"),
+                    output_dir=output_dir,
+                    snapshot_id=args.snapshot_id,
+                    analyses={"fertility": public_fertility},
+                    analysis_quality={"fertility": fertility_result.get("_quality", {})},
                 )
                 print(f"published snapshot written: {published.snapshot_dir}")
                 print(f"published pointer written: {published.current_path}")
