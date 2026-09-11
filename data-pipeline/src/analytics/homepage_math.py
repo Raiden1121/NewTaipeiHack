@@ -83,6 +83,55 @@ def weighted_score(
     return None if denominator <= 0 else numerator / denominator
 
 
+def calculate_ols_regression(
+    points: Iterable[tuple[float | int | None, float | int | None]],
+) -> dict[str, float | int | None]:
+    """Calculate ordinary least squares for finite, complete point pairs.
+
+    The function deliberately has no NumPy dependency because these analytics
+    run as part of the existing lightweight data pipeline.  Degenerate input
+    keeps the regression fields nullable instead of fabricating statistics.
+    """
+
+    valid = [
+        (float(x), float(y))
+        for x, y in points
+        if _finite(x) and _finite(y)
+    ]
+    result: dict[str, float | int | None] = {
+        "method": "ols",
+        "sample_size": len(valid),
+        "slope": None,
+        "intercept": None,
+        "r_squared": None,
+    }
+    if len(valid) < 2:
+        return result
+
+    mean_x = sum(x for x, _ in valid) / len(valid)
+    mean_y = sum(y for _, y in valid) / len(valid)
+    centered_x = [x - mean_x for x, _ in valid]
+    centered_y = [y - mean_y for _, y in valid]
+    ss_xx = sum(value * value for value in centered_x)
+    if math.isclose(ss_xx, 0.0):
+        return result
+
+    covariance = sum(x * y for x, y in zip(centered_x, centered_y))
+    slope = covariance / ss_xx
+    intercept = mean_y - slope * mean_x
+    result["slope"] = slope
+    result["intercept"] = intercept
+
+    ss_tot = sum(value * value for value in centered_y)
+    if not math.isclose(ss_tot, 0.0):
+        ss_res = sum(
+            (y - (slope * x + intercept)) ** 2
+            for x, y in valid
+        )
+        result["r_squared"] = 1.0 - ss_res / ss_tot
+    return result
+
+
 def _finite(value: Any) -> bool:
     try:
         return math.isfinite(float(value))
@@ -103,6 +152,7 @@ def _percentile(values: list[float], fraction: float) -> float:
 
 
 __all__ = [
+    "calculate_ols_regression",
     "calculate_quartile_risk",
     "normalize_p5_p95",
     "shannon_entropy",

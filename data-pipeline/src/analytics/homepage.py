@@ -369,8 +369,24 @@ def _calculate_current_yoi(
     city_salary_median = _median(salary_values)
     quality["excluded"]["job_vacancy_salaries"] = {
         "total_rows": len(salary_rows),
-        "midpoint_rows": len(salary_values),
+        "complete_midpoint_rows": len(salary_values),
+        "complete_salary_position_count": sum(
+            _number(row.get("position_count")) or 0
+            for row in salary_rows
+            if _salary_midpoint(row) is not None
+        ),
         "excluded_no_complete_bounds": len(salary_rows) - len(salary_values),
+        "unmapped_district_rows": sum(row.get("district_id") is None for row in salary_rows),
+    }
+    quality["excluded"]["job_vacancies"] = {
+        "total_rows": len(vacancies),
+        "district_rows": sum(row.get("geo_level") == "district" for row in vacancies),
+        "total_position_count": sum(
+            _number(row.get("position_count")) or 0
+            for row in vacancies
+            if row.get("geo_level") == "district"
+        ),
+        "unmapped_district_rows": sum(row.get("district_id") is None for row in vacancies),
     }
     for dataset in ("bus_stops", "bike_stops"):
         rows = snapshots.get(dataset, [])
@@ -411,7 +427,6 @@ def _calculate_current_yoi(
             for row in district_salaries
             if _salary_midpoint(row) is not None and high_salary_threshold is not None and _salary_midpoint(row) > high_salary_threshold
         )
-        salary_total_positions = sum(_number(row.get("position_count")) or 0 for row in district_salaries)
         district_house_all = [_number(row.get("price_per_ping")) for row in houses if str(row.get("district_id")) == district_id]
         district_house_residential = [
             _number(row.get("price_per_ping"))
@@ -457,7 +472,7 @@ def _calculate_current_yoi(
             "occupation_shannon_index": shannon_entropy(occupation_counts),
             "talent_demand_yoy": talent_yoy,
             "salary_median": _median(valid_salaries),
-            "high_salary_ratio": None if salary_total_positions <= 0 else high_count / salary_total_positions,
+            "high_salary_ratio": None if vacancy_positions <= 0 else high_count / vacancy_positions,
             "adjusted_youth_wage": adjusted_wage,
             "college_student_density": None if area is None else college_by_district.get(district_id, 0.0) / area,
             "vt_course_count": vt_value,
@@ -606,8 +621,8 @@ def _latest_youth_wage(records: list[dict[str, Any]], years: list[int]) -> tuple
     selected = candidates[0]
     year = int(str(selected.get("period_start"))[:4]) - 1911
     if year not in years:
-        return _number(selected.get("value")), "latest_available_outside_window"
-    return _number(selected.get("value")), "observed"
+        return _number(selected.get("value")), "latest_available_outside_window_official_age_group_proxy"
+    return _number(selected.get("value")), "latest_available_official_age_group_proxy"
 
 
 def _talent_demand_yoy(records: list[dict[str, Any]], years: list[int]) -> float | None:

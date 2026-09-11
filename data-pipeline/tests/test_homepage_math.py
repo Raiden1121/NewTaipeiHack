@@ -9,6 +9,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from analytics.homepage_math import (  # noqa: E402
+    calculate_ols_regression,
     calculate_quartile_risk,
     normalize_p5_p95,
     shannon_entropy,
@@ -17,6 +18,35 @@ from analytics.homepage_math import (  # noqa: E402
 
 
 class TestHomepageMath(unittest.TestCase):
+    def test_ols_regression_returns_line_and_fit(self):
+        result = calculate_ols_regression([(1, 3), (2, 5), (3, 7)])
+
+        self.assertEqual(result["method"], "ols")
+        self.assertEqual(result["sample_size"], 3)
+        self.assertAlmostEqual(result["slope"], 2)
+        self.assertAlmostEqual(result["intercept"], 1)
+        self.assertAlmostEqual(result["r_squared"], 1)
+
+    def test_ols_regression_ignores_missing_non_finite_and_handles_degenerate_inputs(self):
+        result = calculate_ols_regression(
+            [(1, 3), (2, None), (None, 5), (float("nan"), 7), (3, float("inf")), (3, 7)]
+        )
+        self.assertEqual(result["sample_size"], 2)
+        self.assertAlmostEqual(result["slope"], 2)
+        self.assertAlmostEqual(result["intercept"], 1)
+        self.assertAlmostEqual(result["r_squared"], 1)
+
+        for points in ([], [(1, 2)], [(1, 2), (1, 3)]):
+            degenerate = calculate_ols_regression(points)
+            self.assertIsNone(degenerate["slope"])
+            self.assertIsNone(degenerate["intercept"])
+            self.assertIsNone(degenerate["r_squared"])
+
+        constant_y = calculate_ols_regression([(1, 2), (2, 2), (3, 2)])
+        self.assertAlmostEqual(constant_y["slope"], 0)
+        self.assertAlmostEqual(constant_y["intercept"], 2)
+        self.assertIsNone(constant_y["r_squared"])
+
     def test_p5_p95_clips_inverse_and_preserves_missing(self):
         values = {"a": 0, "b": 10, "c": 20, "d": 30, "e": 100, "missing": None}
         normalized = normalize_p5_p95(values)

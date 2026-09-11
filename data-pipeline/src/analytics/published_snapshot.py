@@ -32,6 +32,8 @@ def publish_homepage_snapshot(
     *,
     output_dir: str | Path,
     snapshot_id: str | None = None,
+    analyses: Mapping[str, Mapping[str, Any]] | None = None,
+    analysis_quality: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> PublishedSnapshot:
     """Write a homepage payload as an atomic, versioned published snapshot.
 
@@ -47,6 +49,25 @@ def publish_homepage_snapshot(
     quality = quality_payload if quality_payload is not None else {}
     if not isinstance(quality, Mapping):
         raise ValueError("quality_payload must be a mapping")
+    if analyses is not None and not isinstance(analyses, Mapping):
+        raise ValueError("analyses must be a mapping")
+    if analysis_quality is not None and not isinstance(analysis_quality, Mapping):
+        raise ValueError("analysis_quality must be a mapping")
+
+    named_analyses: dict[str, Mapping[str, Any]] = {}
+    for name, payload in (analyses or {}).items():
+        _validate_analysis_name(name)
+        if not isinstance(payload, Mapping):
+            raise ValueError(f"analysis {name!r} must be a mapping")
+        _validate_public_payload(payload, path=f"analyses.{name}")
+        named_analyses[name] = payload
+    named_quality: dict[str, Mapping[str, Any]] = {}
+    for name, payload in (analysis_quality or {}).items():
+        _validate_analysis_name(name)
+        if not isinstance(payload, Mapping):
+            raise ValueError(f"analysis_quality {name!r} must be a mapping")
+        _validate_public_payload(payload, path=f"analysis_quality.{name}")
+        named_quality[name] = payload
 
     districts = homepage_payload.get("districts")
     if not isinstance(districts, list):
@@ -61,10 +82,14 @@ def publish_homepage_snapshot(
         quality,
         resolved_snapshot_id,
         districts,
+        named_analyses,
+        named_quality,
     )
 
     atomic_json_write(snapshot_dir / "dashboard_overview.json", overview)
     atomic_json_write(snapshot_dir / "district_details.json", district_details)
+    for name, payload in named_analyses.items():
+        atomic_json_write(snapshot_dir / "analyses" / f"{name}.json", payload)
     manifest_path = atomic_json_write(snapshot_dir / "manifest.json", manifest)
     current_path = atomic_json_write(
         published_root / "current.json", {"snapshot_id": resolved_snapshot_id}
@@ -132,9 +157,22 @@ def _build_manifest(
     quality: Mapping[str, Any],
     snapshot_id: str,
     districts: list[Any],
+    analyses: Mapping[str, Mapping[str, Any]] | None = None,
+    analysis_quality: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     flags = _quality_flags(quality)
     time_policy = homepage.get("time_policy", {})
+    analysis_artifacts = {
+        name: f"analyses/{name}.json" for name in (analyses or {})
+    }
+    analysis_datasets = [
+        _build_analysis_dataset_entry(
+            name,
+            payload,
+            (analysis_quality or {}).get(name, {}),
+        )
+        for name, payload in (analyses or {}).items()
+    ]
     return {
         "schema_version": 1,
         "snapshot_id": snapshot_id,
@@ -143,7 +181,7 @@ def _build_manifest(
         "artifacts": {
             "dashboard_overview": "dashboard_overview.json",
             "district_details": "district_details.json",
-            "analyses": {},
+            "analyses": analysis_artifacts,
         },
         "datasets": [
             {
@@ -159,7 +197,7 @@ def _build_manifest(
                 },
                 "quality_flags": flags,
             }
-        ],
+        ] + analysis_datasets,
         "warnings": flags,
     }
 
@@ -227,6 +265,33 @@ def _validate_public_payload(value: Any, *, path: str = "homepage") -> None:
     elif isinstance(value, list):
         for index, child in enumerate(value):
             _validate_public_payload(child, path=f"{path}[{index}]")
+
+
+def _build_analysis_dataset_entry(
+    name: str,
+    payload: Mapping[str, Any],
+    quality: Mapping[str, Any],
+) -> dict[str, Any]:
+    districts = payload.get("districts")
+    coverage = quality.get("coverage")
+    if not isinstance(coverage, Mapping):
+        coverage = {
+            "district_count": len(districts) if isinstance(districts, list) else 0,
+        }
+    return {
+        "dataset": name,
+        "path": f"analyses/{name}.json",
+        "period_strategy": "latest_snapshot",
+        "source_period": quality.get("source_periods", {}),
+        "geo_level": "district",
+        "coverage": dict(coverage),
+        "quality_flags": _quality_flags(quality),
+    }
+
+
+def _validate_analysis_name(value: Any) -> None:
+    if not isinstance(value, str) or _SAFE_SNAPSHOT_ID.fullmatch(value) is None:
+        raise ValueError("analysis name must be a safe path component")
 
 
 def _snapshot_id_from_generated_at(generated_at: str) -> str:

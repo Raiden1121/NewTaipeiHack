@@ -4,6 +4,10 @@
 > 所有計算皆由 Backend 完成後才拋給 Frontend 顯示。
 > YOI 核心公式與五面向子指數**直接沿用 `homepage_analysis.md` v8** 的定義，本文件僅列重點摘要與前端呈現差異。
 
+目前 data pipeline 已依本文件產出 `data/analytics/employment/all.json` 與
+`data/quality/analytics_employment.json`；Backend／Frontend 只需讀取產物，
+不在 request time 重新計算。
+
 ---
 
 ## 一、前端元件與參數對應表
@@ -134,28 +138,10 @@ knowledge_job_ratio(d) =
 
 兩張散點圖均在 Backend 計算 **OLS（普通最小平方法）回歸係數**：
 
-```python
-import numpy as np
-
-def calc_ols_regression(x_list, y_list):
-    """
-    x_list: 29 個行政區的 X 值 list
-    y_list: 29 個行政區的 Y 值 list
-    回傳: slope（斜率）, intercept（截距）, r_squared（R²）
-    """
-    x = np.array(x_list)
-    y = np.array(y_list)
-    slope, intercept = np.polyfit(x, y, 1)
-    y_pred = slope * x + intercept
-    ss_res = np.sum((y - y_pred) ** 2)
-    ss_tot = np.sum((y - np.mean(y)) ** 2)
-    r_squared = 1 - ss_res / ss_tot if ss_tot != 0 else 0
-    return {
-        "slope":     round(float(slope), 4),
-        "intercept": round(float(intercept), 4),
-        "r_squared": round(float(r_squared), 4)
-    }
-```
+pipeline 使用 `analytics.homepage_math.calculate_ols_regression` 的純 Python
+實作，不新增 NumPy 依賴。它會先排除 `null`、NaN、Infinity；0 是有效值。
+輸出 `method=ols`、`sample_size`、`slope`、`intercept`、`r_squared`。有效點
+不足兩筆或 X 沒有變異時，對應統計欄位保留 `null`，不把退化資料硬補成 0。
 
 Frontend 收到後根據 `y = intercept + slope × x` 繪製虛線回歸線。
 
@@ -186,7 +172,9 @@ def generate_employment_data(snapshot_date, year):
     COLLEGE_KEYWORDS = ["大學", "專科", "碩士", "博士", "學士"]
 
     def is_college_required(vacancy):
-        edgr = vacancy.raw_record.get("EDGRDESC", "")
+        edgr = vacancy.raw_record.get(
+            "EDGRDESC（最低學歷要求）", vacancy.raw_record.get("EDGRDESC", "")
+        )
         return any(kw in edgr for kw in COLLEGE_KEYWORDS)
 
     knowledge_ratio = {}
@@ -194,7 +182,7 @@ def generate_employment_data(snapshot_date, year):
         d_vac      = [v for v in vacancies if v.district_id == d]
         total      = sum(v.position_count for v in d_vac)
         college    = sum(v.position_count for v in d_vac if is_college_required(v))
-        knowledge_ratio[d] = (college / total * 100) if total > 0 else 0
+        knowledge_ratio[d] = (college / total * 100) if total > 0 else None
 
     # ── 計算各區住宅用房價中位數（Scatter 2 Y 軸）────────────
     houses = db.get("house_prices")   # C4.2
@@ -214,26 +202,24 @@ def generate_employment_data(snapshot_date, year):
         {
             "district_name": district_names[d],
             "x": round(knowledge_ratio[d], 2),           # 知識型職缺比例 (%)
-            "y": round(estimated_wages[d] / 10000, 2),   # 估算年薪 (萬元)
+            "y": round(estimated_wages[d], 2),            # 估算年薪 (萬元)
         }
         for d in ALL_29_DISTRICTS
     ]
-    valid_s1  = [p for p in s1_points if p["x"] and p["y"]]
-    regression1 = calc_ols_regression([p["x"] for p in valid_s1],
-                                      [p["y"] for p in valid_s1])
+    valid_s1  = [p for p in s1_points if p["x"] is not None and p["y"] is not None]
+    regression1 = calculate_ols_regression([(p["x"], p["y"]) for p in valid_s1])
 
     # ── Scatter 2 ─────────────────────────────────────────────
     s2_points = [
         {
             "district_name": district_names[d],
-            "x": round(estimated_wages[d] / 12 / 10000, 2),  # 月薪 (萬元)
+            "x": round(estimated_wages[d] / 12, 2),           # 月薪 (萬元)
             "y": house_median_wan[d],                          # 房價 (萬元/坪)
         }
         for d in ALL_29_DISTRICTS
     ]
-    valid_s2  = [p for p in s2_points if p["x"] and p["y"]]
-    regression2 = calc_ols_regression([p["x"] for p in valid_s2],
-                                      [p["y"] for p in valid_s2])
+    valid_s2  = [p for p in s2_points if p["x"] is not None and p["y"] is not None]
+    regression2 = calculate_ols_regression([(p["x"], p["y"]) for p in valid_s2])
 
     # ── 組合各區輸出 ──────────────────────────────────────────
     districts_result = []
@@ -249,8 +235,8 @@ def generate_employment_data(snapshot_date, year):
             "score_housing":          round(s_housing[d], 1),  # 居住友善度，越高越好
             "score_transport":        round(s_transport[d], 1),
             "knowledge_job_ratio":    round(knowledge_ratio[d], 2),
-            "estimated_wage":         round(estimated_wages[d] / 10000, 2),        # 年薪 萬元
-            "estimated_monthly_wage": round(estimated_wages[d] / 12 / 10000, 2),   # 月薪 萬元
+            "estimated_wage":         round(estimated_wages[d], 2),                # 年薪 萬元
+            "estimated_monthly_wage": round(estimated_wages[d] / 12, 2),           # 月薪 萬元
             "house_price_median_wan": house_median_wan[d],
         })
 
@@ -283,8 +269,8 @@ def generate_employment_data(snapshot_date, year):
 
 | 項目 | 說明 | 影響欄位 |
 |------|------|---------|
-| ⚠️ 職缺快照唯一性 | `job_vacancies` 只有 2026-09-03 一天快照，`knowledge_job_ratio` 及 `score_job` 均為單點估計(但沒辦法就先這樣吧==) | Scatter 1、S_job |
-| 🔴 職缺學歷欄位確認 | `EDGRDESC` 欄位在 curated keys 中未列出，須向後端確認 raw JSON 是否穩定輸出此欄位 | `knowledge_job_ratio`(因為這是新增的，所以需要再麻煩用一下嘿嘿) |
+| ⚠️ 職缺快照唯一性 | `job_vacancies` 目前使用最新 `11509` 快照，`knowledge_job_ratio` 及 `score_job` 均為單點估計 | Scatter 1、S_job |
+| ✅ 職缺學歷欄位 | transform 保留 raw `EDGRDESC（最低學歷要求）`；analytics 以大學／專科／學士／碩士／博士關鍵字計算比例 | `knowledge_job_ratio` |
 | ⚠️ 平溪房價缺住宅用資料 | 平溪無住宅用記，使用所有類型 fallback；前端建議加 `*` 標記 | Scatter 2 Y 軸 |
 | ⚠️ 雷達圖頂點待對應 | 前端尚未配置五個頂點與面向的對應，建議順序（順時針）：工作機會→薪資水準→人才資源→居住友善度→交通可及 | 前端雷達圖 |
 | ⚠️ S_talent 集中問題 | `college_majors` 為學校所在地，淡水/新莊等學區 `score_talent` 虛高；權重已降至 0.05 | `score_talent` 雷達圖 |

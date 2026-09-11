@@ -13,6 +13,53 @@ from analytics.published_snapshot import publish_homepage_snapshot  # noqa: E402
 
 
 class TestPublishedSnapshot(unittest.TestCase):
+    def test_publishes_named_analysis_and_records_quality_in_manifest(self):
+        homepage = {
+            "metric_id": "homepage",
+            "calculation_version": "1",
+            "generated_at": "2026-09-11T09:39:13.190552+00:00",
+            "time_policy": {"annual_years_roc": [110, 111, 112, 113, 114]},
+            "kpi": {},
+            "districts": [],
+            "annual": {},
+            "policy": {},
+            "elections": {},
+            "service_coverage": {},
+        }
+        analysis = {
+            "metric_id": "employment",
+            "generated_at": "2026-09-11T09:39:13.190552+00:00",
+            "districts": [],
+        }
+        analysis_quality = {
+            "source_periods": {"job_vacancies": ["11509"]},
+            "coverage": {"district_count": 29, "plot1_regression_sample_size": 29},
+            "warnings": ["wage_proxy"],
+        }
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            result = publish_homepage_snapshot(
+                homepage,
+                {},
+                output_dir=tempdir,
+                snapshot_id="dev-employment",
+                analyses={"employment": analysis},
+                analysis_quality={"employment": analysis_quality},
+            )
+
+            analysis_path = result.snapshot_dir / "analyses" / "employment.json"
+            self.assertTrue(analysis_path.is_file())
+            self.assertEqual(json.loads(analysis_path.read_text(encoding="utf-8")), analysis)
+            manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                manifest["artifacts"]["analyses"],
+                {"employment": "analyses/employment.json"},
+            )
+            entry = next(item for item in manifest["datasets"] if item["dataset"] == "employment")
+            self.assertEqual(entry["source_period"], {"job_vacancies": ["11509"]})
+            self.assertEqual(entry["coverage"]["district_count"], 29)
+            self.assertEqual(entry["quality_flags"], ["wage_proxy"])
+
     def test_publishes_homepage_artifacts_and_switches_current_pointer_last(self):
         homepage = {
             "metric_id": "homepage",
@@ -94,6 +141,15 @@ class TestPublishedSnapshot(unittest.TestCase):
                 {},
                 output_dir=tempfile.mkdtemp(),
                 snapshot_id="../outside",
+            )
+
+    def test_rejects_unsafe_analysis_name(self):
+        with self.assertRaises(ValueError):
+            publish_homepage_snapshot(
+                {"metric_id": "homepage", "districts": []},
+                {},
+                output_dir=tempfile.mkdtemp(),
+                analyses={"../employment": {}},
             )
 
 

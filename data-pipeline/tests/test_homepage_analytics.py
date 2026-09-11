@@ -130,7 +130,10 @@ class FakeHomepageResolver:
                     "district_id": district["district_id"],
                     "geo_level": "district",
                     "position_count": 100 + index,
-                    "raw_record": {"職務大類別名稱": "專業人員" if index % 2 else "技術員"},
+                    "raw_record": {
+                        "職務大類別名稱": "專業人員" if index % 2 else "技術員",
+                        "EDGRDESC（最低學歷要求）": "大學" if index % 2 else "高中",
+                    },
                 }
                 for index, district in enumerate(self.districts, start=1)
             ]
@@ -141,7 +144,7 @@ class FakeHomepageResolver:
                     "position_count": 10,
                     "salary_lower": 30000,
                     "salary_upper": 50000,
-                    "salary_midpoint": 40000 + index,
+                    "salary_midpoint": 100000 if index == 1 else 40000 + index,
                 }
                 for index, district in enumerate(self.districts, start=1)
             ]
@@ -247,6 +250,15 @@ class FakeHomepageResolver:
 
 
 class TestHomepageAnalytics(unittest.TestCase):
+    def test_high_salary_ratio_uses_all_vacancy_positions_as_denominator(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+
+        result = generate_homepage_data(resolver=FakeHomepageResolver(), config=config)
+
+        first = result["current_yoi"]["districts"][0]
+        self.assertAlmostEqual(first["high_salary_ratio"], 10 / 101)
+
     def test_generates_homepage_contract_and_writes_finite_json(self):
         config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
         config = load_homepage_analytics_config(config_path)

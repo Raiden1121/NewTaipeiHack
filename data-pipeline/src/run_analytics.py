@@ -13,6 +13,7 @@ from analytics.config import (
     load_topic_weights,
 )
 from analytics.homepage import generate_homepage_data, write_homepage_data
+from analytics.employment import generate_employment_data, write_employment_data
 from analytics.input_resolver import HomepageInputResolver
 from analytics.io import load_curated_dataset
 from analytics.published_snapshot import publish_homepage_snapshot
@@ -28,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--metric",
         required=True,
-        choices=("youth_topic_weight", "youth_keyword_frequency", "homepage"),
+        choices=("youth_topic_weight", "youth_keyword_frequency", "homepage", "employment"),
     )
     parser.add_argument("--output-dir", default="data")
     parser.add_argument("--config-dir", default="config")
@@ -38,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--publish",
         action="store_true",
-        help="Publish the homepage analytics result as a versioned local snapshot",
+        help="Publish analytics as a versioned local snapshot",
     )
     parser.add_argument(
         "--snapshot-id",
@@ -48,9 +49,9 @@ def main(argv: list[str] | None = None) -> int:
 
     output_dir = Path(args.output_dir)
     config_dir = Path(args.config_dir)
-    if args.publish and args.metric != "homepage":
-        parser.error("--publish is only supported with --metric homepage")
-    if args.metric == "homepage":
+    if args.publish and args.metric not in {"homepage", "employment"}:
+        parser.error("--publish is only supported with --metric homepage or employment")
+    if args.metric in {"homepage", "employment"}:
         if args.annual_start_roc > args.annual_end_roc:
             parser.error("--annual-start-roc must be less than or equal to --annual-end-roc")
         config = load_homepage_analytics_config(config_dir / "homepage_analytics.json")
@@ -63,16 +64,43 @@ def main(argv: list[str] | None = None) -> int:
             population_reference_year_roc=args.population_reference_roc,
         )
         resolver = HomepageInputResolver.from_paths(output_dir, config_dir)
-        result = generate_homepage_data(resolver=resolver, config=config)
-        output_path, quality_path = write_homepage_data(result, output_dir=output_dir)
+        homepage_result = generate_homepage_data(resolver=resolver, config=config)
+        if args.metric == "homepage":
+            output_path, quality_path = write_homepage_data(homepage_result, output_dir=output_dir)
+            print(f"analytics written: {output_path}")
+            print(f"quality written: {quality_path}")
+            if args.publish:
+                published = publish_homepage_snapshot(
+                    homepage_result,
+                    homepage_result.get("_quality"),
+                    output_dir=output_dir,
+                    snapshot_id=args.snapshot_id,
+                )
+                print(f"published snapshot written: {published.snapshot_dir}")
+                print(f"published pointer written: {published.current_path}")
+            return 0
+
+        employment_result = generate_employment_data(
+            resolver=resolver,
+            config=config,
+            homepage_result=homepage_result,
+        )
+        output_path, quality_path = write_employment_data(
+            employment_result, output_dir=output_dir
+        )
         print(f"analytics written: {output_path}")
         print(f"quality written: {quality_path}")
         if args.publish:
+            public_employment = {
+                key: value for key, value in employment_result.items() if key != "_quality"
+            }
             published = publish_homepage_snapshot(
-                result,
-                result.get("_quality"),
+                homepage_result,
+                homepage_result.get("_quality"),
                 output_dir=output_dir,
                 snapshot_id=args.snapshot_id,
+                analyses={"employment": public_employment},
+                analysis_quality={"employment": employment_result.get("_quality", {})},
             )
             print(f"published snapshot written: {published.snapshot_dir}")
             print(f"published pointer written: {published.current_path}")

@@ -1,6 +1,6 @@
 # Data Pipeline 資料說明
 
-本文件依據 `data/curated/` 內的既有處理結果、2026-09-11 真實資料刷新、官方來源 live check 與首頁 analytics 資料契約撰寫，涵蓋目前已串接的 canonical datasets。`elections`、`youth_service_points`、`population_villages`、`village_boundaries` 與 `youth_budgets` 決算來源均由 pipeline 管理；首頁 analytics 另寫入 `data/analytics/homepage/` 與品質報告。範例值直接取自 generated JSON 或官方 live response，沒有自行編造或重新計算；未能安全解析的來源會保留 raw artifact 並記錄在 `document_failures`。
+本文件依據 `data/curated/` 內的既有處理結果、2026-09-11 真實資料刷新、官方來源 live check 與 analytics 資料契約撰寫，涵蓋目前已串接的 canonical datasets。`elections`、`youth_service_points`、`population_villages`、`village_boundaries` 與 `youth_budgets` 決算來源均由 pipeline 管理；首頁與青年就業 analytics 分別寫入 `data/analytics/homepage/`、`data/analytics/employment/`，並各自產生品質報告。範例值直接取自 generated JSON 或官方 live response，沒有自行編造或重新計算；未能安全解析的來源會保留 raw artifact 並記錄在 `document_failures`。
 
 > 範例只展示標準化後較重要的欄位。完整來源內容仍保存在各筆資料的 `raw_record`、`raw_records`、`overview_raw_record` 或 `detail_raw_records`，因內容很大，不在本文件重複展開。
 
@@ -12,7 +12,7 @@
 - `elections` 只收錄中選會 2014／2018／2022 新北市直轄市議員 T1 與村里長 V1：T1 337 筆、V1 5,240 筆；不混入總統、立委或市長資料。
 - `youth_service_points` 取得青年局青創基地 9 筆詳細頁；collector 原始頁面中 3 筆地址可由新北市門牌位置資料唯一匹配，另外 6 筆使用版本控管的官方地址參照資料補入地址與座標。transform 後 9 筆均有可驗證的 EPSG:3826 座標，沒有把地址猜測成座標。
 - `college_majors` 的 114 學年度年度 canonical 輸出 `data/curated/college_majors/114.json` 為 919 筆、`geo_level=district`，學校所在地可對應 13 個新北市行政區；進行 29 區 analytics 時應使用此年度檔。
-- 首頁 analytics 已實際產出：29 區 YOI、ROC 110–114 年人口／生育率／預算序列、2014／2018／2022 選舉事件，以及服務涵蓋率全市 49.2266230851%（`partial`；9 verified、0 excluded；1,039 個里界中 1,032 個接上里級人口）。
+- 首頁 analytics 已實際產出：29 區 YOI、ROC 110–114 年人口／生育率／預算序列、2014／2018／2022 選舉事件，以及服務涵蓋率全市 49.2266230851%（`partial`；9 verified、0 excluded；1,039 個里界中 1,032 個接上里級人口）。青年就業 analytics 另產出 29 區資料與兩張各 29 點散點圖；職缺與房價來源期間為 `11509`。
 - `babysitting_places` 已加入 collector、transform 與 pipeline registry；2026-09-09 live smoke 取得私托 261 筆、公托 130 筆，共 391 筆，391 筆均通過 transform，來源本身沒有歷史年度參數。
 - 2026-09-04 的 TDX 執行成功取得 `bus_stops`、`railway_stops`、`bike_stops`。
 - 2026-09-09 的 `11201`～`11601` range 執行結果為 102 組成功、28 組來源無資料、1 組傳輸失敗；唯一失敗的是 `population` 的 `11206`，原因為 HTTP 回應中途截斷 (`IncompleteRead`)。
@@ -92,6 +92,7 @@
 | `youth_service_points` | `data/curated/youth_service_points/latest.json` |
 | `village_boundaries` | `data/curated/village_boundaries/latest.json` |
 | `homepage` analytics | `data/analytics/homepage/all.json`；品質報告為 `data/quality/analytics_homepage.json` |
+| `employment` analytics | `data/analytics/employment/all.json`；品質報告為 `data/quality/analytics_employment.json` |
 | `join_proposals` | `data/curated/join_proposals/all.json` |
 | `youth_council_minutes` | `data/curated/youth_council_minutes/all.json` |
 
@@ -433,10 +434,10 @@ ROC 114 的前 10 筆實際欄位如下；`weight` 是前端文字大小使用�
 
 ### 其他說明
 
-- 實際檔案：`data/curated/job_vacancies.json`，3,660 筆；快照日期為 2026-09-03。
-- 3,618 筆為區級、42 筆只能可靠標準化到新北市 county 層級。
-- 目前 3,660 筆 `closing_date` 全為 `null`，但 raw 有截止日期欄位，屬待修正的 transform 欄位對應問題。
-- 260 筆沒有薪資下限、1,140 筆沒有薪資上限；單邊薪資不會猜測另一端。
+- 實際檔案：`data/curated/job_vacancies/latest.json`，3,944 筆；快照日期為 2026-09-11（來源期間 `11509`）。
+- 3,900 筆為區級、44 筆無法可靠對應行政區；analytics 只使用 `geo_level=district`。
+- 目前 3,944 筆 `closing_date` 全為 `null`，但 raw 有截止日期欄位，屬待修正的 transform 欄位對應問題。
+- 職缺的薪資上下限可能只有單邊；單邊薪資不會猜測另一端，只有完整上下限才可使用 `salary_midpoint`。
 
 ## 8. `job_vacancy_salaries`：具薪資職缺快照
 
@@ -460,8 +461,8 @@ Keys 與 `job_vacancies` 相同：共同 Keys，加上 `position_count`、`posit
 
 ### 其他說明
 
-- 實際檔案：`data/curated/job_vacancy_salaries.json`，2,893 筆；快照日期為 2026-09-03。
-- 2,886 筆為區級、7 筆為 county 層級；769 筆只有薪資下限。
+- 實際檔案：`data/curated/job_vacancy_salaries/latest.json`，3,111 筆；快照日期為 2026-09-11（來源期間 `11509`）。
+- 3,104 筆為區級、7 筆無法可靠對應行政區；其中 2,270 筆有完整上下限並可計算 `salary_midpoint`，其餘不猜測缺少的另一端。
 - `closing_date` 目前同樣全部為 `null`，需先修正後才能分析職缺有效期限。
 
 ## 9. `wages`：新北市年齡組薪資
@@ -930,6 +931,11 @@ YOI 依 `docs/homepage_analysis.md` 的五個子指數與權重計算。已知�
 無鐵路站為 structural zero；公車與自行車無法可靠對應行政區的列不納入。
 職缺薪資只有同時有上下限的 `salary_midpoint` 才納入中位數。
 
+首頁的高薪職缺比例使用同一個全市薪資中位數門檻，但分母是該區
+`job_vacancies` 的全部區級 `position_count`；不是只有具完整薪資上下限的
+職缺。薪資資料若只有單邊上下限，會保留原始欄位、排除出
+`salary_midpoint`，並在品質報告記錄排除數。
+
 服務涵蓋率使用 `population_villages`、`village_boundaries` 與已驗證座標的
 青創基地，對聯集 2.5 km buffer 做里界面積比例分攤。沒有可驗證座標的
 據點不會被當成 0 覆蓋；結果會回傳 `unavailable` 或 `partial`，並列出
@@ -943,9 +949,39 @@ YOI 依 `docs/homepage_analysis.md` 的五個子指數與權重計算。已知�
 公車 4,149 筆與自行車 5 筆無法對應行政區，以及平溪／坪林租金缺區的
 observed-minimum proxy。
 
-## 27. 開發用 published snapshot
+## 27. `employment` analytics
 
-首頁 analytics 可用 `run_analytics.py --metric homepage --publish` 發布為
+執行 `run_analytics.py --metric employment` 會先產生首頁 YOI，再直接沿用
+`current_yoi.districts` 的五個 `yoiComponents`，不重新計算五個子指數。
+輸出如下：
+
+- `data/analytics/employment/all.json`：青年就業頁 29 區資料與兩張散點圖。
+- `data/quality/analytics_employment.json`：來源期間、輸入筆數、29 區／散點圖覆蓋率、OLS 有效樣本數與品質警告。
+
+每區公開欄位包含 `score_job`、`score_salary`、`score_talent`、
+`score_housing`、`score_transport`、`knowledge_job_ratio`、
+`estimated_wage`、`estimated_monthly_wage`、`house_price_median_wan` 與
+`quality_status`。薪資欄位單位為萬元／年、萬元／月；
+`house_price_median_wan` 單位為萬元／坪；`knowledge_job_ratio` 單位為百分比。
+
+`knowledge_job_ratio` 只使用 `geo_level=district` 的職缺，分子為 raw
+`EDGRDESC（最低學歷要求）` 含「大學」「專科」「學士」「碩士」或「博士」的
+`position_count`，分母為該區全部職缺 `position_count`。沒有有效職缺時輸出
+`null`，不以 0 代替。
+
+兩張散點圖的 regression 都由 pipeline 以純 Python OLS 計算，忽略 `null`、
+NaN、Infinity；0 是有效數值，不會因為布林判斷而排除。輸出
+`method`、`sample_size`、`slope`、`intercept`、`r_squared`；有效點不足兩筆
+或 X 無變異時，回歸係數保留 `null`。
+
+目前真實來源期間為 `11509`，job vacancies 與 house prices 各產生 29 個行政區
+點；薪資代理沿用 homepage 的最新可得 25–29 歲官方薪資，並在品質報告標示
+proxy／latest available。公開 analytics 不包含 `raw_record` 或 `raw_records`。
+
+## 28. 開發用 published snapshot
+
+首頁或青年就業 analytics 可用 `run_analytics.py --metric homepage --publish`
+或 `run_analytics.py --metric employment --publish` 發布為
 Backend 可讀的版本化本機 snapshot。發布層只讀已產生的 homepage analytics，
 不重新抓政府 API，也不重新計算指標。使用目前真實資料產生開發 snapshot 的指令為：
 
@@ -965,6 +1001,19 @@ data/analytics/published/dev-homepage-20260911/dashboard_overview.json
 data/analytics/published/dev-homepage-20260911/district_details.json
 data/analytics/published/current.json
 ```
+
+青年就業 snapshot 另包含：
+
+```text
+data/analytics/published/dev-employment-20260911/manifest.json
+data/analytics/published/dev-employment-20260911/dashboard_overview.json
+data/analytics/published/dev-employment-20260911/district_details.json
+data/analytics/published/dev-employment-20260911/analyses/employment.json
+data/analytics/published/current.json
+```
+
+`manifest.json` 的 `artifacts.analyses.employment` 指向就業 analytics，
+`datasets` 同時記錄其 `source_period`、`coverage` 與品質旗標。
 
 `current.json` 只保存目前 snapshot id；Backend 先讀取此指標，再依
 `manifest.json` 的相對 artifact 路徑讀取同一個 snapshot。overview 保留首頁
