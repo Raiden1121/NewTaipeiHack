@@ -203,6 +203,9 @@ export interface MetricValue<T = number> {
   geo_level: "district" | "county" | "national" | "organization";
   youth_eligibility: YouthEligibility;
   source: string | null;
+  sourceName: string | null;
+  sourceUrl: string | null;
+  sourceRefs: string[];
   quality_flags: string[];
   status: MetricStatus;
   is_proxy: boolean;

@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from collections.abc import Sequence
 from typing import Any, Mapping
 
 from .io import atomic_json_write
@@ -34,6 +35,8 @@ def publish_homepage_snapshot(
     snapshot_id: str | None = None,
     analyses: Mapping[str, Mapping[str, Any]] | None = None,
     analysis_quality: Mapping[str, Mapping[str, Any]] | None = None,
+    source_catalog: Sequence[Mapping[str, Any]] | None = None,
+    source_refs_by_dataset: Mapping[str, Sequence[str]] | None = None,
     update_current: bool = True,
 ) -> PublishedSnapshot:
     """Write a homepage payload as an atomic, versioned published snapshot.
@@ -87,6 +90,8 @@ def publish_homepage_snapshot(
         districts,
         named_analyses,
         named_quality,
+        source_catalog=source_catalog,
+        source_refs_by_dataset=source_refs_by_dataset,
     )
 
     atomic_json_write(snapshot_dir / "dashboard_overview.json", overview)
@@ -164,6 +169,8 @@ def _build_manifest(
     districts: list[Any],
     analyses: Mapping[str, Mapping[str, Any]] | None = None,
     analysis_quality: Mapping[str, Mapping[str, Any]] | None = None,
+    source_catalog: Sequence[Mapping[str, Any]] | None = None,
+    source_refs_by_dataset: Mapping[str, Sequence[str]] | None = None,
 ) -> dict[str, Any]:
     flags = _quality_flags(quality)
     time_policy = homepage.get("time_policy", {})
@@ -175,6 +182,7 @@ def _build_manifest(
             name,
             payload,
             (analysis_quality or {}).get(name, {}),
+            source_refs=(source_refs_by_dataset or {}).get(name, ()),
         )
         for name, payload in (analyses or {}).items()
     ]
@@ -201,8 +209,12 @@ def _build_manifest(
                     "annual_years_roc": time_policy.get("annual_years_roc", []),
                 },
                 "quality_flags": flags,
+                "sources": _source_refs(
+                    (source_refs_by_dataset or {}).get("homepage", ())
+                ),
             }
         ] + analysis_datasets,
+        "sources": _source_catalog(source_catalog or ()),
         "warnings": flags,
     }
 
@@ -276,6 +288,8 @@ def _build_analysis_dataset_entry(
     name: str,
     payload: Mapping[str, Any],
     quality: Mapping[str, Any],
+    *,
+    source_refs: Sequence[str] = (),
 ) -> dict[str, Any]:
     districts = payload.get("districts")
     coverage = quality.get("coverage")
@@ -291,7 +305,28 @@ def _build_analysis_dataset_entry(
         "geo_level": "district",
         "coverage": dict(coverage),
         "quality_flags": _quality_flags(quality),
+        "sources": _source_refs(source_refs),
     }
+
+
+def _source_catalog(
+    values: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    catalog: list[dict[str, Any]] = []
+    for index, value in enumerate(values):
+        if not isinstance(value, Mapping):
+            raise ValueError(f"source_catalog[{index}] must be an object")
+        source = value.get("source")
+        if not isinstance(source, str) or not source.strip():
+            raise ValueError(f"source_catalog[{index}].source must be non-empty")
+        catalog.append(dict(value))
+    return catalog
+
+
+def _source_refs(values: Sequence[str]) -> list[str]:
+    if isinstance(values, (str, bytes)):
+        raise ValueError("source refs must be a sequence of source IDs")
+    return sorted({value for value in values if isinstance(value, str) and value})
 
 
 def _validate_analysis_name(value: Any) -> None:

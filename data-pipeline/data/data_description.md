@@ -33,6 +33,8 @@
 |---|---|
 | `dataset` | canonical 資料集名稱 |
 | `source` | 資料來源識別名稱 |
+| `source_url` | 可供使用者查證的官方資料集／API／資源網址；無法確認時為 `null` |
+| `source_url_type` | `dataset`、`api`、`resource`、`listing` 或 `detail` |
 | `source_record_id` | 可穩定辨識來源資料的 ID |
 | `geo_level` | 地理粒度：`district`、`village`、`county`、`national` 或 `organization` |
 | `district_id` | 新北市行政區代碼；無可靠區級資料時為 `null` |
@@ -58,7 +60,7 @@
 
 | 層級 | 路徑 | 內容與用途 |
 |---|---|---|
-| Raw | `data/raw/<dataset>/<period>_<timestamp>.json` | collector 保存的來源快照；保留原始欄位與抓取時間，供重跑、稽核與除錯，不是前端資料契約。PDF 原檔另放在 `data/raw/<dataset>/artifacts/`。 |
+| Raw | `data/raw/<dataset>/<period>_<timestamp>.json` | collector 保存的來源快照；新 envelope 會保存 `source`、`source_url` 與 `source_url_type`，既有 legacy Raw 不回寫，供重跑、稽核與除錯，不是前端資料契約。PDF 原檔另放在 `data/raw/<dataset>/artifacts/`。 |
 | Curated | `data/curated/<dataset>.json`、`data/curated/<dataset>/<period>.json`、`latest.json` 或 `all.json` | transform 標準化後的資料，供 analytics 或 backend 讀取。 |
 | Analytics | `data/analytics/<metric>/<period>.json` 或 `all.json` | 由 curated 資料計算的指標，例如青年關鍵字與議題權重；不是來源明細。 |
 | Quality | `data/quality/<dataset>/<period>.json` 及根目錄報告 | 筆數、錯誤、缺欄位、品質狀態與執行紀錄，不應當成業務資料使用。 |

@@ -24,6 +24,10 @@ from analytics.policy_support import (
     write_policy_support_data,
 )
 from analytics.published_snapshot import publish_homepage_snapshot
+from analytics.provenance import (
+    build_public_source_catalog,
+    source_refs_for_datasets,
+)
 from analytics.youth_keyword_frequency import (
     calculate_youth_keyword_frequency,
     write_youth_keyword_frequency,
@@ -33,6 +37,7 @@ from analytics.youth_participation import (
     generate_youth_participation_data,
     write_youth_participation_data,
 )
+from source_registry import SourceRegistry
 
 
 def _load_indexed_dataset(dataset: str, *, output_dir: Path) -> list[dict]:
@@ -175,6 +180,21 @@ def _run_all_analytics(
     if not args.publish:
         return 0
 
+    source_registry = _load_source_registry(config_dir)
+    source_refs_by_dataset = {
+        "homepage": source_refs_for_datasets(
+            _quality_dataset_names(homepage_result.get("_quality")), source_registry
+        ),
+    }
+    source_refs_by_dataset.update(
+        {
+            name: source_refs_for_datasets(
+                _quality_dataset_names(quality), source_registry
+            )
+            for name, quality in analysis_quality.items()
+        }
+    )
+
     snapshot_id = args.snapshot_id or _default_full_snapshot_id(
         str(homepage_result["generated_at"])
     )
@@ -185,11 +205,29 @@ def _run_all_analytics(
         snapshot_id=snapshot_id,
         analyses=analyses,
         analysis_quality=analysis_quality,
+        source_catalog=build_public_source_catalog(source_registry),
+        source_refs_by_dataset=source_refs_by_dataset,
         update_current=True,
     )
     print(f"complete published snapshot written: {published.snapshot_dir}")
     print(f"published pointer written: {published.current_path}")
     return 0
+
+
+def _quality_dataset_names(quality: Any) -> list[str]:
+    if not isinstance(quality, Mapping):
+        return []
+    source_periods = quality.get("source_periods")
+    if not isinstance(source_periods, Mapping):
+        return []
+    return [str(dataset) for dataset in source_periods]
+
+
+def _load_source_registry(config_dir: Path) -> SourceRegistry:
+    path = config_dir / "sources.json"
+    if not path.is_file():
+        path = Path(__file__).resolve().parents[1] / "config" / "sources.json"
+    return SourceRegistry.from_json(path)
 
 
 def main(argv: list[str] | None = None) -> int:

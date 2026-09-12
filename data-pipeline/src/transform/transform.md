@@ -4,7 +4,7 @@
 
 ## Common metadata
 
-每筆 curated record 均含 `dataset`、`source`、`source_record_id`、`geo_level`、`district_id`、`district_name`、`period_start`、`period_end`、`period_type`、`metric_id`、`value`、`unit`、`age_scope`、`age_min`、`age_max`、`youth_eligibility`、`fetched_at`、`quality_flags`。來源欄位另存於 `raw_record` 或 `raw_records`，不覆寫原值。
+每筆 curated record 均含 `dataset`、`source`、`source_url`、`source_url_type`、`source_record_id`、`geo_level`、`district_id`、`district_name`、`period_start`、`period_end`、`period_type`、`metric_id`、`value`、`unit`、`age_scope`、`age_min`、`age_max`、`youth_eligibility`、`fetched_at`、`quality_flags`。`source` 是穩定來源 ID；`source_url` 是可查證的官方網址，由 `config/sources.json` 或當次 Raw metadata 解析。來源明細仍可保留於 `raw_record` 或 `raw_records`，不覆寫原值。
 
 ## Age rules
 
@@ -83,6 +83,8 @@ python src/run_pipeline.py --dataset population --input data/raw/population/exam
 ```
 
 `--input` 是相容的 replay 模式；它只執行 transform/output，不會重新呼叫 live API。
+
+Replay／resume 會讀取 `config/sources.json` 補 legacy Raw 缺少的來源欄位；既有 Raw 只讀不回寫，也不會因為補來源而重新下載。無法確認的來源保留 `null`，並在 quality report 的 `source_resolution.warnings` 記錄原因。
 
 ## Supported datasets
 

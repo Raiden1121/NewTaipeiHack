@@ -14,6 +14,7 @@ Frontend 與 API（mock data）資源已用 Terraform 建立。其餘規劃：
 - Data Pipeline：Lambda、S3、EventBridge Scheduler、Step Functions。
 - AI：Lambda、Amazon Bedrock permissions 與未來的 Knowledge Base / RAG resources。
 - Storage：S3 與 DynamoDB。
+- Source provenance：pipeline artifact 需一併打包 `data-pipeline/config/sources.json`；DynamoDB serving projection 保存 `source`、`sourceName`、`sourceUrl` 與 `sourceRefs`，不改變既有 snapshot PK/SK。
 - Monitoring：未來可加入 CloudWatch、Logs 與 Alarms。
 
 ## Project Usage
@@ -33,6 +34,8 @@ curl "$(terraform output -raw api_endpoint)/api/v1/dashboard/overview"
 ```
 
 其餘服務尚未建立實際 Stack 或指令。
+
+Source metadata 的部署順序是：pipeline 產生含 `manifest.sources` 的 published snapshot，loader 將同一個 `snapshot_id` 寫入 DynamoDB，最後 Backend 才切換讀取該 snapshot。此來源欄位計畫不執行 Terraform apply，也不修改既有 Raw S3 object。
 
 ## Inputs & Outputs
 
