@@ -16,6 +16,13 @@ module "api" {
   environment  = var.environment
 }
 
+module "raw_data" {
+  source = "./modules/raw_data"
+
+  project_name = var.project_name
+  environment  = var.environment
+}
+
 # `terraform apply` always rebuilds and redeploys the frontend, so the
 # CloudFront-served site matches whatever is currently in frontend/src.
 

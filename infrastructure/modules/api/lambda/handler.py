@@ -313,41 +313,53 @@ def _analysis_employment_scatter(qs):
     }
 
 
+BUDGET_DEPARTMENTS = ["綜合規劃", "職涯發展", "創業資源", "資本門設備與投資"]
+
+
+def _mock_budget_by_department():
+    current_budget = _build_policy()["currentBudget"]
+    shares = [0.35, 0.30, 0.20, 0.15]
+    return [
+        {
+            "label": label,
+            "amount_thousand": round(current_budget * share),
+            "share_percent": round(share * 100, 2),
+        }
+        for label, share in zip(BUDGET_DEPARTMENTS, shares)
+    ]
+
+
 def _analysis_politics_resource_io(qs):
     return {
         "analysis_id": "politics-resource-io",
-        "geo_level": "district",
-        "grants_by_district": [],
+        "geo_level": "county",
+        "budget_by_department": _mock_budget_by_department(),
         "budgetTrend": _build_policy()["budgetTrend"],
         "executionRate": None,
     }
 
 
 TOPIC_LABELS = ["社會住宅", "青年就業", "青年創業", "托育資源", "交通建設"]
+LATEST_TOPIC_YEAR_ROC = 114
 
 
 def _analysis_youth_topic_weight(qs):
-    years = []
-    for yr in (110, 111, 112, 113, 114):
-        topics = []
-        for idx, label in enumerate(TOPIC_LABELS):
-            weight = 1 + (idx + yr) % 5
-            topics.append({
-                "label": label, "weight": weight, "signal": "minutes",
-                "join_mentions": 0, "minutes_mentions": weight,
-                "resolved": weight >= 3, "escalated": False,
-                "join_support_score": 0.0, "raw_score": float(weight),
-            })
-        years.append({"year_roc": yr, "topics": topics})
-    requested_year = qs.get("year")
-    if requested_year:
-        years = [y for y in years if str(y["year_roc"]) == str(requested_year)]
+    # API only ever serves the latest year (114) — the year selector was
+    # removed from the UI on 2026-09-12. The 5-year history still exists in
+    # data-pipeline's youth_topic_weight/all.json for future reuse, just not
+    # through this endpoint.
+    topics = []
+    for idx, label in enumerate(TOPIC_LABELS):
+        weight = 1 + (idx + LATEST_TOPIC_YEAR_ROC) % 5
+        topics.append({
+            "label": label, "weight": weight, "signal": "minutes",
+            "join_mentions": 0, "minutes_mentions": weight,
+            "resolved": weight >= 3, "escalated": False,
+        })
     return {
-        "metric_id": "youth_topic_weight",
-        "calculation_version": "mock",
-        "source_datasets": ["join_proposals", "youth_council_minutes"],
-        "normalization": "yearly_max",
-        "years": years,
+        "analysis_id": "youth-topic-weight",
+        "year_roc": LATEST_TOPIC_YEAR_ROC,
+        "topics": topics,
     }
 
 
@@ -400,6 +412,7 @@ def _analysis_policy_outcomes(qs):
         "populationTrend": population_trend,
         "currentWageGrowth": 2.8,
         "currentPopGrowth": -1.969,
+        "desiredDirection": {"wageGrowth": "up", "populationChange": "up"},
     }
 
 

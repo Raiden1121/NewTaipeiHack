@@ -13,3 +13,7 @@ output "frontend_url" {
 output "api_endpoint" {
   value = module.api.api_endpoint
 }
+
+output "raw_data_bucket_name" {
+  value = module.raw_data.bucket_name
+}
