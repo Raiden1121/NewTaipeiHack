@@ -102,10 +102,10 @@ YOI     = norm(YOI_raw)
 | S_housing | `score_housing` | **居住友善度** | norm_inv（租金、房價、租金薪資比）；分數越高代表居住越友善 |
 | S_transport | `score_transport` | 交通可及 | 公車/軌道/自行車密度 |
 
-### 標準化函數（Min-Max，截斷 P5/P95）
+### 標準化函數（純 Min-Max，不截斷 P5/P95）
 
 ```text
-norm(x)     = (clip(x, P5, P95) - min) / (max - min) × 100
+norm(x)     = (x - min) / (max - min) × 100
 norm_inv(x) = 100 - norm(x)    ← 居住友善度（S_housing）使用此公式
 ```
 

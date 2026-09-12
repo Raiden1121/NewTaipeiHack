@@ -12,8 +12,13 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from analytics.config import load_homepage_analytics_config  # noqa: E402
-from analytics.homepage import generate_homepage_data, write_homepage_data  # noqa: E402
+from analytics.homepage import (  # noqa: E402
+    _shrink_to_city,
+    generate_homepage_data,
+    write_homepage_data,
+)
 from analytics.io import CuratedSlice  # noqa: E402
+from analytics.homepage_math import normalize_minmax  # noqa: E402
 
 
 class FakeHomepageResolver:
@@ -309,6 +314,27 @@ class TestHomepageAnalytics(unittest.TestCase):
                 "transport": 0.15,
             },
         )
+        self.assertEqual(config.salary_shrinkage_k, 30.0)
+
+    def test_salary_median_uses_city_prior_for_small_samples_and_zero_rows(self):
+        self.assertAlmostEqual(
+            _shrink_to_city(
+                district_value=38000,
+                sample_size=4,
+                city_value=35000,
+                strength=30,
+            ),
+            (4 * 38000 + 30 * 35000) / 34,
+        )
+        self.assertEqual(
+            _shrink_to_city(
+                district_value=None,
+                sample_size=0,
+                city_value=35000,
+                strength=30,
+            ),
+            35000,
+        )
 
     def test_refactored_yoi_uses_area_salary_and_population_components(self):
         config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
@@ -323,13 +349,15 @@ class TestHomepageAnalytics(unittest.TestCase):
         self.assertIn("vacancies_per_km2", normalized)
         self.assertIn("youth_ratio", normalized)
         self.assertIn("youth_yoy", normalized)
+        self.assertEqual(result["time_policy"]["yoi_normalization"], "min_max")
+        self.assertEqual(result["time_policy"]["salary_shrinkage_k"], 30.0)
 
         expected_job = (
             0.60 * normalized["vacancies_per_km2"]
             + 0.40 * normalized["occupation_shannon_index"]
         )
         expected_salary = (
-            0.60 * normalized["salary_median"]
+            0.60 * normalized["salary_median_shrunk"]
             + 0.40 * normalized["high_salary_ratio"]
         )
         expected_talent = (
@@ -340,6 +368,22 @@ class TestHomepageAnalytics(unittest.TestCase):
         self.assertAlmostEqual(first["yoiComponents"]["job"], expected_job)
         self.assertAlmostEqual(first["yoiComponents"]["salary"], expected_salary)
         self.assertAlmostEqual(first["yoiComponents"]["talent"], expected_talent)
+
+        self.assertEqual(first["salary_sample_size"], 1)
+        self.assertAlmostEqual(first["salary_median"], 100000)
+        expected_smoothed = (1 * 100000 + 30 * 40016) / 31
+        self.assertAlmostEqual(first["salary_median_shrunk"], expected_smoothed)
+
+        salary_values = {
+            row["district_id"]: row["salary_median_shrunk"]
+            for row in result["current_yoi"]["districts"]
+        }
+        expected_salary_norm = normalize_minmax(salary_values)
+        for row in result["current_yoi"]["districts"]:
+            self.assertAlmostEqual(
+                row["normalizedInputs"]["salary_median_shrunk"],
+                expected_salary_norm[row["district_id"]],
+            )
 
     def test_opportunity_index_is_normalized_from_yoi_raw(self):
         config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"

@@ -12,7 +12,7 @@ from typing import Any, Mapping
 
 _REQUIRED_WEIGHTS = ("w_join", "w_minutes", "w_resolved", "w_escalated")
 _SUPPORTED_NORMALIZATIONS = frozenset({"yearly_max"})
-_SUPPORTED_HOMEPAGE_NORMALIZATIONS = frozenset({"p5_p95"})
+_SUPPORTED_HOMEPAGE_NORMALIZATIONS = frozenset({"min_max", "p5_p95"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +77,8 @@ class HomepageAnalyticsConfig:
     service_radius_m: float
     normalization: Mapping[str, Any]
     yoi_weights: Mapping[str, float]
+    fafi_weights: Mapping[str, float]
+    salary_shrinkage_k: float
 
 
 def load_homepage_analytics_config(path: str | Path) -> HomepageAnalyticsConfig:
@@ -130,6 +132,28 @@ def load_homepage_analytics_config(path: str | Path) -> HomepageAnalyticsConfig:
         weights[key] = float(value)
     if not weights or sum(weights.values()) <= 0:
         raise ValueError("yoi_weights must have a positive total")
+    # Optional: an absent block keeps the documented default of three equally
+    # weighted components.
+    fafi = payload.get("fafi", {})
+    if not isinstance(fafi, Mapping):
+        raise ValueError("fafi must be an object")
+    raw_fafi_weights = fafi.get("weights", {})
+    if not isinstance(raw_fafi_weights, Mapping):
+        raise ValueError("fafi.weights must be an object")
+    fafi_weights: dict[str, float] = {}
+    for key in ("daycare_coverage", "housing", "salary"):
+        value = raw_fafi_weights.get(key, 1)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            raise ValueError(f"fafi.weights.{key} must be non-negative")
+        fafi_weights[key] = float(value)
+    total = sum(fafi_weights.values())
+    if total <= 0:
+        raise ValueError("fafi.weights must have a positive total")
+    # Stored normalised so callers never have to divide by the total again.
+    fafi_weights = {key: value / total for key, value in fafi_weights.items()}
+    shrinkage = fafi.get("salary_shrinkage_k", 30)
+    if isinstance(shrinkage, bool) or not isinstance(shrinkage, (int, float)) or shrinkage < 0:
+        raise ValueError("fafi.salary_shrinkage_k must be a non-negative number")
     return HomepageAnalyticsConfig(
         version=version,
         annual_years_roc=annual_years,
@@ -140,6 +164,8 @@ def load_homepage_analytics_config(path: str | Path) -> HomepageAnalyticsConfig:
         service_radius_m=float(radius),
         normalization={str(key): value for key, value in normalization.items()},
         yoi_weights=weights,
+        fafi_weights=fafi_weights,
+        salary_shrinkage_k=float(shrinkage),
     )
 
 

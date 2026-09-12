@@ -1,7 +1,7 @@
 {
   "metric_id": "fertility",
   "calculation_version": "1",
-  "generated_at": "2026-09-12T14:50:31.861500+00:00",
+  "generated_at": "2026-09-12T14:23:29.649502+00:00",
   "time_policy": {
     "annual_years_roc": [
       110,
@@ -277,11 +277,6 @@
       "reason": "observed_minimum"
     },
     {
-      "metric": "house_price",
-      "district_id": "65000240",
-      "reason": "cheapest_district_residential_median"
-    },
-    {
       "metric": "vt_courses",
       "district_id": "65000240",
       "reason": "observed_minimum"
@@ -359,13 +354,13 @@
       "opportunityIndex": 100.0,
       "daycareCoverage": 99.11420183080249,
       "daycareCoverageStatus": "observed",
-      "score_housing": 13.883432967899283,
+      "score_housing": 13.635419479630832,
       "salaryMedian": 34919.786096256685,
       "salarySampleSize": 157.0,
       "daycareCoverageScore": 99.11420183080249,
-      "housingScore": 13.883432967899283,
+      "housingScore": 13.635419479630832,
       "wageScore": 39.64385605837321,
-      "fafiScore": 54.813321265253116,
+      "fafiScore": 50.79782578960217,
       "fafiLevel": "high",
       "fertilityLevel": "medium"
     },
@@ -387,7 +382,7 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 74.835359,
+      "opportunityIndex": 75.664792,
       "daycareCoverage": 100.0,
       "daycareCoverageStatus": "observed",
       "score_housing": 5.601660339041184,
@@ -396,8 +391,8 @@
       "daycareCoverageScore": 100.0,
       "housingScore": 5.601660339041184,
       "wageScore": 0.061419104574178984,
-      "fafiScore": 47.52688906302595,
-      "fafiLevel": "medium",
+      "fafiScore": 35.221026481205115,
+      "fafiLevel": "low",
       "fertilityLevel": "medium"
     },
     {
@@ -418,16 +413,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 58.702063,
+      "opportunityIndex": 59.658919,
       "daycareCoverage": 98.43597663252395,
       "daycareCoverageStatus": "observed",
-      "score_housing": 10.758292885371098,
+      "score_housing": 10.375560965599934,
       "salaryMedian": 34022.98387096774,
       "salarySampleSize": 156.0,
       "daycareCoverageScore": 98.43597663252395,
-      "housingScore": 10.758292885371098,
+      "housingScore": 10.375560965599934,
       "wageScore": 11.208398397785198,
-      "fafiScore": 50.258261122831286,
+      "fafiScore": 40.006645331969686,
       "fafiLevel": "medium",
       "fertilityLevel": "low"
     },
@@ -449,16 +444,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 64.914978,
+      "opportunityIndex": 65.418237,
       "daycareCoverage": 99.99999999999997,
       "daycareCoverageStatus": "observed",
-      "score_housing": 8.035124298032914,
+      "score_housing": 7.257787603672541,
       "salaryMedian": 34164.28571428572,
       "salarySampleSize": 47.0,
       "daycareCoverageScore": 99.99999999999997,
-      "housingScore": 8.035124298032914,
+      "housingScore": 7.257787603672541,
       "wageScore": 15.688742524648575,
-      "fafiScore": 50.184680186579655,
+      "fafiScore": 40.98217670944036,
       "fafiLevel": "medium",
       "fertilityLevel": "low"
     },
@@ -480,16 +475,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 91.753043,
+      "opportunityIndex": 91.554088,
       "daycareCoverage": 95.06016675690427,
       "daycareCoverageStatus": "observed",
-      "score_housing": 13.316239907281306,
+      "score_housing": 12.518747247430534,
       "salaryMedian": 34911.346153846156,
       "salarySampleSize": 230.0,
       "daycareCoverageScore": 95.06016675690427,
-      "housingScore": 13.316239907281306,
+      "housingScore": 12.518747247430534,
       "wageScore": 39.376245632902794,
-      "fafiScore": 52.70700756217379,
+      "fafiScore": 48.98505321241253,
       "fafiLevel": "high",
       "fertilityLevel": "medium"
     },
@@ -511,17 +506,17 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 23.844112,
+      "opportunityIndex": 25.280527,
       "daycareCoverage": 67.97800433226541,
       "daycareCoverageStatus": "observed",
-      "score_housing": 13.03563909912436,
+      "score_housing": 12.099620355940132,
       "salaryMedian": 34773.13829787234,
       "salarySampleSize": 158.0,
       "daycareCoverageScore": 67.97800433226541,
-      "housingScore": 13.03563909912436,
+      "housingScore": 12.099620355940132,
       "wageScore": 34.994004458559324,
-      "fafiScore": 39.95553998998133,
-      "fafiLevel": "low",
+      "fafiScore": 38.35720971558828,
+      "fafiLevel": "medium",
       "fertilityLevel": "low"
     },
     {
@@ -542,16 +537,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 91.797799,
+      "opportunityIndex": 90.734341,
       "daycareCoverage": 77.36042673987737,
       "daycareCoverageStatus": "observed",
-      "score_housing": 30.28587350568164,
+      "score_housing": 28.331635391446785,
       "salaryMedian": 34958.79120879121,
       "salarySampleSize": 334.0,
       "daycareCoverageScore": 77.36042673987737,
-      "housingScore": 30.28587350568164,
+      "housingScore": 28.331635391446785,
       "wageScore": 40.88061506135702,
-      "fafiScore": 52.528896616637255,
+      "fafiScore": 48.857559064227054,
       "fafiLevel": "high",
       "fertilityLevel": "high"
     },
@@ -573,17 +568,17 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 45.592874,
+      "opportunityIndex": 45.559128,
       "daycareCoverage": 75.7710632486001,
       "daycareCoverageStatus": "observed",
-      "score_housing": 34.51606226965903,
+      "score_housing": 32.35638478433662,
       "salaryMedian": 34217.260273972606,
       "salarySampleSize": 43.0,
       "daycareCoverageScore": 75.7710632486001,
-      "housingScore": 34.51606226965903,
+      "housingScore": 32.35638478433662,
       "wageScore": 17.368439348080837,
-      "fafiScore": 51.36605041802469,
-      "fafiLevel": "high",
+      "fafiScore": 41.831962460339184,
+      "fafiLevel": "medium",
       "fertilityLevel": "high"
     },
     {
@@ -604,16 +599,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 42.993405,
+      "opportunityIndex": 43.23237,
       "daycareCoverage": 61.694731970319424,
       "daycareCoverageStatus": "observed",
-      "score_housing": 40.76751140303601,
+      "score_housing": 38.88404243474451,
       "salaryMedian": 34614.94642857143,
       "salarySampleSize": 82.0,
       "daycareCoverageScore": 61.694731970319424,
-      "housingScore": 40.76751140303601,
+      "housingScore": 38.88404243474451,
       "wageScore": 29.97811792872148,
-      "fafiScore": 49.1058213108821,
+      "fafiScore": 43.5189641112618,
       "fafiLevel": "medium",
       "fertilityLevel": "high"
     },
@@ -635,17 +630,17 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 37.789642,
+      "opportunityIndex": 37.86333,
       "daycareCoverage": 80.40557423419949,
       "daycareCoverageStatus": "observed",
-      "score_housing": 40.55884475011612,
+      "score_housing": 38.27541743609851,
       "salaryMedian": 33756.41025641026,
       "salarySampleSize": 87.0,
       "daycareCoverageScore": 80.40557423419949,
-      "housingScore": 40.55884475011612,
+      "housingScore": 38.27541743609851,
       "wageScore": 2.7559854616587245,
-      "fafiScore": 54.709587089107906,
-      "fafiLevel": "high",
+      "fafiScore": 40.4789923773189,
+      "fafiLevel": "medium",
       "fertilityLevel": "medium"
     },
     {
@@ -666,16 +661,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 40.522065,
+      "opportunityIndex": 41.000211,
       "daycareCoverage": 73.89244995491903,
       "daycareCoverageStatus": "observed",
-      "score_housing": 24.68750209646642,
+      "score_housing": 23.039712860668395,
       "salaryMedian": 34935.34482758621,
       "salarySampleSize": 202.0,
       "daycareCoverageScore": 73.89244995491903,
-      "housingScore": 24.68750209646642,
+      "housingScore": 23.039712860668395,
       "wageScore": 40.13718628603923,
-      "fafiScore": 48.374697051727374,
+      "fafiScore": 45.68978303387556,
       "fafiLevel": "medium",
       "fertilityLevel": "low"
     },
@@ -697,17 +692,17 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 72.245829,
+      "opportunityIndex": 69.814101,
       "daycareCoverage": 28.684888041563305,
       "daycareCoverageStatus": "observed",
-      "score_housing": 71.60800477595274,
+      "score_housing": 67.14979183165408,
       "salaryMedian": 35162.92134831461,
       "salarySampleSize": 59.0,
       "daycareCoverageScore": 28.684888041563305,
-      "housingScore": 71.60800477595274,
+      "housingScore": 67.14979183165408,
       "wageScore": 47.353094473188655,
-      "fafiScore": 49.86711121520109,
-      "fafiLevel": "medium",
+      "fafiScore": 47.72925811546868,
+      "fafiLevel": "high",
       "fertilityLevel": "medium"
     },
     {
@@ -728,17 +723,17 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 27.582652,
+      "opportunityIndex": 29.447604,
       "daycareCoverage": 91.49490227196121,
       "daycareCoverageStatus": "observed",
-      "score_housing": 6.848320959133208,
+      "score_housing": 6.614716687006297,
       "salaryMedian": 33669.49152542373,
       "salarySampleSize": 147.0,
       "daycareCoverageScore": 91.49490227196121,
-      "housingScore": 6.848320959133208,
+      "housingScore": 6.614716687006297,
       "wageScore": 0.0,
-      "fafiScore": 44.25445045399248,
-      "fafiLevel": "medium",
+      "fafiScore": 32.703206319655834,
+      "fafiLevel": "low",
       "fertilityLevel": "medium"
     },
     {
@@ -759,16 +754,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 64.591592,
+      "opportunityIndex": 64.991872,
       "daycareCoverage": 100.0,
       "daycareCoverageStatus": "observed",
-      "score_housing": 10.410142852385862,
+      "score_housing": 9.483740335344581,
       "salaryMedian": 34125.0,
       "salarySampleSize": 30.0,
       "daycareCoverageScore": 100.0,
-      "housingScore": 10.410142852385862,
+      "housingScore": 9.483740335344581,
       "wageScore": 14.443086310004869,
-      "fafiScore": 51.128872914574124,
+      "fafiScore": 41.30894221511648,
       "fafiLevel": "medium",
       "fertilityLevel": "medium"
     },
@@ -790,16 +785,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 15.054669,
+      "opportunityIndex": 16.585431,
       "daycareCoverage": 67.49851065024005,
       "daycareCoverageStatus": "observed",
-      "score_housing": 19.810934631646717,
+      "score_housing": 18.699799644538285,
       "salaryMedian": 34500.0,
       "salarySampleSize": 76.0,
       "daycareCoverageScore": 67.49851065024005,
-      "housingScore": 19.810934631646717,
+      "housingScore": 18.699799644538285,
       "wageScore": 26.33344108614838,
-      "fafiScore": 41.92259448546388,
+      "fafiScore": 37.51058379364224,
       "fafiLevel": "low",
       "fertilityLevel": "high"
     },
@@ -821,17 +816,17 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 56.421061,
+      "opportunityIndex": 57.070712,
       "daycareCoverage": 72.9981535369499,
       "daycareCoverageStatus": "observed",
-      "score_housing": 18.74187572952159,
+      "score_housing": 17.869292377637546,
       "salaryMedian": 35400.0,
       "salarySampleSize": 45.0,
       "daycareCoverageScore": 72.9981535369499,
-      "housingScore": 18.74187572952159,
+      "housingScore": 17.869292377637546,
       "wageScore": 54.870292548892806,
-      "fafiScore": 46.77004242480145,
-      "fafiLevel": "medium",
+      "fafiScore": 48.57924615449342,
+      "fafiLevel": "high",
       "fertilityLevel": "medium"
     },
     {
@@ -852,16 +847,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 90.638668,
+      "opportunityIndex": 90.218342,
       "daycareCoverage": 84.52750659337238,
       "daycareCoverageStatus": "observed",
-      "score_housing": 9.239511561266749,
+      "score_housing": 8.10719260331935,
       "salaryMedian": 36823.308270676695,
       "salarySampleSize": 103.0,
       "daycareCoverageScore": 84.52750659337238,
-      "housingScore": 9.239511561266749,
+      "housingScore": 8.10719260331935,
       "wageScore": 100.0,
-      "fafiScore": 52.19515816958761,
+      "fafiScore": 64.21156639889723,
       "fafiLevel": "high",
       "fertilityLevel": "high"
     },
@@ -883,16 +878,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 27.017736,
+      "opportunityIndex": 27.191766,
       "daycareCoverage": 53.22650568904048,
       "daycareCoverageStatus": "observed",
-      "score_housing": 45.635824951494754,
+      "score_housing": 43.117304367308904,
       "salaryMedian": 34500.0,
       "salarySampleSize": 12.0,
       "daycareCoverageScore": 53.22650568904048,
-      "housingScore": 45.635824951494754,
+      "housingScore": 43.117304367308904,
       "wageScore": 26.33344108614838,
-      "fafiScore": 47.121392896855696,
+      "fafiScore": 40.89241704749925,
       "fafiLevel": "medium",
       "fertilityLevel": "low"
     },
@@ -917,13 +912,13 @@
       "opportunityIndex": 0.0,
       "daycareCoverage": 0.0,
       "daycareCoverageStatus": "observed",
-      "score_housing": 45.30536065047707,
+      "score_housing": 41.62682087943904,
       "salaryMedian": 34311.36363636364,
       "salarySampleSize": 3.0,
       "daycareCoverageScore": 0.0,
-      "housingScore": 45.30536065047707,
+      "housingScore": 41.62682087943904,
       "wageScore": 20.352232319967204,
-      "fafiScore": 22.422635524711403,
+      "fafiScore": 20.65968439980208,
       "fafiLevel": "low",
       "fertilityLevel": "low"
     },
@@ -945,16 +940,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 41.184253,
+      "opportunityIndex": 39.762861,
       "daycareCoverage": 0.0,
       "daycareCoverageStatus": "observed",
-      "score_housing": 96.08497885518298,
+      "score_housing": 91.91486225402504,
       "salaryMedian": 34911.76470588235,
       "salarySampleSize": 4.0,
       "daycareCoverageScore": 0.0,
-      "housingScore": 96.08497885518298,
+      "housingScore": 91.91486225402504,
       "wageScore": 39.389516918776444,
-      "fafiScore": 47.177192176709994,
+      "fafiScore": 43.76812639093383,
       "fafiLevel": "medium",
       "fertilityLevel": "low"
     },
@@ -976,17 +971,17 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 50.652087,
+      "opportunityIndex": 48.936737,
       "daycareCoverage": 38.96782599963954,
       "daycareCoverageStatus": "observed",
-      "score_housing": 78.06059254351902,
+      "score_housing": 73.82142039218988,
       "salaryMedian": 34450.09756097561,
       "salarySampleSize": 11.0,
       "daycareCoverageScore": 38.96782599963954,
-      "housingScore": 78.06059254351902,
+      "housingScore": 73.82142039218988,
       "wageScore": 24.751153874962174,
-      "fafiScore": 55.137903731917575,
-      "fafiLevel": "high",
+      "fafiScore": 45.84680008893053,
+      "fafiLevel": "medium",
       "fertilityLevel": "medium"
     },
     {
@@ -1007,16 +1002,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 21.742003,
+      "opportunityIndex": 20.408055,
       "daycareCoverage": 0.0,
       "daycareCoverageStatus": "observed",
-      "score_housing": 77.75127280554905,
+      "score_housing": 73.03134436189967,
       "salaryMedian": 34216.21621621621,
       "salarySampleSize": 7.0,
       "daycareCoverageScore": 0.0,
-      "housingScore": 77.75127280554905,
+      "housingScore": 73.03134436189967,
       "wageScore": 17.335334769066705,
-      "fafiScore": 36.72160623940375,
+      "fafiScore": 30.12222637698879,
       "fafiLevel": "low",
       "fertilityLevel": "medium"
     },
@@ -1038,17 +1033,17 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 84.390653,
+      "opportunityIndex": 82.585428,
       "daycareCoverage": 25.166804289011935,
       "daycareCoverageStatus": "observed",
-      "score_housing": 44.243897429842065,
+      "score_housing": 41.04171983196452,
       "salaryMedian": 35308.02631578947,
       "salarySampleSize": 46.0,
       "daycareCoverageScore": 25.166804289011935,
-      "housingScore": 44.243897429842065,
+      "housingScore": 41.04171983196452,
       "wageScore": 51.954026588007075,
-      "fafiScore": 36.43021843228501,
-      "fafiLevel": "low",
+      "fafiScore": 39.387516902994506,
+      "fafiLevel": "medium",
       "fertilityLevel": "medium"
     },
     {
@@ -1069,7 +1064,7 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 43.203509,
+      "opportunityIndex": 44.842854,
       "daycareCoverage": 0.0,
       "daycareCoverageStatus": "observed",
       "score_housing": 99.8530390081645,
@@ -1078,7 +1073,7 @@
       "daycareCoverageScore": 0.0,
       "housingScore": 99.8530390081645,
       "wageScore": 26.84485419479983,
-      "fafiScore": 47.61835297315401,
+      "fafiScore": 42.23263106765477,
       "fafiLevel": "medium",
       "fertilityLevel": "high"
     },
@@ -1100,16 +1095,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 22.138064,
+      "opportunityIndex": 20.854518,
       "daycareCoverage": 0.0,
       "daycareCoverageStatus": "observed",
-      "score_housing": 89.06410725416916,
+      "score_housing": 84.42529537075399,
       "salaryMedian": 34503.4375,
       "salarySampleSize": 2.0,
       "daycareCoverageScore": 0.0,
-      "housingScore": 89.06410725416916,
+      "housingScore": 84.42529537075399,
       "wageScore": 26.442436004929696,
-      "fafiScore": 42.72309186486909,
+      "fafiScore": 36.95591045856123,
       "fafiLevel": "low",
       "fertilityLevel": "low"
     },
@@ -1131,16 +1126,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 32.711008,
+      "opportunityIndex": 31.449375,
       "daycareCoverage": 0.0,
       "daycareCoverageStatus": "observed",
-      "score_housing": 77.44000803594938,
+      "score_housing": 73.19326190712806,
       "salaryMedian": 34541.666666666664,
       "salarySampleSize": 6.0,
       "daycareCoverageScore": 0.0,
-      "housingScore": 77.44000803594938,
+      "housingScore": 73.19326190712806,
       "wageScore": 27.654591616830913,
-      "fafiScore": 37.61346277786031,
+      "fafiScore": 33.61595117465299,
       "fafiLevel": "low",
       "fertilityLevel": "medium"
     },
@@ -1162,16 +1157,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 43.327184,
+      "opportunityIndex": 41.756138,
       "daycareCoverage": 65.75801479445771,
       "daycareCoverageStatus": "observed",
-      "score_housing": 64.792513646593,
+      "score_housing": 60.49540097333807,
       "salaryMedian": 34151.78571428572,
       "salarySampleSize": 26.0,
       "daycareCoverageScore": 65.75801479445771,
-      "housingScore": 64.792513646593,
+      "housingScore": 60.49540097333807,
       "wageScore": 15.292397365443792,
-      "fafiScore": 60.27697753501719,
+      "fafiScore": 47.18193771107986,
       "fafiLevel": "high",
       "fertilityLevel": "high"
     },
@@ -1193,16 +1188,16 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 33.542019,
+      "opportunityIndex": 31.981606,
       "daycareCoverage": 0.6898648903991683,
       "daycareCoverageStatus": "observed",
-      "score_housing": 78.88976585238403,
+      "score_housing": 74.27121642477705,
       "salaryMedian": 33737.70491803279,
       "salarySampleSize": 31.0,
       "daycareCoverageScore": 0.6898648903991683,
-      "housingScore": 78.88976585238403,
+      "housingScore": 74.27121642477705,
       "wageScore": 2.1628838362829352,
-      "fafiScore": 36.02712221788074,
+      "fafiScore": 25.707988383819718,
       "fafiLevel": "low",
       "fertilityLevel": "medium"
     },
@@ -1224,17 +1219,17 @@
         ]
       },
       "status": "observed",
-      "opportunityIndex": 56.517282,
+      "opportunityIndex": 55.344639,
       "daycareCoverage": 0.0,
       "daycareCoverageStatus": "observed",
-      "score_housing": 84.22230853085718,
+      "score_housing": 80.91147451646454,
       "salaryMedian": 35666.666666666664,
       "salarySampleSize": 15.0,
       "daycareCoverageScore": 0.0,
-      "housingScore": 84.22230853085718,
+      "housingScore": 80.91147451646454,
       "wageScore": 63.32565594526145,
-      "fafiScore": 44.23260443341187,
-      "fafiLevel": "medium",
+      "fafiScore": 48.07904348724199,
+      "fafiLevel": "high",
       "fertilityLevel": "high"
     }
   ],
@@ -9844,216 +9839,216 @@
         "salaryMedian"
       ],
       "weights": {
-        "daycare_coverage": 0.45,
-        "housing": 0.45,
-        "salary": 0.1
+        "daycare_coverage": 0.3333333333333333,
+        "housing": 0.3333333333333333,
+        "salary": 0.3333333333333333
       },
-      "q1": 42.72309186486909,
-      "q3": 51.36605041802469
+      "q1": 37.51058379364224,
+      "q3": 47.18193771107986
     },
     "districts": {
       "65000010": {
         "daycareCoverageScore": 99.11420183080249,
-        "housingScore": 13.883432967899283,
+        "housingScore": 13.635419479630832,
         "wageScore": 39.64385605837321,
-        "fafiScore": 54.813321265253116,
+        "fafiScore": 50.79782578960217,
         "fafiLevel": "high"
       },
       "65000020": {
         "daycareCoverageScore": 100.0,
         "housingScore": 5.601660339041184,
         "wageScore": 0.061419104574178984,
-        "fafiScore": 47.52688906302595,
-        "fafiLevel": "medium"
+        "fafiScore": 35.221026481205115,
+        "fafiLevel": "low"
       },
       "65000030": {
         "daycareCoverageScore": 98.43597663252395,
-        "housingScore": 10.758292885371098,
+        "housingScore": 10.375560965599934,
         "wageScore": 11.208398397785198,
-        "fafiScore": 50.258261122831286,
+        "fafiScore": 40.006645331969686,
         "fafiLevel": "medium"
       },
       "65000040": {
         "daycareCoverageScore": 99.99999999999997,
-        "housingScore": 8.035124298032914,
+        "housingScore": 7.257787603672541,
         "wageScore": 15.688742524648575,
-        "fafiScore": 50.184680186579655,
+        "fafiScore": 40.98217670944036,
         "fafiLevel": "medium"
       },
       "65000050": {
         "daycareCoverageScore": 95.06016675690427,
-        "housingScore": 13.316239907281306,
+        "housingScore": 12.518747247430534,
         "wageScore": 39.376245632902794,
-        "fafiScore": 52.70700756217379,
+        "fafiScore": 48.98505321241253,
         "fafiLevel": "high"
       },
       "65000060": {
         "daycareCoverageScore": 67.97800433226541,
-        "housingScore": 13.03563909912436,
+        "housingScore": 12.099620355940132,
         "wageScore": 34.994004458559324,
-        "fafiScore": 39.95553998998133,
-        "fafiLevel": "low"
+        "fafiScore": 38.35720971558828,
+        "fafiLevel": "medium"
       },
       "65000070": {
         "daycareCoverageScore": 77.36042673987737,
-        "housingScore": 30.28587350568164,
+        "housingScore": 28.331635391446785,
         "wageScore": 40.88061506135702,
-        "fafiScore": 52.528896616637255,
+        "fafiScore": 48.857559064227054,
         "fafiLevel": "high"
       },
       "65000080": {
         "daycareCoverageScore": 75.7710632486001,
-        "housingScore": 34.51606226965903,
+        "housingScore": 32.35638478433662,
         "wageScore": 17.368439348080837,
-        "fafiScore": 51.36605041802469,
-        "fafiLevel": "high"
+        "fafiScore": 41.831962460339184,
+        "fafiLevel": "medium"
       },
       "65000090": {
         "daycareCoverageScore": 61.694731970319424,
-        "housingScore": 40.76751140303601,
+        "housingScore": 38.88404243474451,
         "wageScore": 29.97811792872148,
-        "fafiScore": 49.1058213108821,
+        "fafiScore": 43.5189641112618,
         "fafiLevel": "medium"
       },
       "65000100": {
         "daycareCoverageScore": 80.40557423419949,
-        "housingScore": 40.55884475011612,
+        "housingScore": 38.27541743609851,
         "wageScore": 2.7559854616587245,
-        "fafiScore": 54.709587089107906,
-        "fafiLevel": "high"
+        "fafiScore": 40.4789923773189,
+        "fafiLevel": "medium"
       },
       "65000110": {
         "daycareCoverageScore": 73.89244995491903,
-        "housingScore": 24.68750209646642,
+        "housingScore": 23.039712860668395,
         "wageScore": 40.13718628603923,
-        "fafiScore": 48.374697051727374,
+        "fafiScore": 45.68978303387556,
         "fafiLevel": "medium"
       },
       "65000120": {
         "daycareCoverageScore": 28.684888041563305,
-        "housingScore": 71.60800477595274,
+        "housingScore": 67.14979183165408,
         "wageScore": 47.353094473188655,
-        "fafiScore": 49.86711121520109,
-        "fafiLevel": "medium"
+        "fafiScore": 47.72925811546868,
+        "fafiLevel": "high"
       },
       "65000130": {
         "daycareCoverageScore": 91.49490227196121,
-        "housingScore": 6.848320959133208,
+        "housingScore": 6.614716687006297,
         "wageScore": 0.0,
-        "fafiScore": 44.25445045399248,
-        "fafiLevel": "medium"
+        "fafiScore": 32.703206319655834,
+        "fafiLevel": "low"
       },
       "65000140": {
         "daycareCoverageScore": 100.0,
-        "housingScore": 10.410142852385862,
+        "housingScore": 9.483740335344581,
         "wageScore": 14.443086310004869,
-        "fafiScore": 51.128872914574124,
+        "fafiScore": 41.30894221511648,
         "fafiLevel": "medium"
       },
       "65000150": {
         "daycareCoverageScore": 67.49851065024005,
-        "housingScore": 19.810934631646717,
+        "housingScore": 18.699799644538285,
         "wageScore": 26.33344108614838,
-        "fafiScore": 41.92259448546388,
+        "fafiScore": 37.51058379364224,
         "fafiLevel": "low"
       },
       "65000160": {
         "daycareCoverageScore": 72.9981535369499,
-        "housingScore": 18.74187572952159,
+        "housingScore": 17.869292377637546,
         "wageScore": 54.870292548892806,
-        "fafiScore": 46.77004242480145,
-        "fafiLevel": "medium"
+        "fafiScore": 48.57924615449342,
+        "fafiLevel": "high"
       },
       "65000170": {
         "daycareCoverageScore": 84.52750659337238,
-        "housingScore": 9.239511561266749,
+        "housingScore": 8.10719260331935,
         "wageScore": 100.0,
-        "fafiScore": 52.19515816958761,
+        "fafiScore": 64.21156639889723,
         "fafiLevel": "high"
       },
       "65000180": {
         "daycareCoverageScore": 53.22650568904048,
-        "housingScore": 45.635824951494754,
+        "housingScore": 43.117304367308904,
         "wageScore": 26.33344108614838,
-        "fafiScore": 47.121392896855696,
+        "fafiScore": 40.89241704749925,
         "fafiLevel": "medium"
       },
       "65000190": {
         "daycareCoverageScore": 0.0,
-        "housingScore": 45.30536065047707,
+        "housingScore": 41.62682087943904,
         "wageScore": 20.352232319967204,
-        "fafiScore": 22.422635524711403,
+        "fafiScore": 20.65968439980208,
         "fafiLevel": "low"
       },
       "65000200": {
         "daycareCoverageScore": 0.0,
-        "housingScore": 96.08497885518298,
+        "housingScore": 91.91486225402504,
         "wageScore": 39.389516918776444,
-        "fafiScore": 47.177192176709994,
+        "fafiScore": 43.76812639093383,
         "fafiLevel": "medium"
       },
       "65000210": {
         "daycareCoverageScore": 38.96782599963954,
-        "housingScore": 78.06059254351902,
+        "housingScore": 73.82142039218988,
         "wageScore": 24.751153874962174,
-        "fafiScore": 55.137903731917575,
-        "fafiLevel": "high"
+        "fafiScore": 45.84680008893053,
+        "fafiLevel": "medium"
       },
       "65000220": {
         "daycareCoverageScore": 0.0,
-        "housingScore": 77.75127280554905,
+        "housingScore": 73.03134436189967,
         "wageScore": 17.335334769066705,
-        "fafiScore": 36.72160623940375,
+        "fafiScore": 30.12222637698879,
         "fafiLevel": "low"
       },
       "65000230": {
         "daycareCoverageScore": 25.166804289011935,
-        "housingScore": 44.243897429842065,
+        "housingScore": 41.04171983196452,
         "wageScore": 51.954026588007075,
-        "fafiScore": 36.43021843228501,
-        "fafiLevel": "low"
+        "fafiScore": 39.387516902994506,
+        "fafiLevel": "medium"
       },
       "65000240": {
         "daycareCoverageScore": 0.0,
         "housingScore": 99.8530390081645,
         "wageScore": 26.84485419479983,
-        "fafiScore": 47.61835297315401,
+        "fafiScore": 42.23263106765477,
         "fafiLevel": "medium"
       },
       "65000250": {
         "daycareCoverageScore": 0.0,
-        "housingScore": 89.06410725416916,
+        "housingScore": 84.42529537075399,
         "wageScore": 26.442436004929696,
-        "fafiScore": 42.72309186486909,
+        "fafiScore": 36.95591045856123,
         "fafiLevel": "low"
       },
       "65000260": {
         "daycareCoverageScore": 0.0,
-        "housingScore": 77.44000803594938,
+        "housingScore": 73.19326190712806,
         "wageScore": 27.654591616830913,
-        "fafiScore": 37.61346277786031,
+        "fafiScore": 33.61595117465299,
         "fafiLevel": "low"
       },
       "65000270": {
         "daycareCoverageScore": 65.75801479445771,
-        "housingScore": 64.792513646593,
+        "housingScore": 60.49540097333807,
         "wageScore": 15.292397365443792,
-        "fafiScore": 60.27697753501719,
+        "fafiScore": 47.18193771107986,
         "fafiLevel": "high"
       },
       "65000280": {
         "daycareCoverageScore": 0.6898648903991683,
-        "housingScore": 78.88976585238403,
+        "housingScore": 74.27121642477705,
         "wageScore": 2.1628838362829352,
-        "fafiScore": 36.02712221788074,
+        "fafiScore": 25.707988383819718,
         "fafiLevel": "low"
       },
       "65000290": {
         "daycareCoverageScore": 0.0,
-        "housingScore": 84.22230853085718,
+        "housingScore": 80.91147451646454,
         "wageScore": 63.32565594526145,
-        "fafiScore": 44.23260443341187,
-        "fafiLevel": "medium"
+        "fafiScore": 48.07904348724199,
+        "fafiLevel": "high"
       }
     },
     "blocking_reasons": []
@@ -10072,103 +10067,103 @@
       {
         "district_id": "65000020",
         "district_name": "三重區",
-        "x": 74.835359,
+        "x": 75.664792,
         "y": 23.92694617519582
       },
       {
         "district_id": "65000030",
         "district_name": "中和區",
-        "x": 58.702063,
+        "x": 59.658919,
         "y": 22.519797800600614
       },
       {
         "district_id": "65000040",
         "district_name": "永和區",
-        "x": 64.914978,
+        "x": 65.418237,
         "y": 17.18700725323242
       },
       {
         "district_id": "65000050",
         "district_name": "新莊區",
-        "x": 91.753043,
+        "x": 91.554088,
         "y": 26.835331695881152
       },
       {
         "district_id": "65000060",
         "district_name": "新店區",
-        "x": 23.844112,
+        "x": 25.280527,
         "y": 21.854233150568916
       },
       {
         "district_id": "65000070",
         "district_name": "樹林區",
-        "x": 91.797799,
+        "x": 90.734341,
         "y": 30.649668180230528
       },
       {
         "district_id": "65000080",
         "district_name": "鶯歌區",
-        "x": 45.592874,
+        "x": 45.559128,
         "y": 32.30148048452221
       },
       {
         "district_id": "65000090",
         "district_name": "三峽區",
-        "x": 42.993405,
+        "x": 43.23237,
         "y": 30.869310491121034
       },
       {
         "district_id": "65000100",
         "district_name": "淡水區",
-        "x": 37.789642,
+        "x": 37.86333,
         "y": 25.288097348698525
       },
       {
         "district_id": "65000110",
         "district_name": "汐止區",
-        "x": 40.522065,
+        "x": 41.000211,
         "y": 21.324563032119457
       },
       {
         "district_id": "65000120",
         "district_name": "瑞芳區",
-        "x": 72.245829,
+        "x": 69.814101,
         "y": 26.264452586001806
       },
       {
         "district_id": "65000130",
         "district_name": "土城區",
-        "x": 27.582652,
+        "x": 29.447604,
         "y": 28.205465772294808
       },
       {
         "district_id": "65000140",
         "district_name": "蘆洲區",
-        "x": 64.591592,
+        "x": 64.991872,
         "y": 23.62453699521185
       },
       {
         "district_id": "65000150",
         "district_name": "五股區",
-        "x": 15.054669,
+        "x": 16.585431,
         "y": 35.55015382278097
       },
       {
         "district_id": "65000160",
         "district_name": "泰山區",
-        "x": 56.421061,
+        "x": 57.070712,
         "y": 26.697679122212673
       },
       {
         "district_id": "65000170",
         "district_name": "林口區",
-        "x": 90.638668,
+        "x": 90.218342,
         "y": 35.4730664044495
       },
       {
         "district_id": "65000180",
         "district_name": "深坑區",
-        "x": 27.017736,
+        "x": 27.191766,
         "y": 14.839076234083086
       },
       {
@@ -10180,70 +10175,70 @@
       {
         "district_id": "65000200",
         "district_name": "坪林區",
-        "x": 41.184253,
+        "x": 39.762861,
         "y": 12.667772583320765
       },
       {
         "district_id": "65000210",
         "district_name": "三芝區",
-        "x": 50.652087,
+        "x": 48.936737,
         "y": 24.015406109579732
       },
       {
         "district_id": "65000220",
         "district_name": "石門區",
-        "x": 21.742003,
+        "x": 20.408055,
         "y": 26.819923371647512
       },
       {
         "district_id": "65000230",
         "district_name": "八里區",
-        "x": 84.390653,
+        "x": 82.585428,
         "y": 27.70280592758568
       },
       {
         "district_id": "65000240",
         "district_name": "平溪區",
-        "x": 43.203509,
+        "x": 44.842854,
         "y": 30.427892234548334
       },
       {
         "district_id": "65000250",
         "district_name": "雙溪區",
-        "x": 22.138064,
+        "x": 20.854518,
         "y": 20.06409363243695
       },
       {
         "district_id": "65000260",
         "district_name": "貢寮區",
-        "x": 32.711008,
+        "x": 31.449375,
         "y": 29.635483552306628
       },
       {
         "district_id": "65000270",
         "district_name": "金山區",
-        "x": 43.327184,
+        "x": 41.756138,
         "y": 30.363190470629455
       },
       {
         "district_id": "65000280",
         "district_name": "萬里區",
-        "x": 33.542019,
+        "x": 31.981606,
         "y": 30.219088390833544
       },
       {
         "district_id": "65000290",
         "district_name": "烏來區",
-        "x": 56.517282,
+        "x": 55.344639,
         "y": 74.92048533396161
       }
     ],
     "regression": {
       "method": "ols",
       "sample_size": 29,
-      "slope": 0.046459479020728334,
-      "intercept": 25.16995687266271,
-      "r_squared": 0.012671601996246507
+      "slope": 0.044826650576143406,
+      "intercept": 25.26196323060823,
+      "r_squared": 0.011620461748143684
     }
   },
   "annual": {

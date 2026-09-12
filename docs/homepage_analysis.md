@@ -14,8 +14,9 @@ YOI 本身不計算年度 Delta。輸出寫入
 `data/quality/analytics_homepage.json`。
 
 2026-09-12 v9 真實資料執行結果：`current_yoi.districts` 29 筆，年度資料輸出
-ROC 110–114；`opportunityIndex` 已由 `YOI_raw` 重新標準化為 0–100，
-`S_talent` 的 29 區子分數皆有變異（3.02–85.96）。服務涵蓋率可計算為全市
+ROC 110–114；`opportunityIndex` 已由 `YOI_raw` 以純 Min-Max 標準化為 0–100，
+`S_talent` 的 29 區子分數皆有變異（13.79–73.03）。S_salary 的薪資中位數另以
+`k=30` 向全市中位數收縮，避免偏鄉小樣本放大波動。服務涵蓋率可計算為全市
 49.2266230851%，狀態為
 `partial`（9 個青創基地有驗證座標、0 個排除；1,039 個里界中 1,032 個
 接上 ROC 114 里級人口）。其中 6 個頁面缺地址的基地，是由固定的官方地址參照
@@ -111,7 +112,7 @@ YOI_raw = 0.25·S_job + 0.25·S_salary + 0.15·S_talent + 0.20·S_housing + 0.15
 YOI     = norm(YOI_raw)
 ```
 
-`YOI_raw` 的五個子分數都已是 0–100；最後仍以相同的 P5/P95
+`YOI_raw` 的五個子分數都已是 0–100；最後以相同的純 Min-Max
 標準化拉伸成公開的 `opportunityIndex` 0–100。若輸入缺值，沿用
 `weighted_score`：只使用可得分項並依可得權重重新計算；若沒有可用分項則為
 `null`。
@@ -122,11 +123,10 @@ YOI     = norm(YOI_raw)
 
 #### 標準化函數
 
-所有子數值在加權前先做 **Min-Max 標準化（截斷 P5/P95 極端值）**：
+所有子數值在加權前先做 **純 Min-Max 標準化（不截斷 P5/P95）**：
 
 ```text
-x_clipped = clip(x, P5, P95)
-norm(x)   = (x_clipped - min(x_clipped)) / (max(x_clipped) - min(x_clipped)) × 100
+norm(x)   = (x - min(x)) / (max(x) - min(x)) × 100
 norm_inv(x) = 100 - norm(x)   ← 反向指標用（數值越高，分數越低）
 ```
 
@@ -162,6 +162,21 @@ S_salary = 0.60 × norm(職缺刊登薪資中位數)
 | -------------- | --------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------- |
 | 職缺薪資中位數 | 各區完整上下界職缺的 `salary_midpoint` 中位數                                | **C2.2** `job_vacancy_salaries`   | 只有 `salary_lower` 與 `salary_upper` 都存在時才使用區間中點；現有來源為台灣就業通 `taiwanjobs`，不是 104 |
 | 高薪職缺比例   | `薪資 > 全市中位數 × 1.5` 的 `position_count` ÷ 該區總職缺 `position_count` | **C2.3**（衍生自 **C2.2**）+ **C1.1** | 全市中位數以完整薪資區間的中點計算；分子只計薪資可判定的職缺，缺薪資不視為高薪 |
+
+為避免偏鄉小樣本的薪資中位數產生極端值，`S_salary` 使用向全市中位數收縮後的
+薪資。`n` 是該區具有完整上下界、可計算 `salary_midpoint` 的資料列數（不是
+`position_count`）；目前 `k=30`：
+
+```text
+raw_salary       = 該區薪資中位數（n=0 時視為 0）
+city_salary      = 全市完整薪資中點的中位數
+salary_shrunk    = (n × raw_salary + 30 × city_salary) / (n + 30)
+S_salary         = 0.60 × norm(salary_shrunk) + 0.40 × norm(高薪職缺比例)
+```
+
+payload 同時保留 `salary_median`（未收縮值）、`salary_sample_size` 與
+`salary_median_shrunk`，方便查核收縮幅度；`n=0` 且全市有中位數時，收縮值為全市
+中位數，並不代表該區有觀測到薪資。
 
 > 現有薪資是職缺刊登的月薪區間中點，不是實際受僱者的實領薪資。薪資 coverage、
 > 被排除的單邊薪資與未對應行政區資料仍記在 quality artifact；`adjusted_youth_wage`
@@ -288,6 +303,7 @@ def generate_homepage_data(snapshot_date, year):
     all_salary_midpoints = [v.salary_midpoint for v in vacancy_salaries if v.salary_midpoint]
     city_salary_median   = median(all_salary_midpoints)
     high_salary_threshold = city_salary_median * 1.5
+    shrinkage_k = 30
 
     # ── 薪資與人才需求的相容性欄位 ────────────────────────────
     # adjusted_youth_wage、talent_demand_yoy 仍可供其他頁面或歷史欄位使用，
@@ -311,6 +327,8 @@ def generate_homepage_data(snapshot_date, year):
         d_salaries   = [v.salary_midpoint for v in vacancy_salaries
                         if v.district_id == d and v.salary_midpoint]
         salary_median = median(d_salaries) if d_salaries else 0
+        salary_shrunk = (len(d_salaries) * salary_median
+                         + shrinkage_k * city_salary_median) / (len(d_salaries) + shrinkage_k)
         high_sal_ratio = weighted_high_salary_position_ratio(d, high_salary_threshold)
 
         # S_talent 原始值：青年人口結構、跨年變化與大專學生密度
@@ -345,6 +363,8 @@ def generate_homepage_data(snapshot_date, year):
             "youth_yoy":       youth_yoy,
             "talent_yoy":      talent_yoy,     # 全國共用
             "salary_median":   salary_median,
+            "salary_sample_size": len(d_salaries),
+            "salary_median_shrunk": salary_shrunk,
             "high_sal_ratio":  high_sal_ratio,
             "college_density": college_density,
             "rent_med":        rent_med,
@@ -355,8 +375,10 @@ def generate_homepage_data(snapshot_date, year):
             "bike_density":    bike_density,
         })
 
-    # ── 對所有區做 Min-Max 標準化（先截斷 P5/P95）──────────
-    def normalize_col(col):   return [minmax_with_clip(v[col]) for v in raw_scores]
+    # ── 對所有區做純 Min-Max 標準化（不截斷 P5/P95）────────
+    def normalize_col(col):
+        normalized = normalize_minmax({v["id"]: v[col] for v in raw_scores})
+        return [normalized[v["id"]] for v in raw_scores]
     def normalize_inv(col):   return [100 - v for v in normalize_col(col)]
 
     # ── 計算 YOI 並決定留才風險 ──────────────────────────────
@@ -366,7 +388,7 @@ def generate_homepage_data(snapshot_date, year):
     for i, d_raw in enumerate(raw_scores):
         s_job     = (0.60 * norm_vacancy_density_km2[i]
                    + 0.40 * norm_shannon[i])
-        s_salary  = (0.60 * norm_salary_median[i]
+        s_salary  = (0.60 * norm_salary_median_shrunk[i]
                    + 0.40 * norm_high_sal_ratio[i])
         s_talent  = (0.40 * norm_youth_ratio[i]
                    + 0.40 * norm_youth_yoy[i]
@@ -382,8 +404,8 @@ def generate_homepage_data(snapshot_date, year):
                  + 0.20*s_housing + 0.15*s_transport)
         yoi_list.append(yoi_raw)
 
-    # 公開的 opportunityIndex 再對 29 區的 YOI_raw 做一次 P5/P95 norm。
-    opportunity_index = normalize_p5_p95(yoi_list)
+    # 公開的 opportunityIndex 再對 29 區的 YOI_raw 做一次純 Min-Max norm。
+    opportunity_index = normalize_minmax(yoi_list)
 
     # 計算 Q1/Q3 做留才風險分級
     q1 = percentile(yoi_list, 25)

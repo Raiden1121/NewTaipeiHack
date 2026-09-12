@@ -110,7 +110,7 @@ ValueError: dataset 'join_proposals' is not present in dataset index
   "population_reference_year_roc": 114,
   "election_years_roc": [103,107,111],
   "service_radius_m": 2500,
-  "normalization": { "method": "p5_p95", "constant_value": 50 },
+  "normalization": { "method": "min_max", "constant_value": 50 },
   "yoi_weights": { "job":0.25, "salary":0.25, "talent":0.15, "housing":0.20, "transport":0.15 } }
 ```
 
@@ -118,13 +118,13 @@ ValueError: dataset 'join_proposals' is not present in dataset index
 
 | 函式 | 公式 | 用途 |
 |---|---|---|
-| `normalize_p5_p95` | 先 clip 到 [P5, P95]，再 `(x-P5)/(P95-P5)×100`；`inverse=True` 取 `100-x` | 所有 YOI 分項、FAFI 分項 |
+| `normalize_minmax` | `(x-min)/(max-min)×100`，不做 P5/P95 截斷；`inverse=True` 取 `100-x` | 所有現行 YOI 分項、FaFI 分項 |
 | `shannon_entropy` | `-Σ pᵢ log₂ pᵢ`（pᵢ = 該職類職缺數／總職缺數） | 職業多樣性 |
 | `weighted_score` | `Σ(wᵢ·xᵢ)/Σwᵢ`，**只累加有值的項目**（null 不計入分母） | 五大分項與 YOI 合成 |
 | `calculate_quartile_risk` | `≤Q1 → high`、`≥Q3 → low`、其餘 `medium`、null → `unavailable` | 留才風險分級 |
 | `calculate_ols_regression` | 純 Python OLS，回傳 `slope`/`intercept`/`r_squared`/`sample_size`；有效點 <2 或 `ss_xx≈0` 時全部回 null | 三張散布圖的趨勢線 |
 
-共同原則：**P5/P95 上下界相等時全部給 `constant_value=50`；缺值一律 `null`，絕不補 0。**
+共同原則：**Min-Max 上下界相等時全部給 `constant_value=50`；缺值一律 `null`，絕不補 0。**
 
 ### 2.2 `homepage` —— 青年機會指數 YOI（29 區）
 
@@ -139,7 +139,9 @@ ValueError: dataset 'join_proposals' is not present in dataset index
 | `vacancies_per_10k_youth` | 區內 `position_count` 加總 ÷ 該區 18–35 人口 × 10,000 | 正；相容性欄位，不進 S_job |
 | `occupation_shannon_index` | 區內職類 position_count 分布的 Shannon 熵 | 正 |
 | `talent_demand_yoy` | 全國 `new_demand_count` 年度總和的 YoY %（**29 區同值**） | 相容性／背景欄位，不進 S_job |
-| `salary_median` | 區內職缺薪資中位數（用上下界中點） | 正 |
+| `salary_median` | 區內職缺薪資中位數（用上下界中點，未收縮） | 正；相容性／查核 |
+| `salary_sample_size` | 可計算完整薪資中點的資料列數 | 查核欄位 |
+| `salary_median_shrunk` | `(n×salary_median + 30×全市中位數)/(n+30)` | 正；S_salary 使用 |
 | `high_salary_ratio` | 中點 > 全市中位數 ×1.5 的職缺 `position_count` ÷ 區內總 position_count | 正 |
 | `adjusted_youth_wage` | 官方 25–29 歲平均薪資 × 房價比例的代理值 | 相容性／散點圖欄位，不進 S_salary |
 | `youth_ratio` | 區內 18–35 歲人口 ÷ 區內總人口 × 100% | 正；S_talent 使用 |
@@ -168,7 +170,7 @@ transport = 0.35 公車 + 0.40 軌道 + 0.25 YouBike
 
 **第 3 層：**先計算
 `YOI_raw = weighted_score(五大分項, yoi_weights)`，再對全部 29 區的
-`YOI_raw` 做 P5/P95 norm 產生 `opportunityIndex`；最後依公開分數四分位切
+`YOI_raw` 做純 Min-Max norm 產生 `opportunityIndex`；最後依公開分數四分位切
 `retentionRiskLevel`。輸出另保留 `yoiRaw` 供查核。
 
 **其他 homepage 區塊**
@@ -195,7 +197,7 @@ transport = 0.35 公車 + 0.40 軌道 + 0.25 YouBike
 
 - `calculate_annual_fertility_metrics`：以 §2.2 的生育率為底，補上 `youthRatio`（18–35 ÷ 總人口 × 100）、`availableMonths`、`coverageRatio = 月數/12`。**必須 12 個月齊全且該區有生育數**才算 `observed`。
 - `daycareCoverage`：`calculate_population_service_coverage`，半徑 1,000 m，目標人口欄位改成 `youth_18_35_female`，來源 `babysitting_places`。
-- **FAFI（家庭友善指數）**：`daycareCoverage` 與 `estimatedWage` 各自 P5/P95 正規化，再與 homepage 的 `score_housing` 取**等權平均**——三項有任一 null 就整個 FAFI 為 null（`_mean_if_complete`）。再依四分位切 `low/medium/high`。
+- **FaFI（家庭友善指數）**：`daycareCoverage` 與 `salaryMedian` 各自用純 Min-Max 正規化，再與 homepage 的 `score_housing` 依設定權重平均——有正權重的任一項為 null 就整個 FaFI 為 null（`_weighted_if_complete`）。薪資是 `salary_median_shrunk`，再依四分位切 `low/medium/high`。
 - 散布圖：x = `opportunityIndex`，y = `fertilityRate`，附 OLS。
 
 ### 2.5 選舉指標（`elections.py` + `youth_participation.py`）
@@ -304,7 +306,7 @@ weight         = clamp(1,5, floor(1 + 4·ranking_score/max + 0.5))，同樣套 �
 | `babysitting_places` | 391 | 171 | `geocode_status != matched` |
 | `bike_stops` | 1,606 | 5 | 對不到行政區 |
 
-**正規化**：所有跨區比較欄位一律 P5/P95 clip 後線性映射到 0–100；逆向欄位（租金、房價、租金薪資比）取 `100 − x`。
+**正規化**：所有現行 YOI／FaFI 跨區比較欄位一律以純 Min-Max 線性映射到 0–100，不再做 P5/P95 clip；逆向欄位（租金、房價、租金薪資比）取 `100 − x`。
 
 **輸出邊界**：`published_snapshot.py` 會遞迴檢查 payload，**禁止 `raw_record` / `raw_records` 進入 public 產物**；`policy_support` 另有 `_strip_raw_fields()`。所有寫檔走 `atomic_json_write`。
 

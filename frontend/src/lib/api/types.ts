@@ -43,6 +43,8 @@ export interface DistrictSummary {
   occupation_shannon_index: number;
   talent_demand_yoy: number;
   salary_median: number;
+  salary_sample_size: number;
+  salary_median_shrunk: number | null;
   high_salary_ratio: number;
   adjusted_youth_wage: number;
   college_student_density: number;

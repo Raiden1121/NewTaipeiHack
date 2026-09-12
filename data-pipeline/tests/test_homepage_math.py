@@ -11,6 +11,7 @@ if str(SRC_DIR) not in sys.path:
 from analytics.homepage_math import (  # noqa: E402
     calculate_ols_regression,
     calculate_quartile_risk,
+    normalize_minmax,
     normalize_p5_p95,
     shannon_entropy,
     weighted_score,
@@ -58,6 +59,20 @@ class TestHomepageMath(unittest.TestCase):
         self.assertLessEqual(normalized["e"], 100)
         self.assertFalse(any(math.isnan(value) for value in normalized.values() if value is not None))
         self.assertEqual(normalize_p5_p95({"a": 3, "b": 3})["a"], 50)
+
+    def test_minmax_does_not_clip_percentiles_and_preserves_missing(self):
+        values = {str(value): value for value in range(101)}
+        values["missing"] = None
+
+        normalized = normalize_minmax(values)
+        inverse = normalize_minmax(values, inverse=True)
+
+        self.assertIsNone(normalized["missing"])
+        self.assertAlmostEqual(normalized["1"], 1.0)
+        self.assertAlmostEqual(normalized["99"], 99.0)
+        self.assertAlmostEqual(inverse["1"], 99.0)
+        self.assertAlmostEqual(inverse["99"], 1.0)
+        self.assertEqual(normalize_minmax({"a": 3, "b": 3})["a"], 50)
 
     def test_entropy_and_quartile_risk(self):
         self.assertEqual(shannon_entropy({"only": 10}), 0)

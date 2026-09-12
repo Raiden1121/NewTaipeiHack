@@ -16,7 +16,7 @@ from .annual_metrics import calculate_annual_fertility, calculate_annual_populat
 from .config import HomepageAnalyticsConfig
 from .data_gaps import explain_reason_codes
 from .elections import calculate_youth_candidacy
-from .homepage_math import calculate_quartile_risk, normalize_p5_p95, shannon_entropy, weighted_score
+from .homepage_math import calculate_quartile_risk, normalize_minmax, shannon_entropy, weighted_score
 from .input_resolver import HomepageInputResolver
 from .io import CuratedSlice, atomic_json_write
 from .service_coverage import calculate_service_coverage
@@ -190,6 +190,8 @@ def generate_homepage_data(
             "current_yoi": "latest_available_snapshot",
             "college_reference_year_roc": config.population_reference_year_roc,
             "election_years_roc": list(config.election_years_roc),
+            "yoi_normalization": "min_max",
+            "salary_shrinkage_k": config.salary_shrinkage_k,
         },
         "current_yoi": {
             "population_reference_year_roc": config.population_reference_year_roc,
@@ -376,8 +378,29 @@ def _calculate_current_yoi(
     latest_wage, wage_quality = _latest_youth_wage(wages, config.annual_years_roc)
     if wage_quality != "observed":
         quality["proxy_usage"].append({"metric": "adjusted_youth_wage", "reason": wage_quality})
-    city_house_values = [_number(row.get("price_per_ping")) for row in houses]
+    # Residential only on both sides of the ratio below: rural districts trade
+    # mostly farmland (貢寮 is 136 land deals out of 154), whose price per ping
+    # is two orders of magnitude under a home's and would otherwise sink the
+    # district's ratio.
+    city_house_values = [
+        _number(row.get("price_per_ping")) for row in houses if _is_residential_house(row)
+    ]
     city_house_median = _median(city_house_values)
+    district_house_medians = [
+        median
+        for median in (
+            _median(
+                [
+                    _number(row.get("price_per_ping"))
+                    for row in houses
+                    if str(row.get("district_id")) == candidate_id and _is_residential_house(row)
+                ]
+            )
+            for candidate_id in district_ids
+        )
+        if median is not None
+    ]
+    cheapest_district_house_median = _minimum(district_house_medians)
     salary_values = [
         _salary_midpoint(row)
         for row in salary_rows
@@ -448,15 +471,11 @@ def _calculate_current_yoi(
             for row in district_salaries
             if _salary_midpoint(row) is not None and high_salary_threshold is not None and _salary_midpoint(row) > high_salary_threshold
         )
-        district_house_all = [_number(row.get("price_per_ping")) for row in houses if str(row.get("district_id")) == district_id]
         district_house_residential = [
             _number(row.get("price_per_ping"))
             for row in houses
             if str(row.get("district_id")) == district_id and _is_residential_house(row)
         ]
-        if not district_house_residential and names[district_id] == "平溪區":
-            district_house_residential = district_house_all[:]
-            _append_proxy(quality, "house_price", district_id, "pingxi_all_types")
         district_rents = [_number(row.get("rent_total")) for row in rentals if str(row.get("district_id")) == district_id]
         rent_values = [value for value in district_rents if value is not None]
         house_values = [value for value in district_house_residential if value is not None]
@@ -468,15 +487,21 @@ def _calculate_current_yoi(
             if rent_median is not None:
                 _append_proxy(quality, "rent", district_id, "observed_minimum")
         if house_median is None:
-            house_median = _minimum(
-                [_number(row.get("price_per_ping")) for row in houses if _is_residential_house(row)]
-            )
+            # 平溪 records no residential sale at all. Standing in the single
+            # cheapest transaction city-wide would hand it a 2,426/坪 outlier,
+            # so use the cheapest district's typical price instead.
+            house_median = cheapest_district_house_median
             if house_median is not None:
-                _append_proxy(quality, "house_price", district_id, "residential_observed_minimum")
-        price_ratio = None
-        if city_house_median and district_house_all:
-            district_all_median = _median(district_house_all)
-            price_ratio = None if district_all_median is None else district_all_median / city_house_median
+                _append_proxy(
+                    quality, "house_price", district_id, "cheapest_district_residential_median"
+                )
+        price_ratio = (
+            None
+            if not city_house_median or house_median is None
+            # house_median already carries the city-wide residential fallback
+            # for districts with no residential transaction at all (平溪).
+            else house_median / city_house_median
+        )
         adjusted_wage = None if latest_wage is None or price_ratio is None else latest_wage * price_ratio
         vt_value = vt_by_district.get(district_id)
         vt_quality = "observed"
@@ -500,6 +525,13 @@ def _calculate_current_yoi(
             "occupation_shannon_index": shannon_entropy(occupation_counts),
             "talent_demand_yoy": talent_yoy,
             "salary_median": _median(valid_salaries),
+            "salary_sample_size": len(valid_salaries),
+            "salary_median_shrunk": _shrink_to_city(
+                _median(valid_salaries),
+                len(valid_salaries),
+                city_salary_median,
+                config.salary_shrinkage_k,
+            ),
             "high_salary_ratio": None if vacancy_positions <= 0 else high_count / vacancy_positions,
             "adjusted_youth_wage": adjusted_wage,
             "college_student_density": (
@@ -528,6 +560,7 @@ def _calculate_current_yoi(
         ("occupation_shannon_index", False),
         ("talent_demand_yoy", False),
         ("salary_median", False),
+        ("salary_median_shrunk", False),
         ("high_salary_ratio", False),
         ("adjusted_youth_wage", False),
         ("college_student_density", False),
@@ -542,7 +575,7 @@ def _calculate_current_yoi(
     )
     for column, inverse in columns:
         values = {district_id: raw[district_id].get(column) for district_id in district_ids}
-        normalized[column] = normalize_p5_p95(
+        normalized[column] = normalize_minmax(
             values,
             inverse=inverse,
             constant_value=float(config.normalization.get("constant_value", 50)),
@@ -561,8 +594,8 @@ def _calculate_current_yoi(
                 {"vacancies_per_km2": 0.6, "occupation_shannon_index": 0.4},
             ),
             "salary": weighted_score(
-                {"salary_median": norm["salary_median"], "high_salary_ratio": norm["high_salary_ratio"]},
-                {"salary_median": 0.6, "high_salary_ratio": 0.4},
+                {"salary_median_shrunk": norm["salary_median_shrunk"], "high_salary_ratio": norm["high_salary_ratio"]},
+                {"salary_median_shrunk": 0.6, "high_salary_ratio": 0.4},
             ),
             "talent": weighted_score(
                 {"youth_ratio": norm["youth_ratio"], "youth_yoy": norm["youth_yoy"], "college_student_density": norm["college_student_density"]},
@@ -580,7 +613,7 @@ def _calculate_current_yoi(
         raw_yoi_scores[district_id] = weighted_score(components, config.yoi_weights)
         component_scores[district_id] = components
 
-    normalized_yoi = normalize_p5_p95(
+    normalized_yoi = normalize_minmax(
         raw_yoi_scores,
         constant_value=float(config.normalization.get("constant_value", 50)),
     )
@@ -701,6 +734,11 @@ def _is_residential_house(row: Mapping[str, Any]) -> bool:
     transaction_type = str(row.get("transaction_type") or "")
     if transaction_type == "住宅用":
         return True
+    # A bare plot zoned 住宅區 is not a home sale. 平溪's only four "residential"
+    # rows were land deals with no building, dragging its median to 15,304/坪
+    # against a city median near 460,000.
+    if transaction_type == "土地" or not _number(row.get("building_area")):
+        return False
     raw = row.get("raw_record")
     if not isinstance(raw, Mapping):
         return False
@@ -709,6 +747,29 @@ def _is_residential_house(row: Mapping[str, Any]) -> bool:
     residential_usage = any(marker in usage for marker in ("住家", "住宅", "集合住宅"))
     residential_land = "住宅區" in land_use or land_use.strip() in {"住", "住宅"}
     return residential_usage or residential_land
+
+
+def _shrink_to_city(
+    district_value: float | None,
+    sample_size: int,
+    city_value: float | None,
+    strength: float,
+) -> float | None:
+    """Pull a thin district sample towards the city median.
+
+    Several districts post only a handful of vacancies (平溪 has one), so their
+    raw median is noise. ``strength`` is the number of observations at which the
+    district and the city carry equal weight.
+    """
+
+    if city_value is None:
+        return district_value
+    if district_value is None:
+        return float(city_value)
+    if strength <= 0:
+        return float(district_value)
+    weight = float(sample_size) + strength
+    return (sample_size * float(district_value) + strength * float(city_value)) / weight
 
 
 def _salary_midpoint(row: Mapping[str, Any]) -> float | None:

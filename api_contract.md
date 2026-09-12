@@ -198,6 +198,8 @@ export interface DistrictSummary {
 | `occupation_shannon_index` | — | 3.59 |
 | `talent_demand_yoy` | % | -6.00 |
 | `salary_median` | TWD/月 | 35000 |
+| `salary_sample_size` | 筆 | 可計算完整薪資中點的資料列數 |
+| `salary_median_shrunk` | TWD/月 | 向全市中位數收縮後的薪資中位數（k=30） |
 | `high_salary_ratio` | 比例 0–1 | 0.0378 |
 | `adjusted_youth_wage` | 萬元/年（相容性／散點圖 proxy，不進 S_salary） | 77.61 |
 | `college_student_density` | 人/km² | 967.55 |
@@ -214,10 +216,10 @@ export interface DistrictSummary {
 
 | 欄位 | 型別 | 說明 | 29 區實際範圍 |
 |---|---|---|---|
-| `opportunityIndex` | number | 公開 YOI，先算 `YOI_raw` 再做 P5/P95 norm | **0 – 100**（中位 47.6722）|
-| `yoiRaw` | number \| null | `0.25·job + 0.25·salary + 0.15·talent + 0.20·housing + 0.15·transport`，未做最終 norm | **17.6149 – 52.4448**（中位 37.2857）|
+| `opportunityIndex` | number | 公開 YOI，先算 `YOI_raw` 再做純 Min-Max norm | **0 – 100**（數值依最新 snapshot）|
+| `yoiRaw` | number \| null | `0.25·job + 0.25·salary + 0.15·talent + 0.20·housing + 0.15·transport`，未做最終 norm | **22.8811 – 49.6776**（中位 34.8974）|
 | `yoiComponents` | object | 五個 0–100 子分數 | 見下 |
-| `normalizedInputs` | object | 18 個原始指標標準化後的 0–100 值，除錯用；包含相容性欄位 |
+| `normalizedInputs` | object | 19 個原始／衍生指標標準化後的 0–100 值，除錯用；包含相容性欄位 |
 | `retentionRiskLevel` | `"low"\|"medium"\|"high"` | 低 8 / 中 13 / 高 8 區 |
 | `fertilityRate` | number | 育齡青年生育率 ‰ | **12.67 – 74.92**（中位 26.70）|
 | `fertilityVsCityAvg` | number | 對全市平均比 % | 49.63 – 293.51 |
@@ -233,18 +235,18 @@ export interface DistrictSummary {
 
 | 子分數 | min | median | max | 備註 |
 |---|---|---|---|---|
-| `job` | 10.00 | 44.16 | 86.29 | |
-| `salary` | 0.22 | 39.49 | 91.61 | |
-| `talent` | 3.02 | 53.15 | 85.96 | 青年人口佔比、青年人口 YoY、大專學生密度 |
-| `housing` | 2.05 | 38.77 | 100.00 | 反向標準化，**越高代表居住越友善** |
-| `transport` | 1.76 | 19.00 | 65.00 | |
+| `job` | 0.00 | 35.94 | 94.28 | |
+| `salary` | 1.65 | 23.27 | 100.00 | 薪資中位數使用 k=30 收縮值 |
+| `talent` | 13.79 | 51.42 | 73.03 | 青年人口佔比、青年人口 YoY、大專學生密度 |
+| `housing` | 5.60 | 38.28 | 99.85 | 反向標準化，**越高代表居住越友善** |
+| `transport` | 1.47 | 16.22 | 62.82 | |
 
 `housing` 語意提醒：欄位方向已經是「越高越好」，**前端不得再反轉一次**。
 
 ### 3.2 標準化函數
 
 ```text
-norm(x)     = (clip(x, P5, P95) - min) / (max - min) × 100
+norm(x)     = (x - min) / (max - min) × 100
 norm_inv(x) = 100 - norm(x)        ← housing 使用
 ```
 
@@ -277,7 +279,9 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 | hover 卡：機會指數 | 同上 | ✅ |
 | hover 卡：留才風險 | `data.districts[].retentionRiskLevel` | ✅ |
 
-> `opportunityIndex` 現在先由 `YOI_raw` 做 P5/P95 norm，公開值域為 **0–100**；目前 29 區中位數為 47.6722。若前端仍採固定門檻，應依這個公開值域重新檢查分桶；更穩健的作法仍是由 API 提供分位數門檻。
+> `opportunityIndex` 現在先由 `YOI_raw` 做純 Min-Max norm，公開值域為 **0–100**，
+> 最新 snapshot 的中位數為 **44.8429**。若前端仍採固定門檻，應依最新 snapshot 的
+> 公開值域重新檢查分桶；更穩健的作法仍是由 API 提供分位數門檻。
 
 ### 4.3 重點行政區分析（`DistrictHighlightsTable`）
 
@@ -331,7 +335,7 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 | 綜合分數 | `data.metrics.opportunityIndex` | ✅ |
 | 工作機會 | `data.metrics.yoiComponents.job` | ✅ |
 | 薪資水準 | `data.metrics.yoiComponents.salary` | ✅ |
-| 青年活力與發展 | `data.metrics.yoiComponents.talent` | ✅ 29 區皆有區級變異（3.02–85.96） |
+| 青年活力與發展 | `data.metrics.yoiComponents.talent` | ✅ 29 區皆有區級變異（13.79–73.03） |
 | 居住友善度 | `data.metrics.yoiComponents.housing` | ✅ |
 | 交通可及 | `data.metrics.yoiComponents.transport` | ✅ |
 
@@ -538,10 +542,10 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 
 | 需要欄位 | 現況 |
 |---|---|
-| `fafi_score`（0–100）| ❌ 未產出。公式 `(norm(托育覆蓋率) + yoiComponents.housing + norm(estimated_wage)) / 3` |
-| `fafi_level`（分位數分級）| ❌ 未產出 |
+| `fafi_score`（0–100）| ✅ snapshot `fafi.districts[].fafiScore`。`daycareCoverage` 與 `salaryMedian` 用純 Min-Max，再與 `yoiComponents.housing` 依設定權重合成 |
+| `fafi_level`（分位數分級）| ✅ snapshot `fafi.districts[].fafiLevel` |
 
-> 🔴 前端目前**拿 `policySupportScore` 充當友善度分數**，而該欄位在 pipeline **完全不存在**，只在 `districts.csv` fixture 裡。三項輸入中 `yoiComponents.housing` ✅ 已有、托育覆蓋率 ❌、薪資 ⚠️（`adjusted_youth_wage` 可代）。
+> 🔴 前端目前**拿 `policySupportScore` 充當友善度分數**，而該欄位在 pipeline **完全不存在**，只在 `districts.csv` fixture 裡。三項輸入中 `yoiComponents.housing` ✅ 已有；FaFI 的薪資採 Homepage `salary_median_shrunk`，k=30 收縮後再正規化。
 >
 > ⚠️ 顏色分級要從固定門檻（>70 綠 / 50–70 黃 / <50 紅）改為吃後端傳的 `fafi_level`（依 Q1/Q3 分位數）。
 

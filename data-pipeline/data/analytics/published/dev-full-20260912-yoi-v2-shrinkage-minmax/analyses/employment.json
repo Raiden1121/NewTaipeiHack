@@ -1,7 +1,7 @@
 {
   "metric_id": "employment",
   "calculation_version": "1",
-  "generated_at": "2026-09-12T14:50:30.181717+00:00",
+  "generated_at": "2026-09-12T14:23:28.030045+00:00",
   "time_policy": {
     "current_yoi": "latest_available_snapshot",
     "annual_years_roc": [
@@ -22,19 +22,19 @@
       "score_job": 75.3322892241664,
       "score_salary": 44.0082910983807,
       "score_talent": 58.84578423737166,
-      "score_housing": 13.883432967899283,
+      "score_housing": 13.635419479630832,
       "score_transport": 55.25641206158309,
       "yoiComponents": {
         "job": 75.3322892241664,
         "salary": 44.0082910983807,
         "talent": 58.84578423737166,
-        "housing": 13.883432967899283,
+        "housing": 13.635419479630832,
         "transport": 55.25641206158309
       },
       "knowledge_job_ratio": 20.87604846225536,
-      "estimated_wage": 74.22070597189611,
-      "estimated_monthly_wage": 6.185058830991342,
-      "house_price_median_wan": 57.046278852499995,
+      "estimated_wage": 77.61169390585283,
+      "estimated_monthly_wage": 6.46764115882107,
+      "house_price_median_wan": 57.465782969,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -166,7 +166,7 @@
     {
       "district_id": "65000020",
       "district_name": "三重區",
-      "opportunityIndex": 74.835359,
+      "opportunityIndex": 75.664792,
       "retentionRiskLevel": "low",
       "score_job": 94.28112334016024,
       "score_salary": 6.395991827819591,
@@ -181,9 +181,9 @@
         "transport": 62.81736276802785
       },
       "knowledge_job_ratio": 14.14441147378833,
-      "estimated_wage": 76.7054103928369,
-      "estimated_monthly_wage": 6.392117532736408,
-      "house_price_median_wan": 58.95603084700001,
+      "estimated_wage": 78.33771845606601,
+      "estimated_monthly_wage": 6.528143204672168,
+      "house_price_median_wan": 59.2783448845,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -315,24 +315,24 @@
     {
       "district_id": "65000030",
       "district_name": "中和區",
-      "opportunityIndex": 58.702063,
+      "opportunityIndex": 59.658919,
       "retentionRiskLevel": "medium",
       "score_job": 77.8475947706279,
       "score_salary": 16.341200654832736,
       "score_talent": 45.083870253201574,
-      "score_housing": 10.758292885371098,
+      "score_housing": 10.375560965599934,
       "score_transport": 43.21789449255286,
       "yoiComponents": {
         "job": 77.8475947706279,
         "salary": 16.341200654832736,
         "talent": 45.083870253201574,
-        "housing": 10.758292885371098,
+        "housing": 10.375560965599934,
         "transport": 43.21789449255286
       },
       "knowledge_job_ratio": 11.709401709401709,
-      "estimated_wage": 70.54074560742161,
-      "estimated_monthly_wage": 5.878395467285134,
-      "house_price_median_wan": 54.2178492065,
+      "estimated_wage": 70.27521031741652,
+      "estimated_monthly_wage": 5.856267526451377,
+      "house_price_median_wan": 54.39751862125001,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -464,24 +464,24 @@
     {
       "district_id": "65000040",
       "district_name": "永和區",
-      "opportunityIndex": 64.914978,
+      "opportunityIndex": 65.418237,
       "retentionRiskLevel": "low",
       "score_job": 82.40089192475381,
       "score_salary": 26.72233642388005,
       "score_talent": 37.527792469221794,
-      "score_housing": 8.035124298032914,
+      "score_housing": 7.257787603672541,
       "score_transport": 40.328905047253556,
       "yoiComponents": {
         "job": 82.40089192475381,
         "salary": 26.72233642388005,
         "talent": 37.527792469221794,
-        "housing": 8.035124298032914,
+        "housing": 7.257787603672541,
         "transport": 40.328905047253556
       },
       "knowledge_job_ratio": 7.384615384615385,
-      "estimated_wage": 72.96265500578019,
-      "estimated_monthly_wage": 6.080221250481682,
-      "house_price_median_wan": 56.07933674000001,
+      "estimated_wage": 75.85777723826655,
+      "estimated_monthly_wage": 6.3214814365222125,
+      "house_price_median_wan": 57.21421273050001,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -613,24 +613,24 @@
     {
       "district_id": "65000050",
       "district_name": "新莊區",
-      "opportunityIndex": 91.753043,
+      "opportunityIndex": 91.554088,
       "retentionRiskLevel": "low",
       "score_job": 75.43525540627705,
       "score_salary": 33.82417839035543,
       "score_talent": 70.42512463446093,
-      "score_housing": 13.316239907281306,
+      "score_housing": 12.518747247430534,
       "score_transport": 46.8798406734903,
       "yoiComponents": {
         "job": 75.43525540627705,
         "salary": 33.82417839035543,
         "talent": 70.42512463446093,
-        "housing": 13.316239907281306,
+        "housing": 12.518747247430534,
         "transport": 46.8798406734903
       },
       "knowledge_job_ratio": 16.83587140439932,
-      "estimated_wage": 66.91024707580294,
-      "estimated_monthly_wage": 5.575853922983579,
-      "house_price_median_wan": 51.42743608800001,
+      "estimated_wage": 68.55676859750378,
+      "estimated_monthly_wage": 5.713064049791981,
+      "house_price_median_wan": 51.83553524625,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -762,24 +762,24 @@
     {
       "district_id": "65000060",
       "district_name": "新店區",
-      "opportunityIndex": 23.844112,
+      "opportunityIndex": 25.280527,
       "retentionRiskLevel": "high",
       "score_job": 44.416536913236,
       "score_salary": 26.82689624444416,
       "score_talent": 48.92813469859817,
-      "score_housing": 13.03563909912436,
+      "score_housing": 12.099620355940132,
       "score_transport": 13.902535499177445,
       "yoiComponents": {
         "job": 44.416536913236,
         "salary": 26.82689624444416,
         "talent": 48.92813469859817,
-        "housing": 13.03563909912436,
+        "housing": 12.099620355940132,
         "transport": 13.902535499177445
       },
       "knowledge_job_ratio": 15.235792019347038,
-      "estimated_wage": 62.532659816613894,
-      "estimated_monthly_wage": 5.2110549847178245,
-      "house_price_median_wan": 48.062808115,
+      "estimated_wage": 61.008096346895904,
+      "estimated_monthly_wage": 5.084008028907992,
+      "house_price_median_wan": 48.14975026050001,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -911,24 +911,24 @@
     {
       "district_id": "65000070",
       "district_name": "樹林區",
-      "opportunityIndex": 91.797799,
+      "opportunityIndex": 90.734341,
       "retentionRiskLevel": "low",
       "score_job": 75.79631234447544,
       "score_salary": 50.42755042414726,
       "score_talent": 51.415927499465326,
-      "score_housing": 30.28587350568164,
+      "score_housing": 28.331635391446785,
       "score_transport": 15.066717518649192,
       "yoiComponents": {
         "job": 75.79631234447544,
         "salary": 50.42755042414726,
         "talent": 51.415927499465326,
-        "housing": 30.28587350568164,
+        "housing": 28.331635391446785,
         "transport": 15.066717518649192
       },
       "knowledge_job_ratio": 26.208530805687204,
-      "estimated_wage": 47.58787454494539,
-      "estimated_monthly_wage": 3.9656562120787826,
-      "house_price_median_wan": 36.576196975500004,
+      "estimated_wage": 45.028505320929476,
+      "estimated_monthly_wage": 3.7523754434107897,
+      "house_price_median_wan": 36.4664449135,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -1060,24 +1060,24 @@
     {
       "district_id": "65000080",
       "district_name": "鶯歌區",
-      "opportunityIndex": 45.592874,
+      "opportunityIndex": 45.559128,
       "retentionRiskLevel": "medium",
       "score_job": 34.89546519819696,
       "score_salary": 26.178639366424264,
       "score_talent": 60.85569403061051,
-      "score_housing": 34.51606226965903,
+      "score_housing": 32.35638478433662,
       "score_transport": 28.141155392125285,
       "yoiComponents": {
         "job": 34.89546519819696,
         "salary": 26.178639366424264,
         "talent": 60.85569403061051,
-        "housing": 34.51606226965903,
+        "housing": 32.35638478433662,
         "transport": 28.141155392125285
       },
       "knowledge_job_ratio": 4.705882352941177,
-      "estimated_wage": 45.25714696019933,
-      "estimated_monthly_wage": 3.771428913349944,
-      "house_price_median_wan": 34.784792084,
+      "estimated_wage": 43.52930318446502,
+      "estimated_monthly_wage": 3.6274419320387516,
+      "house_price_median_wan": 34.721321012,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -1209,24 +1209,24 @@
     {
       "district_id": "65000090",
       "district_name": "三峽區",
-      "opportunityIndex": 42.993405,
+      "opportunityIndex": 43.23237,
       "retentionRiskLevel": "medium",
       "score_job": 33.33938705904903,
       "score_salary": 34.263050273918736,
       "score_talent": 58.93095212155335,
-      "score_housing": 40.76751140303601,
+      "score_housing": 38.88404243474451,
       "score_transport": 6.325207369433865,
       "yoiComponents": {
         "job": 33.33938705904903,
         "salary": 34.263050273918736,
         "talent": 58.93095212155335,
-        "housing": 40.76751140303601,
+        "housing": 38.88404243474451,
         "transport": 6.325207369433865
       },
       "knowledge_job_ratio": 16.455696202531644,
-      "estimated_wage": 50.199889422628154,
-      "estimated_monthly_wage": 4.183324118552346,
-      "house_price_median_wan": 38.583800206,
+      "estimated_wage": 45.13713357684908,
+      "estimated_monthly_wage": 3.761427798070757,
+      "house_price_median_wan": 38.685287805499996,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -1358,24 +1358,24 @@
     {
       "district_id": "65000100",
       "district_name": "淡水區",
-      "opportunityIndex": 37.789642,
+      "opportunityIndex": 37.86333,
       "retentionRiskLevel": "medium",
       "score_job": 41.083430171629026,
       "score_salary": 1.6535912769952346,
       "score_talent": 72.56136183728407,
-      "score_housing": 40.55884475011612,
+      "score_housing": 38.27541743609851,
       "score_transport": 25.35723749610645,
       "yoiComponents": {
         "job": 41.083430171629026,
         "salary": 1.6535912769952346,
         "talent": 72.56136183728407,
-        "housing": 40.55884475011612,
+        "housing": 38.27541743609851,
         "transport": 25.35723749610645
       },
       "knowledge_job_ratio": 13.626834381551362,
-      "estimated_wage": 42.94147297675721,
-      "estimated_monthly_wage": 3.578456081396434,
-      "house_price_median_wan": 33.004957440000005,
+      "estimated_wage": 43.11418019429761,
+      "estimated_monthly_wage": 3.5928483495248007,
+      "house_price_median_wan": 32.854874801,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -1507,24 +1507,24 @@
     {
       "district_id": "65000110",
       "district_name": "汐止區",
-      "opportunityIndex": 40.522065,
+      "opportunityIndex": 41.000211,
       "retentionRiskLevel": "medium",
       "score_job": 48.42725277289473,
       "score_salary": 29.535315087222273,
       "score_talent": 58.34737806617049,
-      "score_housing": 24.68750209646642,
+      "score_housing": 23.039712860668395,
       "score_transport": 6.780071578622861,
       "yoiComponents": {
         "job": 48.42725277289473,
         "salary": 29.535315087222273,
         "talent": 58.34737806617049,
-        "housing": 24.68750209646642,
+        "housing": 23.039712860668395,
         "transport": 6.780071578622861
       },
       "knowledge_job_ratio": 15.691263782866836,
-      "estimated_wage": 54.28500671362615,
-      "estimated_monthly_wage": 4.523750559468846,
-      "house_price_median_wan": 41.723634799,
+      "estimated_wage": 54.63141941725431,
+      "estimated_monthly_wage": 4.552618284771192,
+      "house_price_median_wan": 41.949254625250006,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -1656,24 +1656,24 @@
     {
       "district_id": "65000120",
       "district_name": "瑞芳區",
-      "opportunityIndex": 72.245829,
+      "opportunityIndex": 69.814101,
       "retentionRiskLevel": "low",
       "score_job": 37.87487235307882,
       "score_salary": 40.01671392053939,
       "score_talent": 40.89202049466576,
-      "score_housing": 71.60800477595274,
+      "score_housing": 67.14979183165408,
       "score_transport": 17.01431520154852,
       "yoiComponents": {
         "job": 37.87487235307882,
         "salary": 40.01671392053939,
         "talent": 40.89202049466576,
-        "housing": 71.60800477595274,
+        "housing": 67.14979183165408,
         "transport": 17.01431520154852
       },
       "knowledge_job_ratio": 9.747292418772563,
-      "estimated_wage": 14.797259978889773,
-      "estimated_monthly_wage": 1.2331049982408144,
-      "house_price_median_wan": 11.373222714,
+      "estimated_wage": 13.270274525383389,
+      "estimated_monthly_wage": 1.1058562104486158,
+      "house_price_median_wan": 11.277189659750002,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -1805,24 +1805,24 @@
     {
       "district_id": "65000130",
       "district_name": "土城區",
-      "opportunityIndex": 27.582652,
+      "opportunityIndex": 29.447604,
       "retentionRiskLevel": "high",
       "score_job": 63.68803323855771,
       "score_salary": 6.971608832807572,
       "score_talent": 57.673770651775264,
-      "score_housing": 6.848320959133208,
+      "score_housing": 6.614716687006297,
       "score_transport": 20.88728318558614,
       "yoiComponents": {
         "job": 63.68803323855771,
         "salary": 6.971608832807572,
         "talent": 57.673770651775264,
-        "housing": 6.848320959133208,
+        "housing": 6.614716687006297,
         "transport": 20.88728318558614
       },
       "knowledge_job_ratio": 20.58359621451104,
-      "estimated_wage": 71.75514112975608,
-      "estimated_monthly_wage": 5.97959509414634,
-      "house_price_median_wan": 55.15123760125,
+      "estimated_wage": 72.98496750057936,
+      "estimated_monthly_wage": 6.08208062504828,
+      "house_price_median_wan": 55.2373533005,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -1954,24 +1954,24 @@
     {
       "district_id": "65000140",
       "district_name": "蘆洲區",
-      "opportunityIndex": 64.591592,
+      "opportunityIndex": 64.991872,
       "retentionRiskLevel": "medium",
       "score_job": 83.59364037900684,
       "score_salary": 8.665851786002921,
       "score_talent": 56.08529166317212,
-      "score_housing": 10.410142852385862,
+      "score_housing": 9.483740335344581,
       "score_transport": 46.14802508621468,
       "yoiComponents": {
         "job": 83.59364037900684,
         "salary": 8.665851786002921,
         "talent": 56.08529166317212,
-        "housing": 10.410142852385862,
+        "housing": 9.483740335344581,
         "transport": 46.14802508621468
       },
       "knowledge_job_ratio": 2.4475524475524475,
-      "estimated_wage": 62.96964435732288,
-      "estimated_monthly_wage": 5.2474703631102395,
-      "house_price_median_wan": 48.39867587100001,
+      "estimated_wage": 63.00152399660108,
+      "estimated_monthly_wage": 5.250126999716756,
+      "house_price_median_wan": 48.524626279500005,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -2103,24 +2103,24 @@
     {
       "district_id": "65000150",
       "district_name": "五股區",
-      "opportunityIndex": 15.054669,
+      "opportunityIndex": 16.585431,
       "retentionRiskLevel": "high",
       "score_job": 35.94082856276634,
       "score_salary": 15.800064651689027,
       "score_talent": 65.602696112131,
-      "score_housing": 19.810934631646717,
+      "score_housing": 18.699799644538285,
       "score_transport": 5.3987797289667965,
       "yoiComponents": {
         "job": 35.94082856276634,
         "salary": 15.800064651689027,
         "talent": 65.602696112131,
-        "housing": 19.810934631646717,
+        "housing": 18.699799644538285,
         "transport": 5.3987797289667965
       },
       "knowledge_job_ratio": 5.121293800539084,
-      "estimated_wage": 59.4367791827327,
-      "estimated_monthly_wage": 4.953064931894391,
-      "house_price_median_wan": 45.683304072000006,
+      "estimated_wage": 58.50193451559862,
+      "estimated_monthly_wage": 4.875161209633219,
+      "house_price_median_wan": 45.6704115105,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -2252,24 +2252,24 @@
     {
       "district_id": "65000160",
       "district_name": "泰山區",
-      "opportunityIndex": 56.421061,
+      "opportunityIndex": 57.070712,
       "retentionRiskLevel": "medium",
       "score_job": 47.31236746090116,
       "score_salary": 39.25002091229918,
       "score_talent": 73.0299008689723,
-      "score_housing": 18.74187572952159,
+      "score_housing": 17.869292377637546,
       "score_transport": 13.3672475717534,
       "yoiComponents": {
         "job": 47.31236746090116,
         "salary": 39.25002091229918,
         "talent": 73.0299008689723,
-        "housing": 18.74187572952159,
+        "housing": 17.869292377637546,
         "transport": 13.3672475717534
       },
       "knowledge_job_ratio": 26.509186351706038,
-      "estimated_wage": 65.5945623218376,
-      "estimated_monthly_wage": 5.4662135268198,
-      "house_price_median_wan": 50.4161964565,
+      "estimated_wage": 66.56686640843697,
+      "estimated_monthly_wage": 5.547238867369747,
+      "house_price_median_wan": 50.78297330225001,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -2401,24 +2401,24 @@
     {
       "district_id": "65000170",
       "district_name": "林口區",
-      "opportunityIndex": 90.638668,
+      "opportunityIndex": 90.218342,
       "retentionRiskLevel": "low",
       "score_job": 43.71803402512725,
       "score_salary": 100.0,
       "score_talent": 54.49024908939781,
-      "score_housing": 9.239511561266749,
+      "score_housing": 8.10719260331935,
       "score_transport": 8.879571332700962,
       "yoiComponents": {
         "job": 43.71803402512725,
         "salary": 100.0,
         "talent": 54.49024908939781,
-        "housing": 9.239511561266749,
+        "housing": 8.10719260331935,
         "transport": 8.879571332700962
       },
       "knowledge_job_ratio": 13.8763197586727,
-      "estimated_wage": 60.92880612340147,
-      "estimated_monthly_wage": 5.077400510283456,
-      "house_price_median_wan": 46.8300808885,
+      "estimated_wage": 61.87580034651335,
+      "estimated_monthly_wage": 5.156316695542779,
+      "house_price_median_wan": 47.03950236825,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -2550,23 +2550,23 @@
     {
       "district_id": "65000180",
       "district_name": "深坑區",
-      "opportunityIndex": 27.017736,
+      "opportunityIndex": 27.191766,
       "retentionRiskLevel": "high",
       "score_job": 30.225359236206213,
       "score_salary": 15.800064651689027,
       "score_talent": 61.94099871909134,
-      "score_housing": 45.635824951494754,
+      "score_housing": 43.117304367308904,
       "score_transport": 4.977069604108978,
       "yoiComponents": {
         "job": 30.225359236206213,
         "salary": 15.800064651689027,
         "talent": 61.94099871909134,
-        "housing": 45.635824951494754,
+        "housing": 43.117304367308904,
         "transport": 4.977069604108978
       },
       "knowledge_job_ratio": 4.0,
-      "estimated_wage": 41.04772993272013,
-      "estimated_monthly_wage": 3.420644161060011,
+      "estimated_wage": 40.51503433866346,
+      "estimated_monthly_wage": 3.3762528615552885,
       "house_price_median_wan": 31.549420304500003,
       "quality_status": "observed",
       "sourcePeriods": {
@@ -2704,18 +2704,18 @@
       "score_job": 12.235031886992607,
       "score_salary": 12.211339391980323,
       "score_talent": 40.07492072970338,
-      "score_housing": 45.30536065047707,
+      "score_housing": 41.62682087943904,
       "score_transport": 16.219337982692462,
       "yoiComponents": {
         "job": 12.235031886992607,
         "salary": 12.211339391980323,
         "talent": 40.07492072970338,
-        "housing": 45.30536065047707,
+        "housing": 41.62682087943904,
         "transport": 16.219337982692462
       },
       "knowledge_job_ratio": 0.0,
-      "estimated_wage": 25.806173663916592,
-      "estimated_monthly_wage": 2.1505144719930493,
+      "estimated_wage": 0.8738735557345753,
+      "estimated_monthly_wage": 0.0728227963112146,
       "house_price_median_wan": 19.83471,
       "quality_status": "observed",
       "sourcePeriods": {
@@ -2848,23 +2848,23 @@
     {
       "district_id": "65000200",
       "district_name": "坪林區",
-      "opportunityIndex": 41.184253,
+      "opportunityIndex": 39.762861,
       "retentionRiskLevel": "medium",
       "score_job": 18.02859437050219,
       "score_salary": 23.633710151265866,
       "score_talent": 22.446728498241868,
-      "score_housing": 96.08497885518298,
+      "score_housing": 91.91486225402504,
       "score_transport": 9.137187427469172,
       "yoiComponents": {
         "job": 18.02859437050219,
         "salary": 23.633710151265866,
         "talent": 22.446728498241868,
-        "housing": 96.08497885518298,
+        "housing": 91.91486225402504,
         "transport": 9.137187427469172
       },
       "knowledge_job_ratio": 27.27272727272727,
-      "estimated_wage": 19.34731849873267,
-      "estimated_monthly_wage": 1.6122765415610558,
+      "estimated_wage": 1.159876550021887,
+      "estimated_monthly_wage": 0.09665637916849058,
       "house_price_median_wan": 14.8704126655,
       "quality_status": "observed",
       "sourcePeriods": {
@@ -2997,24 +2997,24 @@
     {
       "district_id": "65000210",
       "district_name": "三芝區",
-      "opportunityIndex": 50.652087,
+      "opportunityIndex": 48.936737,
       "retentionRiskLevel": "medium",
       "score_job": 30.46950648871072,
       "score_salary": 14.850692324977304,
       "score_talent": 51.36988448581161,
-      "score_housing": 78.06059254351902,
+      "score_housing": 73.82142039218988,
       "score_transport": 14.630625816329925,
       "yoiComponents": {
         "job": 30.46950648871072,
         "salary": 14.850692324977304,
         "talent": 51.36988448581161,
-        "housing": 78.06059254351902,
+        "housing": 73.82142039218988,
         "transport": 14.630625816329925
       },
       "knowledge_job_ratio": 7.142857142857142,
-      "estimated_wage": 17.688411635037234,
-      "estimated_monthly_wage": 1.4740343029197696,
-      "house_price_median_wan": 13.595371391000002,
+      "estimated_wage": 15.913708980286996,
+      "estimated_monthly_wage": 1.3261424150239163,
+      "house_price_median_wan": 13.500991229250003,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -3146,23 +3146,23 @@
     {
       "district_id": "65000220",
       "district_name": "石門區",
-      "opportunityIndex": 21.742003,
+      "opportunityIndex": 20.408055,
       "retentionRiskLevel": "high",
       "score_job": 13.411851084074234,
       "score_salary": 10.401200861440023,
       "score_talent": 30.497291640914895,
-      "score_housing": 77.75127280554905,
+      "score_housing": 73.03134436189967,
       "score_transport": 21.437380879845893,
       "yoiComponents": {
         "job": 13.411851084074234,
         "salary": 10.401200861440023,
         "talent": 30.497291640914895,
-        "housing": 77.75127280554905,
+        "housing": 73.03134436189967,
         "transport": 21.437380879845893
       },
       "knowledge_job_ratio": 0.0,
-      "estimated_wage": 12.123310284413616,
-      "estimated_monthly_wage": 1.010275857034468,
+      "estimated_wage": 1.2092329989589887,
+      "estimated_monthly_wage": 0.10076941657991573,
       "house_price_median_wan": 9.3180161795,
       "quality_status": "observed",
       "sourcePeriods": {
@@ -3295,24 +3295,24 @@
     {
       "district_id": "65000230",
       "district_name": "八里區",
-      "opportunityIndex": 84.390653,
+      "opportunityIndex": 82.585428,
       "retentionRiskLevel": "low",
       "score_job": 32.947307751846154,
       "score_salary": 68.12121428091292,
       "score_talent": 67.58053919031194,
-      "score_housing": 44.243897429842065,
+      "score_housing": 41.04171983196452,
       "score_transport": 9.323425964117916,
       "yoiComponents": {
         "job": 32.947307751846154,
         "salary": 68.12121428091292,
         "talent": 67.58053919031194,
-        "housing": 44.243897429842065,
+        "housing": 41.04171983196452,
         "transport": 9.323425964117916
       },
       "knowledge_job_ratio": 18.007662835249043,
-      "estimated_wage": 37.307770214477024,
-      "estimated_monthly_wage": 3.1089808512064185,
-      "house_price_median_wan": 28.674874957750003,
+      "estimated_wage": 35.965647726144105,
+      "estimated_monthly_wage": 2.997137310512009,
+      "house_price_median_wan": 29.333222040500004,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -3444,7 +3444,7 @@
     {
       "district_id": "65000240",
       "district_name": "平溪區",
-      "opportunityIndex": 43.203509,
+      "opportunityIndex": 44.842854,
       "retentionRiskLevel": "medium",
       "score_job": 10.83446641829824,
       "score_salary": 16.1069125168799,
@@ -3459,9 +3459,9 @@
         "transport": 40.81506803630922
       },
       "knowledge_job_ratio": 0.0,
-      "estimated_wage": 12.123310284413616,
-      "estimated_monthly_wage": 1.010275857034468,
-      "house_price_median_wan": 9.3180161795,
+      "estimated_wage": 0.1983071609079974,
+      "estimated_monthly_wage": 0.01652559674233312,
+      "house_price_median_wan": 1.5304131657500002,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -3593,23 +3593,23 @@
     {
       "district_id": "65000250",
       "district_name": "雙溪區",
-      "opportunityIndex": 22.138064,
+      "opportunityIndex": 20.854518,
       "retentionRiskLevel": "high",
       "score_job": 0.0,
       "score_salary": 15.865461602957817,
       "score_talent": 26.161243920709087,
-      "score_housing": 89.06410725416916,
+      "score_housing": 84.42529537075399,
       "score_transport": 24.62505225919454,
       "yoiComponents": {
         "job": 0.0,
         "salary": 15.865461602957817,
         "talent": 26.161243920709087,
-        "housing": 89.06410725416916,
+        "housing": 84.42529537075399,
         "transport": 24.62505225919454
       },
       "knowledge_job_ratio": 0.0,
-      "estimated_wage": 13.189105256733372,
-      "estimated_monthly_wage": 1.099092104727781,
+      "estimated_wage": 0.6270913110490672,
+      "estimated_monthly_wage": 0.052257609254088934,
       "house_price_median_wan": 10.1371897025,
       "quality_status": "observed",
       "sourcePeriods": {
@@ -3742,24 +3742,24 @@
     {
       "district_id": "65000260",
       "district_name": "貢寮區",
-      "opportunityIndex": 32.711008,
+      "opportunityIndex": 31.449375,
       "retentionRiskLevel": "high",
       "score_job": 21.8870208120754,
       "score_salary": 16.592754970098547,
       "score_talent": 18.50368660498202,
-      "score_housing": 77.44000803594938,
+      "score_housing": 73.19326190712806,
       "score_transport": 28.495109245984253,
       "yoiComponents": {
         "job": 21.8870208120754,
         "salary": 16.592754970098547,
         "talent": 18.50368660498202,
-        "housing": 77.44000803594938,
+        "housing": 73.19326190712806,
         "transport": 28.495109245984253
       },
       "knowledge_job_ratio": 17.647058823529413,
-      "estimated_wage": 13.877054836323948,
-      "estimated_monthly_wage": 1.156421236360329,
-      "house_price_median_wan": 10.66595001325,
+      "estimated_wage": 0.14189979069416703,
+      "estimated_monthly_wage": 0.011824982557847252,
+      "house_price_median_wan": 10.105454166500001,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -3891,24 +3891,24 @@
     {
       "district_id": "65000270",
       "district_name": "金山區",
-      "opportunityIndex": 43.327184,
+      "opportunityIndex": 41.756138,
       "retentionRiskLevel": "medium",
       "score_job": 30.71478365411825,
       "score_salary": 23.274321991834057,
       "score_talent": 46.919431319836306,
-      "score_housing": 64.792513646593,
+      "score_housing": 60.49540097333807,
       "score_transport": 9.573282880818367,
       "yoiComponents": {
         "job": 30.71478365411825,
         "salary": 23.274321991834057,
         "talent": 46.919431319836306,
-        "housing": 64.792513646593,
+        "housing": 60.49540097333807,
         "transport": 9.573282880818367
       },
       "knowledge_job_ratio": 18.421052631578945,
-      "estimated_wage": 20.712680137001055,
-      "estimated_monthly_wage": 1.7260566780834212,
-      "house_price_median_wan": 15.919834113750001,
+      "estimated_wage": 17.868797245549953,
+      "estimated_monthly_wage": 1.4890664371291626,
+      "house_price_median_wan": 16.300825835,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -4040,24 +4040,24 @@
     {
       "district_id": "65000280",
       "district_name": "萬里區",
-      "opportunityIndex": 33.542019,
+      "opportunityIndex": 31.981606,
       "retentionRiskLevel": "medium",
       "score_job": 31.098815843661466,
       "score_salary": 7.625575684733255,
       "score_talent": 33.85362418371235,
-      "score_housing": 78.88976585238403,
+      "score_housing": 74.27121642477705,
       "score_transport": 12.25100103303736,
       "yoiComponents": {
         "job": 31.098815843661466,
         "salary": 7.625575684733255,
         "talent": 33.85362418371235,
-        "housing": 78.88976585238403,
+        "housing": 74.27121642477705,
         "transport": 12.25100103303736
       },
       "knowledge_job_ratio": 5.511811023622047,
-      "estimated_wage": 12.69190631080858,
-      "estimated_monthly_wage": 1.0576588592340483,
-      "house_price_median_wan": 9.7550409565,
+      "estimated_wage": 12.494232502363428,
+      "estimated_monthly_wage": 1.041186041863619,
+      "house_price_median_wan": 9.6591731915,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -4189,24 +4189,24 @@
     {
       "district_id": "65000290",
       "district_name": "烏來區",
-      "opportunityIndex": 56.517282,
+      "opportunityIndex": 55.344639,
       "retentionRiskLevel": "medium",
       "score_job": 13.261764684093997,
       "score_salary": 37.99539356715687,
       "score_talent": 56.62923049532637,
-      "score_housing": 84.22230853085718,
+      "score_housing": 80.91147451646454,
       "score_transport": 1.4702151469740918,
       "yoiComponents": {
         "job": 13.261764684093997,
         "salary": 37.99539356715687,
         "talent": 56.62923049532637,
-        "housing": 84.22230853085718,
+        "housing": 80.91147451646454,
         "transport": 1.4702151469740918
       },
       "knowledge_job_ratio": 25.49019607843137,
-      "estimated_wage": 24.748550646590413,
-      "estimated_monthly_wage": 2.062379220549201,
-      "house_price_median_wan": 19.021817468500004,
+      "estimated_wage": 0.4640387565247139,
+      "estimated_monthly_wage": 0.03866989637705949,
+      "house_price_median_wan": 18.282313364,
       "quality_status": "observed",
       "sourcePeriods": {
         "population": [
@@ -4346,183 +4346,183 @@
           "district_id": "65000010",
           "district_name": "板橋區",
           "x": 20.87604846225536,
-          "y": 74.22070597189611
+          "y": 77.61169390585283
         },
         {
           "district_id": "65000020",
           "district_name": "三重區",
           "x": 14.14441147378833,
-          "y": 76.7054103928369
+          "y": 78.33771845606601
         },
         {
           "district_id": "65000030",
           "district_name": "中和區",
           "x": 11.709401709401709,
-          "y": 70.54074560742161
+          "y": 70.27521031741652
         },
         {
           "district_id": "65000040",
           "district_name": "永和區",
           "x": 7.384615384615385,
-          "y": 72.96265500578019
+          "y": 75.85777723826655
         },
         {
           "district_id": "65000050",
           "district_name": "新莊區",
           "x": 16.83587140439932,
-          "y": 66.91024707580294
+          "y": 68.55676859750378
         },
         {
           "district_id": "65000060",
           "district_name": "新店區",
           "x": 15.235792019347038,
-          "y": 62.532659816613894
+          "y": 61.008096346895904
         },
         {
           "district_id": "65000070",
           "district_name": "樹林區",
           "x": 26.208530805687204,
-          "y": 47.58787454494539
+          "y": 45.028505320929476
         },
         {
           "district_id": "65000080",
           "district_name": "鶯歌區",
           "x": 4.705882352941177,
-          "y": 45.25714696019933
+          "y": 43.52930318446502
         },
         {
           "district_id": "65000090",
           "district_name": "三峽區",
           "x": 16.455696202531644,
-          "y": 50.199889422628154
+          "y": 45.13713357684908
         },
         {
           "district_id": "65000100",
           "district_name": "淡水區",
           "x": 13.626834381551362,
-          "y": 42.94147297675721
+          "y": 43.11418019429761
         },
         {
           "district_id": "65000110",
           "district_name": "汐止區",
           "x": 15.691263782866836,
-          "y": 54.28500671362615
+          "y": 54.63141941725431
         },
         {
           "district_id": "65000120",
           "district_name": "瑞芳區",
           "x": 9.747292418772563,
-          "y": 14.797259978889773
+          "y": 13.270274525383389
         },
         {
           "district_id": "65000130",
           "district_name": "土城區",
           "x": 20.58359621451104,
-          "y": 71.75514112975608
+          "y": 72.98496750057936
         },
         {
           "district_id": "65000140",
           "district_name": "蘆洲區",
           "x": 2.4475524475524475,
-          "y": 62.96964435732288
+          "y": 63.00152399660108
         },
         {
           "district_id": "65000150",
           "district_name": "五股區",
           "x": 5.121293800539084,
-          "y": 59.4367791827327
+          "y": 58.50193451559862
         },
         {
           "district_id": "65000160",
           "district_name": "泰山區",
           "x": 26.509186351706038,
-          "y": 65.5945623218376
+          "y": 66.56686640843697
         },
         {
           "district_id": "65000170",
           "district_name": "林口區",
           "x": 13.8763197586727,
-          "y": 60.92880612340147
+          "y": 61.87580034651335
         },
         {
           "district_id": "65000180",
           "district_name": "深坑區",
           "x": 4.0,
-          "y": 41.04772993272013
+          "y": 40.51503433866346
         },
         {
           "district_id": "65000190",
           "district_name": "石碇區",
           "x": 0.0,
-          "y": 25.806173663916592
+          "y": 0.8738735557345753
         },
         {
           "district_id": "65000200",
           "district_name": "坪林區",
           "x": 27.27272727272727,
-          "y": 19.34731849873267
+          "y": 1.159876550021887
         },
         {
           "district_id": "65000210",
           "district_name": "三芝區",
           "x": 7.142857142857142,
-          "y": 17.688411635037234
+          "y": 15.913708980286996
         },
         {
           "district_id": "65000220",
           "district_name": "石門區",
           "x": 0.0,
-          "y": 12.123310284413616
+          "y": 1.2092329989589887
         },
         {
           "district_id": "65000230",
           "district_name": "八里區",
           "x": 18.007662835249043,
-          "y": 37.307770214477024
+          "y": 35.965647726144105
         },
         {
           "district_id": "65000240",
           "district_name": "平溪區",
           "x": 0.0,
-          "y": 12.123310284413616
+          "y": 0.1983071609079974
         },
         {
           "district_id": "65000250",
           "district_name": "雙溪區",
           "x": 0.0,
-          "y": 13.189105256733372
+          "y": 0.6270913110490672
         },
         {
           "district_id": "65000260",
           "district_name": "貢寮區",
           "x": 17.647058823529413,
-          "y": 13.877054836323948
+          "y": 0.14189979069416703
         },
         {
           "district_id": "65000270",
           "district_name": "金山區",
           "x": 18.421052631578945,
-          "y": 20.712680137001055
+          "y": 17.868797245549953
         },
         {
           "district_id": "65000280",
           "district_name": "萬里區",
           "x": 5.511811023622047,
-          "y": 12.69190631080858
+          "y": 12.494232502363428
         },
         {
           "district_id": "65000290",
           "district_name": "烏來區",
           "x": 25.49019607843137,
-          "y": 24.748550646590413
+          "y": 0.4640387565247139
         }
       ],
       "regression": {
         "method": "ols",
         "sample_size": 29,
-        "slope": 0.750078131533915,
-        "intercept": 33.681762838088346,
-        "r_squared": 0.07822684944175662
+        "slope": 0.8050555710320463,
+        "intercept": 28.729483518192083,
+        "r_squared": 0.05834513918289497
       },
       "note": "X 軸為職缺要求大專以上學歷的比例（非居住人口教育程度）"
     },
@@ -4534,184 +4534,184 @@
         {
           "district_id": "65000010",
           "district_name": "板橋區",
-          "x": 6.185058830991342,
-          "y": 57.046278852499995
+          "x": 6.46764115882107,
+          "y": 57.465782969
         },
         {
           "district_id": "65000020",
           "district_name": "三重區",
-          "x": 6.392117532736408,
-          "y": 58.95603084700001
+          "x": 6.528143204672168,
+          "y": 59.2783448845
         },
         {
           "district_id": "65000030",
           "district_name": "中和區",
-          "x": 5.878395467285134,
-          "y": 54.2178492065
+          "x": 5.856267526451377,
+          "y": 54.39751862125001
         },
         {
           "district_id": "65000040",
           "district_name": "永和區",
-          "x": 6.080221250481682,
-          "y": 56.07933674000001
+          "x": 6.3214814365222125,
+          "y": 57.21421273050001
         },
         {
           "district_id": "65000050",
           "district_name": "新莊區",
-          "x": 5.575853922983579,
-          "y": 51.42743608800001
+          "x": 5.713064049791981,
+          "y": 51.83553524625
         },
         {
           "district_id": "65000060",
           "district_name": "新店區",
-          "x": 5.2110549847178245,
-          "y": 48.062808115
+          "x": 5.084008028907992,
+          "y": 48.14975026050001
         },
         {
           "district_id": "65000070",
           "district_name": "樹林區",
-          "x": 3.9656562120787826,
-          "y": 36.576196975500004
+          "x": 3.7523754434107897,
+          "y": 36.4664449135
         },
         {
           "district_id": "65000080",
           "district_name": "鶯歌區",
-          "x": 3.771428913349944,
-          "y": 34.784792084
+          "x": 3.6274419320387516,
+          "y": 34.721321012
         },
         {
           "district_id": "65000090",
           "district_name": "三峽區",
-          "x": 4.183324118552346,
-          "y": 38.583800206
+          "x": 3.761427798070757,
+          "y": 38.685287805499996
         },
         {
           "district_id": "65000100",
           "district_name": "淡水區",
-          "x": 3.578456081396434,
-          "y": 33.004957440000005
+          "x": 3.5928483495248007,
+          "y": 32.854874801
         },
         {
           "district_id": "65000110",
           "district_name": "汐止區",
-          "x": 4.523750559468846,
-          "y": 41.723634799
+          "x": 4.552618284771192,
+          "y": 41.949254625250006
         },
         {
           "district_id": "65000120",
           "district_name": "瑞芳區",
-          "x": 1.2331049982408144,
-          "y": 11.373222714
+          "x": 1.1058562104486158,
+          "y": 11.277189659750002
         },
         {
           "district_id": "65000130",
           "district_name": "土城區",
-          "x": 5.97959509414634,
-          "y": 55.15123760125
+          "x": 6.08208062504828,
+          "y": 55.2373533005
         },
         {
           "district_id": "65000140",
           "district_name": "蘆洲區",
-          "x": 5.2474703631102395,
-          "y": 48.39867587100001
+          "x": 5.250126999716756,
+          "y": 48.524626279500005
         },
         {
           "district_id": "65000150",
           "district_name": "五股區",
-          "x": 4.953064931894391,
-          "y": 45.683304072000006
+          "x": 4.875161209633219,
+          "y": 45.6704115105
         },
         {
           "district_id": "65000160",
           "district_name": "泰山區",
-          "x": 5.4662135268198,
-          "y": 50.4161964565
+          "x": 5.547238867369747,
+          "y": 50.78297330225001
         },
         {
           "district_id": "65000170",
           "district_name": "林口區",
-          "x": 5.077400510283456,
-          "y": 46.8300808885
+          "x": 5.156316695542779,
+          "y": 47.03950236825
         },
         {
           "district_id": "65000180",
           "district_name": "深坑區",
-          "x": 3.420644161060011,
+          "x": 3.3762528615552885,
           "y": 31.549420304500003
         },
         {
           "district_id": "65000190",
           "district_name": "石碇區",
-          "x": 2.1505144719930493,
+          "x": 0.0728227963112146,
           "y": 19.83471
         },
         {
           "district_id": "65000200",
           "district_name": "坪林區",
-          "x": 1.6122765415610558,
+          "x": 0.09665637916849058,
           "y": 14.8704126655
         },
         {
           "district_id": "65000210",
           "district_name": "三芝區",
-          "x": 1.4740343029197696,
-          "y": 13.595371391000002
+          "x": 1.3261424150239163,
+          "y": 13.500991229250003
         },
         {
           "district_id": "65000220",
           "district_name": "石門區",
-          "x": 1.010275857034468,
+          "x": 0.10076941657991573,
           "y": 9.3180161795
         },
         {
           "district_id": "65000230",
           "district_name": "八里區",
-          "x": 3.1089808512064185,
-          "y": 28.674874957750003
+          "x": 2.997137310512009,
+          "y": 29.333222040500004
         },
         {
           "district_id": "65000240",
           "district_name": "平溪區",
-          "x": 1.010275857034468,
-          "y": 9.3180161795
+          "x": 0.01652559674233312,
+          "y": 1.5304131657500002
         },
         {
           "district_id": "65000250",
           "district_name": "雙溪區",
-          "x": 1.099092104727781,
+          "x": 0.052257609254088934,
           "y": 10.1371897025
         },
         {
           "district_id": "65000260",
           "district_name": "貢寮區",
-          "x": 1.156421236360329,
-          "y": 10.66595001325
+          "x": 0.011824982557847252,
+          "y": 10.105454166500001
         },
         {
           "district_id": "65000270",
           "district_name": "金山區",
-          "x": 1.7260566780834212,
-          "y": 15.919834113750001
+          "x": 1.4890664371291626,
+          "y": 16.300825835
         },
         {
           "district_id": "65000280",
           "district_name": "萬里區",
-          "x": 1.0576588592340483,
-          "y": 9.7550409565
+          "x": 1.041186041863619,
+          "y": 9.6591731915
         },
         {
           "district_id": "65000290",
           "district_name": "烏來區",
-          "x": 2.062379220549201,
-          "y": 19.021817468500004
+          "x": 0.03866989637705949,
+          "y": 18.282313364
         }
       ],
       "regression": {
         "method": "ols",
         "sample_size": 29,
-        "slope": 9.223239489115194,
-        "intercept": -7.105427357601002e-15,
-        "r_squared": 1.0
+        "slope": 7.497083996861718,
+        "intercept": 8.69123268561453,
+        "r_squared": 0.9539033148632754
       },
       "note": "薪資為以房價代理估算之值；房價僅含住宅用（平溪例外使用全類型）"
     }
