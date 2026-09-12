@@ -9,11 +9,20 @@ module "frontend" {
   cloudfront_price_class = var.cloudfront_price_class
 }
 
-module "api" {
-  source = "./modules/api"
+module "analytics_table" {
+  source = "./modules/analytics_table"
 
   project_name = var.project_name
   environment  = var.environment
+}
+
+module "api" {
+  source = "./modules/api"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  dynamodb_table_name = module.analytics_table.table_name
+  dynamodb_table_arn  = module.analytics_table.table_arn
 }
 
 module "raw_data" {

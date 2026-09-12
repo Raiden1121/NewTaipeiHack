@@ -17,3 +17,7 @@ output "api_endpoint" {
 output "raw_data_bucket_name" {
   value = module.raw_data.bucket_name
 }
+
+output "analytics_table_name" {
+  value = module.analytics_table.table_name
+}
