@@ -125,9 +125,7 @@ def generate_homepage_data(
     )
 
     # Village inputs are separate from the existing district population contract.
-    village_population_periods = [
-        f"{config.population_reference_year_roc:03d}{month:02d}" for month in range(1, 13)
-    ]
+    village_population_periods = [config.village_population_reference_period]
     village_population = load_periods("population_villages", village_population_periods)
     boundaries = load_latest("village_boundaries")
     service_points = load_latest("youth_service_points")

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .annual_metrics import calculate_budget_series
+from .budget_allocation import calculate_budget_allocation
 from .data_gaps import explain_reason_codes
 from .config import (
     HomepageAnalyticsConfig,
@@ -398,7 +399,7 @@ def generate_youth_participation_data(
     boundaries = load_latest("village_boundaries")
     village_population = load_periods(
         "population_villages",
-        [f"{config.population_reference_year_roc:03d}{month:02d}" for month in range(1, 13)],
+        [config.village_population_reference_period],
     )
 
     candidacy = calculate_youth_candidacy(
@@ -434,6 +435,10 @@ def generate_youth_participation_data(
         budget_records,
         budget_records,
         annual_years_roc=annual_years,
+    )
+    budget_allocation = calculate_budget_allocation(
+        budget_records,
+        reference_year_roc=config.budget_allocation_reference_year_roc,
     )
 
     source_periods = _source_periods(loaded)
@@ -533,6 +538,7 @@ def generate_youth_participation_data(
             "blocking_reasons": budget_blocking_reasons,
         }
     )
+    budget_allocation_public = _public(budget_allocation)
     rules_path = Path(config_dir) if config_dir is not None else Path(__file__).resolve().parents[2] / "config"
     rules = load_topic_rules(rules_path / "youth_topic_rules.json")
     weights = load_topic_weights(rules_path / "youth_topic_weights.json")
@@ -572,6 +578,7 @@ def generate_youth_participation_data(
     quality["blocking_reasons"].extend(funnel.get("blocking_reasons", []))
     if grants.get("status") == "partial":
         quality["blocking_reasons"].extend(grants.get("blocking_reasons", []))
+    quality["blocking_reasons"].extend(budget_allocation.get("blocking_reasons", []))
     if any(row.get("execution_rate") is None for row in budget.get("execution", [])):
         quality["warnings"].append("budget_execution_rate_missing_without_final_settlement")
     quality["blocking_reasons"] = sorted(set(quality["blocking_reasons"]))
@@ -594,6 +601,7 @@ def generate_youth_participation_data(
         "proposal_funnel": funnel.get("status", "unavailable"),
         "grants": grants.get("status", "unavailable"),
         "budget_execution": _budget_status(budget),
+        "budget_allocation": budget_allocation.get("status", "unavailable"),
         "topics": topics.get("status", "unavailable"),
     }
 
@@ -608,6 +616,7 @@ def generate_youth_participation_data(
             "v1_primary": True,
             "t1_grain": "election_district",
             "proposal_funnel_years": funnel.get("source_period", []),
+            "budget_allocation_reference_year_roc": config.budget_allocation_reference_year_roc,
         },
         "overview": {
             "latest_v1_year_roc": max(config.election_years_roc, default=None),
@@ -623,6 +632,7 @@ def generate_youth_participation_data(
         "proposal_funnel": funnel,
         "grants": grants,
         "budget": budget_public,
+        "budget_allocation": budget_allocation_public,
         "topics": topics,
         "_quality": quality,
     }

@@ -2,6 +2,8 @@
   "version": "1",
   "annual_years_roc": [110, 111, 112, 113, 114],
   "population_reference_year_roc": 114,
+  "village_population_reference_period": "11507",
+  "budget_allocation_reference_year_roc": 116,
   "election_years_roc": [103, 107, 111],
   "service_radius_m": 2500,
   "normalization": {

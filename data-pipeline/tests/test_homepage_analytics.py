@@ -255,6 +255,7 @@ class RecordingHomepageResolver(FakeHomepageResolver):
     def __init__(self, unavailable_years=()):
         super().__init__()
         self.requested_population_periods = []
+        self.requested_village_population_periods = []
         self._unavailable_years = {f"{year:03d}" for year in unavailable_years}
 
     def available_periods(self, dataset, periods):
@@ -265,6 +266,8 @@ class RecordingHomepageResolver(FakeHomepageResolver):
             ]
             if not periods:
                 raise ValueError("dataset 'population' has no available requested periods")
+        if dataset == "population_villages":
+            self.requested_village_population_periods.extend(periods)
         return super().available_periods(dataset, periods)
 
     def _all_records(self, dataset):
@@ -288,6 +291,17 @@ class RecordingHomepageResolver(FakeHomepageResolver):
 
 
 class TestHomepageAnalytics(unittest.TestCase):
+    def test_uses_explicit_village_population_reference_period(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+        resolver = RecordingHomepageResolver()
+
+        generate_homepage_data(resolver=resolver, config=config)
+
+        self.assertEqual(resolver.requested_village_population_periods, ["11507"])
+        self.assertIn("11401", resolver.requested_population_periods)
+        self.assertEqual(config.population_reference_year_roc, 114)
+
     def test_loads_population_for_election_years_outside_the_annual_window(self):
         config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
         config = load_homepage_analytics_config(config_path)

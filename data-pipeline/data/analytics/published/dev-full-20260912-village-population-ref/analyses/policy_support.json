@@ -1,7 +1,7 @@
 {
   "metric_id": "policy_support",
   "calculation_version": "1",
-  "generated_at": "2026-09-12T07:19:56.544724+00:00",
+  "generated_at": "2026-09-12T06:28:27.197329+00:00",
   "status": "observed",
   "source_period": {
     "wages": [

@@ -20,7 +20,8 @@ from .quality import QualityCollector
 _DOCUMENT_STATUSES = frozenset(
     {"proposed_budget", "legal_budget", "final_settlement"}
 )
-_ROW_TYPES = frozenset({"total", "detail"})
+_ROW_TYPES = frozenset({"total", "detail", "allocation"})
+_ALLOCATION_CODES = frozenset({"01", "02", "03", "04"})
 
 
 def transform_youth_budgets(
@@ -59,13 +60,40 @@ def transform_youth_budgets(
                 and work_plan is not None
             ):
                 raise TransformValueError("total_work_plan_must_be_null")
+            allocation_code = clean_text(raw.get("allocation_code"))
+            allocation_name = clean_text(raw.get("allocation_name"))
+            if row_type == "allocation":
+                if allocation_code not in _ALLOCATION_CODES:
+                    raise TransformValueError(
+                        f"allocation_code is unsupported: {allocation_code!r}"
+                    )
+                if allocation_name is None:
+                    raise TransformValueError("allocation_name is required")
+                if work_plan is None:
+                    raise TransformValueError("allocation_work_plan_is_required")
             unit_label = _required_text(raw, "unit_label")
             expected_unit = (
                 "新臺幣元" if document_status == "final_settlement" else "新臺幣千元"
             )
+            if row_type == "allocation":
+                expected_unit = "新臺幣元"
             if unit_label != expected_unit:
                 raise TransformValueError(f"unit_label is unsupported: {unit_label!r}")
-            if document_status == "final_settlement":
+            ratio = None
+            if row_type == "allocation":
+                budget_amount = parse_int(
+                    raw.get("budget_amount"), field="budget_amount", allow_none=False
+                )
+                settlement_amount = None
+                realized_amount = None
+                payable_amount = None
+                reserved_amount = None
+                surplus_amount = None
+                source_execution_ratio = None
+                value = budget_amount
+                metric_id = "budget_allocation_amount"
+                unit = "TWD"
+            elif document_status == "final_settlement":
                 budget_amount = parse_int(
                     raw.get("budget_amount"), field="budget_amount", allow_none=False
                 )
@@ -143,6 +171,10 @@ def transform_youth_budgets(
                 "work_plan": work_plan,
                 "budget_ratio_percent": ratio if document_status != "final_settlement" else None,
                 "budget_amount": budget_amount,
+                "allocation_code": allocation_code,
+                "allocation_name": allocation_name,
+                "budget_section": clean_text(raw.get("budget_section")),
+                "account_category": clean_text(raw.get("account_category")),
                 "realized_amount": realized_amount,
                 "payable_amount": payable_amount,
                 "reserved_amount": reserved_amount,
@@ -150,6 +182,8 @@ def transform_youth_budgets(
                 "surplus_amount": surplus_amount,
                 "source_execution_ratio_percent": source_execution_ratio,
                 "source_pdf_sha256": clean_text(raw.get("source_pdf_sha256")),
+                "source_page_number": raw.get("source_page_number"),
+                "source_document_url": clean_text(raw.get("source_document_url")),
                 "raw_record": deepcopy(raw),
             }
         )

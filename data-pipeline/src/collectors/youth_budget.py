@@ -33,6 +33,8 @@ REQUEST_TIMEOUT_SECONDS = 120
 MAX_PDF_BYTES = 50 * 1024 * 1024
 TABLE_TITLE = "計畫及預算統計表"
 UNIT_LABEL = "新臺幣千元"
+ALLOCATION_TABLE_TITLE = "歲出計畫說明提要與各項費用明細表"
+ALLOCATION_UNIT_LABEL = "新臺幣元"
 SETTLEMENT_TABLE_TITLE = "歲出機關別決算表"
 SETTLEMENT_UNIT_LABEL = "新臺幣元"
 _TITLE_PATTERN = re.compile(
@@ -61,6 +63,10 @@ _SETTLEMENT_RESULT_ROW_PATTERN = re.compile(
     r"(?P<settlement>-?\d[\d,]*|-)\s+"
     r"(?P<difference>-?\d[\d,]*|-)\s+"
     r"(?P<ratio>-|\d+(?:\.\d+)?)(?:%)?"
+)
+_ALLOCATION_ROW_PATTERN = re.compile(
+    r"^(?P<code>0[1-4])\s*(?P<name>.+?)\s+"
+    r"(?P<amount>\d[\d,]*)\s*市庫負擔"
 )
 _SETTLEMENT_PLAN_NAMES = frozenset(
     {
@@ -169,6 +175,7 @@ def fetch_youth_budgets(
     document_metadata: list[dict[str, Any]] = []
     artifacts: list[SourceArtifact] = []
     failures: list[dict[str, str]] = []
+    allocation_failures: list[dict[str, str]] = []
     seen_documents: set[tuple[str, str, str]] = set()
 
     for document in documents:
@@ -198,10 +205,24 @@ def fetch_youth_budgets(
                 continue
             artifacts.append(artifact)
             pages = _extract_pdf_pages(pdf_bytes)
+            allocation_status = "not_applicable"
+            allocation_error: str | None = None
             if document.document_kind == "settlement":
                 rows, page_number = _extract_settlement_table(pages, document=document)
             else:
                 rows, page_number = _find_budget_table(pages, document=document)
+                try:
+                    allocation_rows = _find_budget_allocation_rows(
+                        pages, document=document
+                    )
+                except BudgetCollectorError as exc:
+                    allocation_rows = []
+                    allocation_error = str(exc)
+                if allocation_rows:
+                    rows.extend(allocation_rows)
+                    allocation_status = "observed"
+                else:
+                    allocation_status = "unavailable"
             document_id = (
                 f"youth_budgets:{document.budget_year_roc}:"
                 f"{document.document_status}:{artifact.sha256.removeprefix('sha256:')}"
@@ -231,9 +252,22 @@ def fetch_youth_budgets(
                     "artifact_filename": artifact.filename,
                     "source_page_number": page_number,
                     "row_count": len(rows),
+                    "allocation_row_count": sum(
+                        row.get("row_type") == "allocation" for row in rows
+                    ),
+                    "allocation_status": allocation_status,
+                    "allocation_error": allocation_error,
                     "document_kind": document.document_kind,
                 }
             )
+            if allocation_error is not None:
+                allocation_failures.append(
+                    {
+                        "title": document.title,
+                        "detail_url": document.detail_url,
+                        "reason": allocation_error,
+                    }
+                )
         except BudgetCollectorError as exc:
             failures.append(
                 {
@@ -255,6 +289,7 @@ def fetch_youth_budgets(
             "listing_failures": listing_failures,
             "documents": document_metadata,
             "document_failures": failures,
+            "allocation_failures": allocation_failures,
         },
         artifacts=tuple(artifacts),
     )
@@ -442,6 +477,80 @@ def _find_budget_table(
     if saw_target and errors:
         raise BudgetCollectorError("; ".join(errors))
     raise BudgetCollectorError("target budget table was not found in PDF")
+
+
+def _find_budget_allocation_rows(
+    pages: Sequence[str], *, document: BudgetDocument
+) -> list[dict[str, Any]]:
+    """Find top-level 01-04 allocations in detailed budget pages.
+
+    The detailed table is optional across historical documents.  Continuation
+    pages and documents with a different official layout therefore return an
+    empty list; malformed rows on an otherwise matching page are reported to
+    the caller so the summary table can still be retained.
+    """
+
+    rows_by_code: dict[str, dict[str, Any]] = {}
+    saw_target_table = False
+    errors: list[str] = []
+    for page_number, page_text in enumerate(pages, start=1):
+        normalized_page = _compact_text(page_text)
+        if ALLOCATION_TABLE_TITLE not in normalized_page:
+            continue
+        saw_target_table = True
+        if "青年發展業務" not in normalized_page:
+            continue
+        lines = _normalized_lines(page_text)
+        page_rows: list[dict[str, Any]] = []
+        for line in lines:
+            match = _ALLOCATION_ROW_PATTERN.match(line)
+            if match is None:
+                continue
+            code = match.group("code")
+            if code in rows_by_code:
+                errors.append(f"duplicate allocation code {code} on page {page_number}")
+                continue
+            name = _compact_text(match.group("name"))
+            if not name:
+                errors.append(f"allocation code {code} has no name on page {page_number}")
+                continue
+            page_rows.append(
+                {
+                    "budget_year_roc": document.budget_year_roc,
+                    "document_status": document.document_status,
+                    "document_status_label": document.document_status_label,
+                    "row_type": "allocation",
+                    "business_plan": "青年發展業務",
+                    "work_plan": name,
+                    "allocation_code": code,
+                    "allocation_name": name,
+                    "budget_section": (
+                        "資本門"
+                        if "資本門" in normalized_page
+                        else "經常門"
+                        if "經常門" in normalized_page
+                        else None
+                    ),
+                    "account_category": (
+                        "設備及投資"
+                        if code == "04" and "設備及投資" in normalized_page
+                        else None
+                    ),
+                    "budget_amount": match.group("amount"),
+                    "ratio_percent": None,
+                    "unit_label": ALLOCATION_UNIT_LABEL,
+                    "table_title": ALLOCATION_TABLE_TITLE,
+                    "source_page_number": page_number,
+                    "source_document_url": document.detail_url,
+                    "source_row_text": line,
+                }
+            )
+            rows_by_code[code] = page_rows[-1]
+    if errors:
+        raise BudgetCollectorError("; ".join(errors))
+    if not saw_target_table:
+        return []
+    return [rows_by_code[code] for code in sorted(rows_by_code)]
 
 
 def _extract_settlement_table(
