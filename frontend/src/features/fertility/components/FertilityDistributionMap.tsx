@@ -97,6 +97,7 @@ export default function FertilityDistributionMap() {
     (state) => state.selectedDistrictId,
   );
   const selectDistrict = useSelectedDistrict((state) => state.selectDistrict);
+  const clearSelection = useSelectedDistrict((state) => state.clearSelection);
 
   const districtById = useMemo(
     () => new Map(districts.map((district) => [district.id, district])),
@@ -169,7 +170,9 @@ export default function FertilityDistributionMap() {
   const resetView = useCallback(() => {
     setAnimating(true);
     setView(INITIAL_VIEW);
-  }, []);
+    // 重設視圖時一併清除選取，讓右側指標跳回全市平均、地圖顏色復原。
+    clearSelection();
+  }, [clearSelection]);
 
   const focusDistrict = useCallback(
     (feature: DistrictFeature) => {

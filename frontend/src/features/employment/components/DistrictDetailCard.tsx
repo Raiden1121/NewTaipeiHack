@@ -16,14 +16,21 @@ const DIMENSIONS: DimensionScore[] = [
   { label: "工作機會", value: 82 },
   { label: "薪資水準", value: 71 },
   { label: "人才資源", value: 80 },
-  { label: "居住負擔", value: 75 },
+  { label: "居住友善", value: 75 },
   { label: "交通可及", value: 79 },
 ];
 
-const SIZE = 200;
+const SIZE = 240;
 const CENTER = SIZE / 2;
 const RADIUS = 74;
+const LABEL_RATIO = 1.2;
 const GRID_LEVELS = [0.25, 0.5, 0.75, 1];
+
+function labelBaseline(sin: number): "auto" | "hanging" | "middle" {
+  if (sin < -0.5) return "auto";
+  if (sin > 0.5) return "hanging";
+  return "middle";
+}
 
 function polarPoint(index: number, count: number, ratio: number) {
   const angle = (Math.PI * 2 * index) / count - Math.PI / 2;
@@ -102,9 +109,9 @@ export default function DistrictDetailCard() {
         <div className="flex justify-center">
           <svg
             viewBox={`0 0 ${SIZE} ${SIZE}`}
-            className="h-44 w-44"
+            className="h-52 w-52"
             role="img"
-            aria-label={`${selectedDistrict.name}五維度雷達圖`}
+            aria-label={`${selectedDistrict.name}五維度雷達圖：${DIMENSIONS.map((d) => `${d.label} ${d.value}`).join("、")}`}
           >
             {GRID_LEVELS.map((level, index) => (
               <motion.polygon
@@ -130,6 +137,25 @@ export default function DistrictDetailCard() {
                   className="stroke-slate-200"
                   strokeWidth={1}
                 />
+              );
+            })}
+            {DIMENSIONS.map((dimension, index) => {
+              const angle =
+                (Math.PI * 2 * index) / DIMENSIONS.length - Math.PI / 2;
+              const { x, y } = polarPoint(index, DIMENSIONS.length, LABEL_RATIO);
+              return (
+                <text
+                  key={`${dimension.label}-label`}
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline={labelBaseline(Math.sin(angle))}
+                  className="fill-slate-500"
+                  fontSize={11}
+                  fontWeight={600}
+                >
+                  {dimension.label}
+                </text>
               );
             })}
             <motion.polygon
