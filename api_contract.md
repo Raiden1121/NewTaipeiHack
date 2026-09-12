@@ -397,19 +397,25 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 
 `GET /api/v1/analyses/politics-resource-io`
 
+> 🔴 **2026-09-12 前端改版**：第一張圖已從「補助地區分布」（29 區長條圖）換成**「青年局各科別預算比例」**（4 類：綜合規劃／職涯發展／創業資源／資本門設備與投資）。原本的地區別補助缺口自然消失，但換成了新的部門別缺口，見下表。
+
 | 圖 | 需要欄位 | 現況 |
 |---|---|---|
-| 補助地區分布（長條）| `grants_by_district[]` | ❌ **無 collector**。需「青年局對民間團體補（捐）助明細」，來源多為 PDF |
-| 年度總預算趨勢（折線）| 可用 `data.policy.budgetTrend[]` | ⚠️ 前端目前畫的是民國 110–114 的「補助金額」，與預算不同概念。若改畫總預算則 ✅（110/111 為 null）|
+| 青年局各科別預算比例（長條）| `budget_by_department[]`（`label`、`amount_thousand`、`share_percent`）| ❌ **無對應資料源**。`youth_budgets` 現有 `business_plan` 只有 3 類（一般行政／青年發展業務／第一預備金），**對不上前端這 4 個科別名稱**（綜合規劃／職涯發展／創業資源／資本門設備與投資）。需向青年局確認決算是否有更細的科別／計畫別拆分，或前端這 4 類本身需要重新對齊既有 3 類 |
+| 年度總預算趨勢（折線）| `data.policy.budgetTrend[]` | ⚠️ 圖表軸標籤已明確標「億元」，確認就是總預算（原本「補助金額 vs 預算」的概念疑慮已解除）。但**佔位數值量級對不上**：前端寫死 110–114 為 52／60／68／82／96 億，實際 `policy.budgetTrend` 只有 112–114 有值且為 **1.49／1.59／1.96 億**，差了 40–50 倍，接上真資料後折線會幾乎貼底 |
 | 青年局預算執行率（環圈）| `data.policy.executionRate` | ❌ `null`。111/112 決算 PDF 為**影像型待 OCR**；113 年決算欄位已解析但執行率未計算 |
 
 ### 6.4 青年關注議題文字雲（`YouthTopicWordCloud`）
 
-`GET /api/v1/analyses/youth-topic-weight?year=114`
+`GET /api/v1/analyses/youth-topic-weight`（不再帶 `year` 參數，見下方決議）
 
 ⚠️ **這是最接近可用的一項**：analytics 已經跑出來了，只是沒發布進 snapshot。
 
-實際產出在 `data-pipeline/data/analytics/youth_topic_weight/all.json`：
+> ✅ **2026-09-12 已決議**：前端已拿掉年份選擇器（`YouthTopicWordCloud.tsx` 不再有 `YEARS`/`setYear`），改為單一固定文字雲。**API 固定回傳最新一年（114）的 `topics[]`**，不需要 `year` query 參數。
+>
+> `youth_topic_weight/all.json` 底層仍保留 110–114 完整五年資料，這份歷史序列不丟棄——只是目前 UI 不消費，未來若要做「議題歷年變化」之類的功能可以直接復用，不需重新計算。
+
+底層 pipeline 產出（`data-pipeline/data/analytics/youth_topic_weight/all.json`）仍是完整 5 年包：
 
 ```jsonc
 {
@@ -424,17 +430,32 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
         "resolved": true, "escalated": false,
         "join_support_score": 0.0, "raw_score": 3.0 }
     ]}
+    // …110–114 共 5 筆
+  ]
+}
+```
+
+**API 對外回傳的形狀**（backend 從上面挑出 `year_roc === 114` 那筆，拆掉 `years` 包裝）：
+
+```jsonc
+{
+  "analysis_id": "youth-topic-weight",
+  "year_roc": 114,
+  "topics": [
+    { "label": "社會住宅", "weight": 5, "signal": "minutes",
+      "join_mentions": 0, "minutes_mentions": 1,
+      "resolved": true, "escalated": false }
   ]
 }
 ```
 
 | UI 顯示 | 欄位 | 現況 |
 |---|---|---|
-| 議題文字 | `topics[].label` | ✅ |
+| 議題文字 | `topics[].label`（取 `years[].year_roc === 114` 該筆）| ✅ |
 | 字級（1–5）| `topics[].weight` | ✅ |
-| 年份選擇器 110–114 | `years[].year_roc` | ✅ 五年齊全 |
+| ~~年份選擇器 110–114~~ | ~~`years[].year_roc`~~ | 🗑️ **UI 已移除**，不再需要前端切換；backend 固定取 114 |
 
-**待辦**：把 `youth_topic_weight` 加進 `manifest.artifacts.analyses`，`publish_homepage_snapshot()` 目前只寫 `dashboard_overview` 與 `district_details`。
+**待辦**：把 `youth_topic_weight` 加進 `manifest.artifacts.analyses`，`publish_homepage_snapshot()` 目前只寫 `dashboard_overview` 與 `district_details`。發布時只需固定取 `years[].year_roc === 114` 那一筆的 `topics[]`，不必整包 5 年都送到前端。
 
 > 另有 `youth_keyword_frequency/all.json`（`calculation_version: 5`），但其 top terms 是「問題／台灣／以及／工作／應該／一個」等**未濾除的常見詞**，不適合直接當文字雲。文字雲請用 `youth_topic_weight`（22 個固定議題詞），不要用 keyword_frequency。
 
@@ -506,7 +527,8 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
   "wageTrend":       [{ "year_roc": 110, "wage": null, "yoy": null, "quality_status": "observed" }],
   "populationTrend": [{ "year_roc": 110, "population": 913345, "yoy": null }],
   "currentWageGrowth": null,
-  "currentPopGrowth": null
+  "currentPopGrowth": null,
+  "desiredDirection": { "wageGrowth": "up", "populationChange": "up" }
 }
 ```
 
@@ -520,6 +542,8 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 > 基期年（110）的 YoY 必為 `null`，前端畫線與箭頭需防呆。
 >
 > ⚠️ 年齡口徑：前端 `metricLabel` 寫「20–35 歲人口近五年變化」，應改為 **18–35 歲**。
+>
+> 🔴 **新增 `desiredDirection` 欄位，原因**：`PolicyOutcomeTracker.tsx` 的 `trendColor()` 對 up/down 只有一套寫死的顏色規則，但這兩張卡的「好壞方向」相反——薪資漲是好事（`up` 該綠）、青年人口跌才是被追蹤的警訊（`down` 才是壞事，`up` 才該綠）。2026-09-12 的改動把 up/down 顏色對調了一次，套用到兩張卡上必有一張會判斷反：現況是「薪資成長 +2.8%」被畫成警示色（`text-risk-high`），看起來像壞消息。契約補一個 `desiredDirection: "up"|"down"` 每指標各自標明，前端依此決定顏色，不要用共用的 `trend` 欄位硬判。
 
 ### 8.2 AI 政策決策輔助（`PolicyDecisionAssistant`）
 
@@ -548,7 +572,7 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 
 ### ⚠️ analytics 已算出，但未發布進 snapshot（1 項）
 
-- [ ] **參政 青年關注議題文字雲** — `youth_topic_weight/all.json` 110–114 五年齊全，只需加進 `manifest.artifacts.analyses` 並讓 `publish_homepage_snapshot()` 一併寫出
+- [ ] **參政 青年關注議題文字雲** — `youth_topic_weight/all.json` 已有資料；UI 年份選擇器已移除（2026-09-12），只需固定發布 114 年那筆 `topics[]` 進 `manifest.artifacts.analyses`
 
 ### ⚠️ 部分可用，資料覆蓋不足（2 項）
 
@@ -569,10 +593,9 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 - [ ] **生育 FaFI 友善度** — 三項輸入只有 `housing` 齊備
 - [ ] **施政 薪資成長率＋走勢** — `wages` 110–113 已有，只差 analytics
 
-### ❌ 無資料源，需新建 collector（4 項）
+### ❌ 無資料源，需新建 collector（3 項）
 
-- [ ] **參政 補助地區分布** — 需 `youth_grants` collector（青年局對民間團體補助明細，PDF）
-- [ ] **參政 補助金額年度趨勢** — 同上
+- [ ] **參政 青年局各科別預算比例**（2026-09-12 取代原「補助地區分布」）— `youth_budgets` 的 `business_plan` 只有 3 類，對不上前端 4 個新科別名稱，需向青年局確認是否有更細的科別／計畫別決算拆分
 - [ ] **參政 預算執行率** — 111/112 決算 PDF 為影像型待 OCR，113 欄位已解析但未算執行率
 - [ ] **參政 YRR** — 中選會選舉人年齡結構無資料源
 
@@ -590,7 +613,7 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 | # | 問題 | 位置 | 建議處理 |
 |---|---|---|---|
 | 1 | spec 檔含未解 merge conflict（4 處）| `docs/superpowers/specs/2026-09-10-backend-read-api-design.md` | 解衝突，兩處都採 `ours` |
-| 2 | 三張 choropleth 門檻全部與真實值域不符 | `frontend/src/lib/mapColors.ts` | 改分位數動態分級，或 API 於 `meta` 附門檻 |
+| 2 | 三張 choropleth 門檻全部與真實值域不符（2026-09-12 改為主色調可調的 3 階漸層 `tieredFillColor`，門檻改為 opportunity `[60,75]`、participation `[52,62]`、fertility `[41,46]`，但問題本質未變）| `frontend/src/lib/mapColors.ts` | 改分位數動態分級，或 API 於 `meta` 附門檻 |
 | 3 | `youthParticipationIndex` 名實不符（實為里長參選率 per 100k，非 0–100 指數）| 前端型別、fixture、mapColors | 改名 `youthCandidacyRatePer100k`，UI 標籤與單位一併更新 |
 | 4 | 預算有兩套形狀（`policy.*` vs `annual.budget_trend`）| `dashboard_overview.json` | API 只暴露 `policy.*` |
 | 5 | 子分數三套命名（`yoiComponents.job` / `score_job` / 無）| pipeline、分析文件、前端 | 統一用 `yoiComponents.*` |
@@ -603,7 +626,10 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 | 12 | 年齡口徑文案殘留 20–39 / 20–35 | 生育頁、施政頁 | 全部改 18–35 |
 | 13 | `yoiComponents.talent` 29 區只有 35/65 兩值 | `college_majors` 為學校所在地 | 已將權重降至 0.05，UI 可加註 |
 | 14 | `youth_keyword_frequency` top terms 為未濾除常見詞 | `youth_keyword_config.json` | 文字雲改用 `youth_topic_weight` |
-| 15 | 就業散佈圖 Plot 2 的 `yLabel` 仍是「房價所得比（倍）」，未跟上文件決議的「每坪平均房價」 | `CrossAnalysisScatter.tsx` | 已於 2026-09-12 決議採文件版，見 §5.3；改字串為「每坪平均房價（萬元)」 |
+| 15 | 就業散佈圖 Plot 2 的 `yLabel` 仍是「房價所得比（倍）」，未跟上文件決議的「每坪平均房價」 | `CrossAnalysisScatter.tsx` | 已於 2026-09-12 決議採文件版並改字串，已完成 |
+| 16 | 文字雲年份選擇器已移除，UI 改為單一固定畫面 | `YouthTopicWordCloud.tsx` | 已於 2026-09-12 決議固定回傳 114 年，見 §6.4；`year` query 參數不再需要 |
+| 17 | 「資源投入與產出」第一張圖從地區別補助換成部門別預算比例，且新科別名稱對不上 `youth_budgets.business_plan` 既有 3 類 | `ResourceIoCharts.tsx` | 見 §6.3；需與青年局確認決算科別拆分口徑 |
+| 18 | `PolicyOutcomeTracker` 的 up/down 顏色寫死且方向對調，兩張卡好壞方向相反卻共用同一規則，薪資成長 +2.8% 現顯示為警示色 | `PolicyOutcomeTracker.tsx` | 契約新增 `desiredDirection` 欄位，見 §8.1；前端改依此欄位決定顏色，不要寫死 |
 
 ---
 

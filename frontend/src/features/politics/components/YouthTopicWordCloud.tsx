@@ -1,9 +1,4 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-
-// 民國年，從 114 年往前推五年。
-const YEARS = [114, 113, 112, 111, 110] as const;
 
 interface TopicWord {
   label: string;
@@ -139,87 +134,51 @@ const { placed: PLACED_WORDS, viewBox: CLOUD_VIEWBOX } =
   layoutWordCloud(TOPIC_WORDS);
 
 export default function YouthTopicWordCloud() {
-  // 佔位互動：切換年份尚未影響資料，待 Backend API 串接。
-  const [year, setYear] = useState<(typeof YEARS)[number]>(YEARS[0]);
-
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <Card className="lg:col-span-1">
-        <CardHeader>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
-            Year
-          </p>
-          <CardTitle className="text-lg font-bold text-slate-900">
-            年份選擇
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {YEARS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setYear(option)}
-              className={cn(
-                "rounded-lg border px-4 py-2.5 text-left text-sm font-semibold transition-colors",
-                option === year
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-slate-200 text-slate-500 hover:bg-slate-50",
-              )}
-            >
-              {option} 年
-            </button>
-          ))}
-          <p className="mt-1 text-[11px] text-slate-400">
-            切換年份為佔位互動，待 Backend API 串接。
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
-            Topic Importance
-          </p>
-          <CardTitle className="text-lg font-bold text-slate-900">
-            {year} 年青年關注議題重要程度文字雲
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <svg
-              viewBox={CLOUD_VIEWBOX}
-              className="block h-auto max-h-[380px] w-full"
-              role="img"
-              aria-label={`${year} 年青年關注議題重要程度文字雲佔位`}
-            >
-              {PLACED_WORDS.map((word) => (
-                <text
-                  key={word.label}
-                  x={word.x}
-                  y={word.y}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fontSize={word.fontSize}
-                  fontWeight={
-                    word.weight >= 4 ? 800 : word.weight >= 3 ? 700 : 600
-                  }
-                  className={word.fill}
-                  transform={
-                    word.rotate
-                      ? `rotate(${word.rotate} ${word.x} ${word.y})`
-                      : undefined
-                  }
-                >
-                  {word.label}
-                </text>
-              ))}
-            </svg>
-          </div>
-          <p className="text-[11px] text-slate-400">
-            議題與重要程度為佔位資料，待 Backend API 提供整理後結果。
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <Card>
+      <CardHeader>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
+          Topic Importance
+        </p>
+        <CardTitle className="text-lg font-bold text-slate-900">
+          青年關注議題重要程度文字雲
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <svg
+            viewBox={CLOUD_VIEWBOX}
+            className="block h-auto max-h-[380px] w-full"
+            role="img"
+            aria-label="青年關注議題重要程度文字雲佔位"
+          >
+            {PLACED_WORDS.map((word) => (
+              <text
+                key={word.label}
+                x={word.x}
+                y={word.y}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={word.fontSize}
+                fontWeight={
+                  word.weight >= 4 ? 800 : word.weight >= 3 ? 700 : 600
+                }
+                className={word.fill}
+                transform={
+                  word.rotate
+                    ? `rotate(${word.rotate} ${word.x} ${word.y})`
+                    : undefined
+                }
+              >
+                {word.label}
+              </text>
+            ))}
+          </svg>
+        </div>
+        <p className="text-[11px] text-slate-400">
+          議題與重要程度為佔位資料，待 Backend API 提供整理後結果。
+        </p>
+      </CardContent>
+    </Card>
   );
 }

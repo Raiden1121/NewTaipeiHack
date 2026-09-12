@@ -81,7 +81,7 @@ export default function PoliticsPage() {
       <Section
         eyebrow="Youth Voice"
         title="青年需求與聲音"
-        description="各年度青年關注議題之重要程度分布"
+        description="青年關注議題之重要程度分布"
       >
         <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
           <YouthTopicWordCloud />
