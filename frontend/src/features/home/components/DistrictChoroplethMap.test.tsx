@@ -1,8 +1,17 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import DistrictChoroplethMap from "./DistrictChoroplethMap";
 import { useDistrictSummary } from "../hooks/useDistrictSummary";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
+
+function renderMap() {
+  return render(
+    <MemoryRouter>
+      <DistrictChoroplethMap />
+    </MemoryRouter>,
+  );
+}
 
 vi.mock("../hooks/useDistrictSummary");
 vi.mock("topojson-client", () => ({
@@ -66,7 +75,7 @@ beforeEach(() => {
 
 describe("DistrictChoroplethMap", () => {
   it("selects a district in the store when its path is clicked", async () => {
-    render(<DistrictChoroplethMap />);
+    renderMap();
     const pathA = await screen.findByLabelText("測試甲區");
 
     fireEvent.click(pathA);
@@ -75,7 +84,7 @@ describe("DistrictChoroplethMap", () => {
   });
 
   it("shows a tooltip with the district name on hover", async () => {
-    render(<DistrictChoroplethMap />);
+    renderMap();
     const pathB = await screen.findByLabelText("測試乙區");
 
     fireEvent.mouseEnter(pathB);
@@ -94,7 +103,7 @@ describe("DistrictChoroplethMap", () => {
       refetch,
     } as unknown as ReturnType<typeof useDistrictSummary>);
 
-    render(<DistrictChoroplethMap />);
+    renderMap();
 
     expect(await screen.findByText("模擬行政區資料失敗")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "重新載入" }));

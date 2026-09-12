@@ -3,6 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardOverview } from "@/lib/api/queries";
 import { formatOrFallback } from "@/lib/format";
+import MetricInfoTooltip from "@/components/shared/MetricInfoTooltip";
+import {
+  SERVICE_COVERAGE_FORMULA,
+  YOUTH_CANDIDACY_RATE_FORMULA,
+} from "@/lib/metricFormulas";
 
 export default function ParticipationOverviewCard() {
   const { data: overview, isLoading } = useDashboardOverview();
@@ -44,8 +49,9 @@ export default function ParticipationOverviewCard() {
       <CardContent>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-slate-50 p-3">
-            <p className="text-xs font-semibold text-accent-slate">
+            <p className="flex items-center gap-1 text-xs font-semibold text-accent-slate">
               市議員青年參選率
+              <MetricInfoTooltip formula={YOUTH_CANDIDACY_RATE_FORMULA} />
             </p>
             <div className="mt-1 flex items-end gap-1.5">
               <span className="text-2xl font-bold text-primary">
@@ -60,8 +66,9 @@ export default function ParticipationOverviewCard() {
             </p>
           </div>
           <div className="rounded-xl bg-slate-50 p-3">
-            <p className="text-xs font-semibold text-accent-slate">
+            <p className="flex items-center gap-1 text-xs font-semibold text-accent-slate">
               整體服務涵蓋率
+              <MetricInfoTooltip formula={SERVICE_COVERAGE_FORMULA} />
             </p>
             <p className="mt-1 text-2xl font-bold text-slate-900">
               {serviceCoverage.value.toFixed(1)}%

@@ -4,6 +4,8 @@ import { useDistrictSummary } from "@/features/home/hooks/useDistrictSummary";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { YoiComponents } from "@/lib/api/types";
+import MetricInfoTooltip from "@/components/shared/MetricInfoTooltip";
+import { OPPORTUNITY_INDEX_FORMULA } from "@/lib/metricFormulas";
 
 interface DimensionScore {
   label: string;
@@ -102,7 +104,10 @@ export default function DistrictDetailCard() {
             </CardTitle>
           </div>
           <div className="text-right">
-            <p className="text-xs font-semibold text-accent-slate">綜合分數</p>
+            <p className="flex items-center justify-end gap-1 text-xs font-semibold text-accent-slate">
+              綜合分數
+              <MetricInfoTooltip formula={OPPORTUNITY_INDEX_FORMULA} />
+            </p>
             <p className="text-3xl font-bold text-primary">
               {selectedDistrict.opportunityIndex.toFixed(1)}
             </p>

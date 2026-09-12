@@ -15,7 +15,7 @@ import {
   type DistrictFeature,
 } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
-import { useSettingsStore } from "@/stores/useSettingsStore";
+import { useEffectiveColorTheme } from "@/hooks/useEffectiveColorTheme";
 import { tieredFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
 import { computeTercileThresholds } from "@/lib/quantile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,7 +97,7 @@ export default function FertilityDistributionMap() {
   );
   const selectDistrict = useSelectedDistrict((state) => state.selectDistrict);
   const clearSelection = useSelectedDistrict((state) => state.clearSelection);
-  const colorTheme = useSettingsStore((state) => state.colorTheme);
+  const colorTheme = useEffectiveColorTheme();
 
   const districtById = useMemo(
     () => new Map(districts.map((district) => [district.district_id, district])),

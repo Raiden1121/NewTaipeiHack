@@ -1,8 +1,17 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import OpportunityIndexMap from "./OpportunityIndexMap";
 import { useDistrictSummary } from "@/features/home/hooks/useDistrictSummary";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
+
+function renderMap() {
+  return render(
+    <MemoryRouter>
+      <OpportunityIndexMap />
+    </MemoryRouter>,
+  );
+}
 
 vi.mock("@/features/home/hooks/useDistrictSummary");
 vi.mock("topojson-client", () => ({
@@ -60,7 +69,7 @@ beforeEach(() => {
 
 describe("OpportunityIndexMap", () => {
   it("selects the clicked district in the shared store", async () => {
-    render(<OpportunityIndexMap />);
+    renderMap();
     const districtPath = await screen.findByLabelText("測試甲區");
 
     fireEvent.click(districtPath);
@@ -69,7 +78,7 @@ describe("OpportunityIndexMap", () => {
   });
 
   it("does not select a district after a drag gesture", async () => {
-    render(<OpportunityIndexMap />);
+    renderMap();
     const districtPath = await screen.findByLabelText("測試甲區");
     const svg = districtPath.closest("svg") as SVGSVGElement;
 

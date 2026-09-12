@@ -25,17 +25,22 @@
 
   /* 主色調預設色票：僅覆寫 primary，其餘 token 不變 */
   [data-theme-color="indigo"] {
-    --color-primary: 243 47% 45%;
+    /* 紫色 #722F99 */
+    --color-primary: 278 53% 39%;
   }
   [data-theme-color="teal"] {
-    --color-primary: 172 83% 30%;
+    /* 綠 #5c8391 */
+    --color-primary: 196 22% 46%;
   }
   [data-theme-color="amber"] {
-    --color-primary: 28 87% 50%;
+    /* 橘色 #FFA259 */
+    --color-primary: 26 100% 67%;
     --color-primary-foreground: 25 60% 12%;
   }
   [data-theme-color="rose"] {
-    --color-primary: 347 77% 45%;
+    /* 粉紅 #F7ADAD */
+    --color-primary: 0 82% 82%;
+    --color-primary-foreground: 25 60% 12%;
   }
   [data-theme-color="slate"] {
     --color-primary: 213 25% 35%;
@@ -48,17 +53,18 @@
     --color-primary: 207 90% 45%;
   }
   .dark[data-theme-color="indigo"] {
-    --color-primary: 243 60% 62%;
+    --color-primary: 278 53% 56%;
   }
   .dark[data-theme-color="teal"] {
-    --color-primary: 172 65% 40%;
+    --color-primary: 196 22% 58%;
   }
   .dark[data-theme-color="amber"] {
-    --color-primary: 28 90% 55%;
+    --color-primary: 26 100% 72%;
     --color-primary-foreground: 25 60% 12%;
   }
   .dark[data-theme-color="rose"] {
-    --color-primary: 347 75% 58%;
+    --color-primary: 0 82% 82%;
+    --color-primary-foreground: 25 60% 12%;
   }
   .dark[data-theme-color="slate"] {
     --color-primary: 213 20% 45%;

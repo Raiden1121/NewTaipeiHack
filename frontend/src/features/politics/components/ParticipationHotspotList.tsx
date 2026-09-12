@@ -6,7 +6,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export default function ParticipationHotspotList() {
+// 量測結果送達前的合理預設高度，避免清單先撐開再瞬間收合的閃爍。
+const FALLBACK_HEIGHT = 620;
+
+interface ParticipationHotspotListProps {
+  maxHeight?: number;
+}
+
+export default function ParticipationHotspotList({
+  maxHeight,
+}: ParticipationHotspotListProps) {
   const {
     data: districts = [],
     isLoading,
@@ -54,7 +63,10 @@ export default function ParticipationHotspotList() {
   }, [selectedDistrictId]);
 
   return (
-    <Card className="flex flex-col">
+    <Card
+      className="flex flex-col"
+      style={{ height: maxHeight ?? FALLBACK_HEIGHT }}
+    >
       <CardHeader>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
           Area Ranking
@@ -63,7 +75,7 @@ export default function ParticipationHotspotList() {
           區域排名
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col">
+      <CardContent className="flex min-h-0 flex-1 flex-col">
         {isLoading ? (
           <div className="flex flex-col gap-2">
             {Array.from({ length: 10 }).map((_, index) => (
@@ -88,7 +100,7 @@ export default function ParticipationHotspotList() {
           <>
             <ol
               ref={scrollRef}
-              className="-mr-2 flex max-h-[460px] flex-col gap-0.5 overflow-y-auto pr-2"
+              className="-mr-2 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pr-2"
             >
               {ranked.map((district, index) => {
                 const isSelected = district.district_id === selectedDistrictId;

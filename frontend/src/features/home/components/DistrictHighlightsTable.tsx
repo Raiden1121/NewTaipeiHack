@@ -54,16 +54,16 @@ export default function DistrictHighlightsTable() {
     <Card className="flex h-full flex-col">
       <CardHeader>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
-          Highlights
+          Ranking
         </p>
         <CardTitle className="text-lg font-bold text-slate-900">
-          重點行政區分析
+          行政區排名
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col">
         {isLoading ? (
           <div className="flex flex-col gap-2">
-            {Array.from({ length: 8 }).map((_, index) => (
+            {Array.from({ length: 14 }).map((_, index) => (
               <Skeleton key={index} className="h-9 w-full rounded-lg" />
             ))}
           </div>
@@ -84,7 +84,7 @@ export default function DistrictHighlightsTable() {
         ) : (
           <ol
             ref={scrollRef}
-            className="-mr-2 flex max-h-[460px] flex-col gap-0.5 overflow-y-auto pr-2"
+            className="-mr-2 flex max-h-[588px] flex-col gap-0.5 overflow-y-auto pr-2"
           >
             {ranked.map((district, index) => {
               const isSelected = district.district_id === selectedDistrictId;

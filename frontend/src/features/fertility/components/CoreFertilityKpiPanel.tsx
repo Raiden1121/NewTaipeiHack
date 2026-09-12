@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatInt, formatSignedPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import MetricInfoTooltip from "@/components/shared/MetricInfoTooltip";
+import { FERTILITY_RATE_FORMULA } from "@/lib/metricFormulas";
 
 interface Metric {
   id: string;
@@ -16,6 +18,7 @@ interface Metric {
   value: string;
   deltaPct: number | null;
   avgDiffPct: number | null;
+  formula?: string;
 }
 
 export default function CoreFertilityKpiPanel() {
@@ -111,6 +114,7 @@ export default function CoreFertilityKpiPanel() {
       value: `${fertilityRate.toFixed(2)}‰`,
       deltaPct: yoy(fertilityRate, prevFertilityRate),
       avgDiffPct: selectedDistrict ? selectedDistrict.fertilityVsCityAvg - 100 : null,
+      formula: FERTILITY_RATE_FORMULA,
     },
     {
       id: "youth-population-share",
@@ -159,8 +163,11 @@ export default function CoreFertilityKpiPanel() {
                 <Icon className="h-4 w-4" aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-slate-600">
+                <p className="flex items-center gap-1 text-xs font-semibold text-slate-600">
                   {metric.label}
+                  {metric.formula ? (
+                    <MetricInfoTooltip formula={metric.formula} />
+                  ) : null}
                 </p>
                 <p className="mt-1 flex items-baseline gap-1.5">
                   <span className="text-2xl font-bold text-slate-900">

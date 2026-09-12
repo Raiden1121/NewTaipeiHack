@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useSettingsStore } from "@/stores/useSettingsStore";
+import { useEffectiveColorTheme } from "@/hooks/useEffectiveColorTheme";
 
 const FONT_SIZE_PX: Record<string, string> = {
   sm: "14px",
@@ -10,7 +11,7 @@ const FONT_SIZE_PX: Record<string, string> = {
 /** 無 UI 的旁路元件：把設定值反映到 <html> 的 class/data attribute。 */
 export default function SettingsEffects() {
   const fontSize = useSettingsStore((state) => state.fontSize);
-  const colorTheme = useSettingsStore((state) => state.colorTheme);
+  const colorTheme = useEffectiveColorTheme();
   const darkMode = useSettingsStore((state) => state.darkMode);
   const density = useSettingsStore((state) => state.density);
   const highContrast = useSettingsStore((state) => state.highContrast);

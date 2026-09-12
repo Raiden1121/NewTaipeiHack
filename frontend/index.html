@@ -18,7 +18,20 @@
             (mode !== "light" &&
               window.matchMedia("(prefers-color-scheme: dark)").matches);
           root.classList.toggle("dark", isDark);
-          root.dataset.themeColor = (s && s.colorTheme) || "blue";
+
+          // 需與 src/hooks/useEffectiveColorTheme.ts 的 PAGE_DEFAULT_COLOR_THEME 同步。
+          var pageDefaults = {
+            "/": "teal",
+            "/employment": "blue",
+            "/politics": "amber",
+            "/fertility": "rose",
+            "/policy-support": "teal",
+          };
+          root.dataset.themeColor =
+            s && s.useCustomColor
+              ? s.colorTheme || "blue"
+              : pageDefaults[window.location.pathname] || "blue";
+
           root.dataset.density = (s && s.density) || "comfortable";
           root.classList.toggle("high-contrast", !!(s && s.highContrast));
           var fontSizePx = { sm: "14px", md: "16px", lg: "18px" };

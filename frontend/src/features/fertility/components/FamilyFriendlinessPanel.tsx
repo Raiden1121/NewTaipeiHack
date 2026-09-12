@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useFamilyFriendliness } from "@/lib/api/queries";
 import type { FamilyFriendlinessDistrict } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
+import MetricInfoTooltip from "@/components/shared/MetricInfoTooltip";
+import { FAMILY_FRIENDLINESS_INDEX_FORMULA } from "@/lib/metricFormulas";
 
 const BAR_CLASS: Record<FamilyFriendlinessDistrict["fafi_level"], string> = {
   high: "bg-risk-low",
@@ -38,8 +40,9 @@ export default function FamilyFriendlinessPanel() {
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
           Family-Friendly Index
         </p>
-        <CardTitle className="text-base font-bold text-slate-900">
+        <CardTitle className="flex items-center gap-1.5 text-base font-bold text-slate-900">
           青年成家環境友善度
+          <MetricInfoTooltip formula={FAMILY_FRIENDLINESS_INDEX_FORMULA} />
         </CardTitle>
         <p className="mt-1 text-xs text-slate-500">
           公共托育、居住可負擔與薪資水準之綜合評分（FaFI）

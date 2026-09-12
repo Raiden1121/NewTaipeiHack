@@ -15,6 +15,9 @@ export type Density = "comfortable" | "compact";
 interface SettingsValues {
   fontSize: FontSize;
   colorTheme: ColorTheme;
+  // false：跟隨各頁預設色（見 useEffectiveColorTheme）。
+  // true：使用者在設定頁手動選過色票，全站統一套用 colorTheme。
+  useCustomColor: boolean;
   darkMode: DarkModePreference;
   density: Density;
   highContrast: boolean;
@@ -34,7 +37,8 @@ interface SettingsState extends SettingsValues {
 export const DEFAULT_SETTINGS: SettingsValues = {
   fontSize: "md",
   colorTheme: "blue",
-  darkMode: "system",
+  useCustomColor: false,
+  darkMode: "light",
   density: "comfortable",
   highContrast: false,
   reduceMotion: false,
@@ -45,7 +49,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       ...DEFAULT_SETTINGS,
       setFontSize: (fontSize) => set({ fontSize }),
-      setColorTheme: (colorTheme) => set({ colorTheme }),
+      setColorTheme: (colorTheme) => set({ colorTheme, useCustomColor: true }),
       setDarkMode: (darkMode) => set({ darkMode }),
       setDensity: (density) => set({ density }),
       setHighContrast: (highContrast) => set({ highContrast }),

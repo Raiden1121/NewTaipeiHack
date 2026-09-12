@@ -4,6 +4,12 @@ import { useDistrictSummary } from "@/features/home/hooks/useDistrictSummary";
 import { useDashboardOverview } from "@/lib/api/queries";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 import { Card, CardContent } from "@/components/ui/card";
+import MetricInfoTooltip from "@/components/shared/MetricInfoTooltip";
+import {
+  SERVICE_COVERAGE_FORMULA,
+  YOUTH_BOROUGH_CHIEF_RATIO_FORMULA,
+  YRR_FORMULA,
+} from "@/lib/metricFormulas";
 
 export default function ParticipationKpiGrid() {
   const { data: districts = [] } = useDistrictSummary();
@@ -36,6 +42,7 @@ export default function ParticipationKpiGrid() {
       label: "服務涵蓋率",
       caption: "據點服務覆蓋之青年人口",
       value: serviceCoverageValue === null ? "資料待補" : `${serviceCoverageValue.toFixed(1)}%`,
+      formula: SERVICE_COVERAGE_FORMULA,
     },
     {
       id: "youth-borough-chief",
@@ -43,6 +50,7 @@ export default function ParticipationKpiGrid() {
       label: "青年里長占比",
       caption: "青年當選里長之比例（民國 111 年屆）",
       value: boroughChiefRatio === null ? "資料待補" : `${boroughChiefRatio.toFixed(1)}%`,
+      formula: YOUTH_BOROUGH_CHIEF_RATIO_FORMULA,
     },
     {
       id: "yrr",
@@ -50,6 +58,7 @@ export default function ParticipationKpiGrid() {
       label: "YRR (Youth Rep. Ratio)",
       caption: "席次與青年人口占比之比值",
       value: "資料待補",
+      formula: YRR_FORMULA,
     },
   ];
 
@@ -73,8 +82,9 @@ export default function ParticipationKpiGrid() {
               <Card className="h-full">
                 <CardContent className="flex items-start justify-between gap-3 p-5">
                   <div>
-                    <p className="text-sm font-semibold text-slate-600">
+                    <p className="flex items-center gap-1 text-sm font-semibold text-slate-600">
                       {kpi.label}
+                      <MetricInfoTooltip formula={kpi.formula} />
                     </p>
                     <p className="mt-1 text-3xl font-bold text-slate-900">
                       {kpi.value}

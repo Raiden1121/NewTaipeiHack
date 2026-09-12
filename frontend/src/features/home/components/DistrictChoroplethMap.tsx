@@ -3,13 +3,15 @@ import { geoMercator, geoPath } from "d3-geo";
 import { useDistrictSummary } from "../hooks/useDistrictSummary";
 import { useNewTaipeiTopology } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
-import { useSettingsStore } from "@/stores/useSettingsStore";
+import { useEffectiveColorTheme } from "@/hooks/useEffectiveColorTheme";
 import { tieredFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
 import { computeTercileThresholds } from "@/lib/quantile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { RetentionRiskLevel } from "@/types/district";
+import MetricInfoTooltip from "@/components/shared/MetricInfoTooltip";
+import { OPPORTUNITY_INDEX_FORMULA } from "@/lib/metricFormulas";
 
 const MAP_WIDTH = 760;
 const MAP_HEIGHT = 560;
@@ -79,7 +81,7 @@ export default function DistrictChoroplethMap() {
     (state) => state.selectedDistrictId,
   );
   const selectDistrict = useSelectedDistrict((state) => state.selectDistrict);
-  const colorTheme = useSettingsStore((state) => state.colorTheme);
+  const colorTheme = useEffectiveColorTheme();
 
   const isLoading = topologyState === "loading" || isDistrictsLoading;
   const isError = topologyState === "error" || isDistrictsError;
@@ -140,7 +142,7 @@ export default function DistrictChoroplethMap() {
   return (
     <section
       aria-labelledby="map-title"
-      className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"
+      className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"
     >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -164,7 +166,7 @@ export default function DistrictChoroplethMap() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+      <div className="relative flex min-h-[420px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
         <svg
           viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
           role="img"
@@ -220,7 +222,10 @@ export default function DistrictChoroplethMap() {
               </p>
               <dl className="mt-2 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <dt className="text-accent-slate">機會指數</dt>
+                  <dt className="flex items-center gap-1 text-accent-slate">
+                    機會指數
+                    <MetricInfoTooltip formula={OPPORTUNITY_INDEX_FORMULA} />
+                  </dt>
                   <dd className="font-bold text-slate-900">
                     {activeSummary ? activeSummary.opportunityIndex : "—"}
                   </dd>

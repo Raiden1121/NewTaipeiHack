@@ -16,62 +16,11 @@ interface Outcome {
   metricLabel: string;
   icon: LucideIcon;
   value: number | null;
-  spark: number[];
   desired: Direction;
 }
 
 function trendIsGood(value: number, desired: Direction): boolean {
   return desired === "up" ? value >= 0 : value <= 0;
-}
-
-function LineChart({ points, className }: { points: number[]; className?: string }) {
-  const width = 300;
-  const height = 80;
-  const pad = 6;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const span = max - min || 1;
-  const step = (width - pad * 2) / (points.length - 1 || 1);
-  const coords = points.map((point, index) => ({
-    x: pad + index * step,
-    y: pad + (height - pad * 2) * (1 - (point - min) / span),
-  }));
-  const line = coords
-    .map((c, index) => `${index === 0 ? "M" : "L"} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)
-    .join(" ");
-  const first = coords[0];
-  const last = coords[coords.length - 1];
-  const area = `${line} L ${last.x.toFixed(1)} ${height - pad} L ${first.x.toFixed(1)} ${height - pad} Z`;
-
-  return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      className={cn("h-20 w-full sm:h-24", className)}
-      aria-hidden="true"
-    >
-      <line
-        x1={pad}
-        y1={height - pad}
-        x2={width - pad}
-        y2={height - pad}
-        stroke="currentColor"
-        strokeWidth={1}
-        strokeOpacity={0.2}
-        vectorEffect="non-scaling-stroke"
-      />
-      <path d={area} fill="currentColor" fillOpacity={0.12} />
-      <path
-        d={line}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
 }
 
 function OutcomeCard({ outcome, index }: { outcome: Outcome; index: number }) {
@@ -129,8 +78,6 @@ function OutcomeCard({ outcome, index }: { outcome: Outcome; index: number }) {
             <TrendIcon className="h-4 w-4" aria-hidden="true" />
             {isGood ? "符合期望方向" : "偏離期望方向"}
           </span>
-
-          <LineChart points={outcome.spark} className={cn("mt-auto", color)} />
         </CardContent>
       </Card>
     </motion.div>
@@ -167,9 +114,6 @@ export default function PolicyOutcomeTracker() {
     );
   }
 
-  const wageSpark = analysis.wageTrend.map((point) => point.wage ?? 0);
-  const populationSpark = analysis.populationTrend.map((point) => point.yoy ?? 0);
-
   const outcomes: Outcome[] = [
     {
       id: "wage-growth",
@@ -177,7 +121,6 @@ export default function PolicyOutcomeTracker() {
       metricLabel: "青年平均月薪年增",
       icon: TrendingUp,
       value: analysis.currentWageGrowth,
-      spark: wageSpark.some((v) => v !== 0) ? wageSpark : [0, 0],
       desired: analysis.desiredDirection.wageGrowth,
     },
     {
@@ -186,21 +129,15 @@ export default function PolicyOutcomeTracker() {
       metricLabel: "18–35 歲人口近五年變化",
       icon: Users,
       value: analysis.currentPopGrowth,
-      spark: populationSpark,
       desired: analysis.desiredDirection.populationChange,
     },
   ];
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {outcomes.map((outcome, index) => (
-          <OutcomeCard key={outcome.id} outcome={outcome} index={index} />
-        ))}
-      </div>
-      <p className="text-[11px] text-slate-400">
-        薪資成長率走勢待 Backend 補上各年薪資（見 api_contract.md §8.1），目前僅有當期成長率。
-      </p>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {outcomes.map((outcome, index) => (
+        <OutcomeCard key={outcome.id} outcome={outcome} index={index} />
+      ))}
     </div>
   );
 }
