@@ -25,3 +25,7 @@ output "raw_data_bucket_name" {
 output "analytics_table_name" {
   value = module.analytics_table.table_name
 }
+
+output "ai_service_lambda_name" {
+  value = module.ai_service.lambda_function_name
+}

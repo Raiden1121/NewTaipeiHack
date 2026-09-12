@@ -59,6 +59,8 @@ ai-service/opus-*.md
 ai-service/sonnet-*.md
 # 預先算的 explain / policyCopilot 結果（npm run precompute 產生，跟著快照重跑）
 ai-service/.precomputed/
+# Lambda 的 esbuild bundle（terraform apply 每次自己重建，1.4 MB）
+ai-service/dist-lambda/
 
 #data
 /data-pipeline/data/curated

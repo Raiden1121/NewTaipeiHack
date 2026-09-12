@@ -32,6 +32,16 @@ module "raw_data" {
   environment  = var.environment
 }
 
+module "ai_service" {
+  source = "./modules/ai_service"
+
+  project_name             = var.project_name
+  environment              = var.environment
+  bedrock_model_id         = var.bedrock_model_id
+  tavily_api_key           = var.tavily_api_key
+  backend_lambda_role_name = module.api.lambda_role_name
+}
+
 # `terraform apply` always rebuilds and redeploys the frontend, so the
 # CloudFront-served site matches whatever is currently in frontend/src.
 

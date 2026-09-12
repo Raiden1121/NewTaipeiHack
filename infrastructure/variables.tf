@@ -21,3 +21,16 @@ variable "cloudfront_price_class" {
   type        = string
   default     = "PriceClass_200"
 }
+
+variable "bedrock_model_id" {
+  description = "Bedrock model / inference profile ID for the AI Service Lambda. See infrastructure/modules/ai_service/variables.tf for the latency tradeoffs behind the default."
+  type        = string
+  default     = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+}
+
+variable "tavily_api_key" {
+  description = "Tavily API key for the AI Service's web search (optional -- falls back to a rate-limited keyless client if unset). Set via TF_VAR_tavily_api_key or a gitignored .tfvars file, never commit it."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
