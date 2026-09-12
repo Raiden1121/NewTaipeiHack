@@ -8,20 +8,26 @@ Single file, run locally:
     python infrastructure/scripts/seed_test_data.py --self-check   # no AWS calls
 
 Every value here is synthetic (deterministic formulas, not real analytics)
-and is clearly labelled as such in the data itself (`calculation_version`,
-`quality.status` are both "test") so nobody downstream mistakes it for a
-real snapshot. Item shapes follow infrastructure/dynamodb_schema.md exactly.
+and is clearly labelled as such in the data itself (`calculation_version`
+is "test") so nobody downstream mistakes it for a real snapshot. Item
+shapes follow infrastructure/dynamodb_schema.md exactly.
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
 SNAPSHOT_ID = "local-test-data"
 GENERATED_AT = "2026-09-12T00:00:00Z"
+
+# "This year" per api_contract.md's ROC convention, minus one -- the latest
+# *completed* year (this year's own annual stats aren't final yet).
+CURRENT_YEAR_ROC = date.today().year - 1911 - 1
+ANNUAL_YEARS_ROC = [CURRENT_YEAR_ROC - offset for offset in (4, 3, 2, 1, 0)]
 
 DISTRICTS = [
     ("65000010", "板橋區"), ("65000020", "三重區"), ("65000030", "中和區"),
@@ -119,6 +125,27 @@ def _build_district(i, district_id, district_name):
             "job": job, "salary": salary, "talent": talent,
             "housing": housing, "transport": transport,
         },
+        # All 16 raw metrics above are linear in `frac` (min at frac=0, max
+        # at frac=1), so their normalized 0-100 value is exactly frac*100 --
+        # see api_contract.md §3.2's norm() formula.
+        "normalizedInputs": {
+            "youth_18_35_total": round(frac * 100, 2),
+            "vacancies_per_10k_youth": round(frac * 100, 2),
+            "occupation_shannon_index": round(frac * 100, 2),
+            "talent_demand_yoy": round(frac * 100, 2),
+            "salary_median": round(frac * 100, 2),
+            "high_salary_ratio": round(frac * 100, 2),
+            "adjusted_youth_wage": round(frac * 100, 2),
+            "college_student_density": round(frac * 100, 2),
+            "vt_course_count": round(frac * 100, 2),
+            "training_people_per_10k_youth": round(frac * 100, 2),
+            "rent_median": round(frac * 100, 2),
+            "house_price_median": round(frac * 100, 2),
+            "rent_wage_ratio": round(frac * 100, 2),
+            "bus_stops_per_10k_youth": round(frac * 100, 2),
+            "railway_stop_density": round(frac * 100, 2),
+            "bike_stop_density": round(frac * 100, 2),
+        },
         "retentionRiskLevel": _retention_risk(i),
         "fertilityRate": round(12.67 + frac * (74.92 - 12.67), 2),
         "fertilityVsCityAvg": round(49.63 + frac * (293.51 - 49.63), 2),
@@ -143,12 +170,12 @@ def _build_kpis():
         "cityYouthPopulationShare": 20.914,
         "cityYouthPopulation": 845938,
         "cityYouthPopulationYoY": -1.969,
-        "referenceYearRoc": 114,
+        "referenceYearRoc": CURRENT_YEAR_ROC,
     }
 
 
 def _build_population_years():
-    years = [110, 111, 112, 113, 114]
+    years = ANNUAL_YEARS_ROC
     city_start, city_end = 913345, 845938
     share_start, share_end = 22.79, 20.91
     out = []
@@ -174,10 +201,10 @@ def _build_population_years():
 
 
 def _build_fertility_years():
-    years = [110, 111, 112, 113, 114]
+    years = ANNUAL_YEARS_ROC
     births_start, births_end = 17645, 10489
     rate_start, rate_end = 39.39, 25.53
-    quality_by_year = {110: "observed", 111: "observed", 112: "observed", 113: "partial", 114: "observed"}
+    quality_by_year = dict(zip(years, ["observed", "observed", "observed", "partial", "observed"]))
     out = []
     for idx, yr in enumerate(years):
         t = idx / (len(years) - 1)
@@ -242,18 +269,15 @@ def _build_service_coverage():
 
 
 def _build_policy():
+    trend_values = [None, None, 149029, 158650, 196153]
     return {
         "currentBudget": 196153,
-        "budgetUnit": "TWD_thousand",
         "budgetYoY": 23.639,
         "executionRate": None,
         "executionFailure": "final_settlement_unavailable",
         "budgetTrend": [
-            {"year_roc": 110, "value_thousand": None},
-            {"year_roc": 111, "value_thousand": None},
-            {"year_roc": 112, "value_thousand": 149029},
-            {"year_roc": 113, "value_thousand": 158650},
-            {"year_roc": 114, "value_thousand": 196153},
+            {"year_roc": yr, "value_thousand": val}
+            for yr, val in zip(ANNUAL_YEARS_ROC, trend_values)
         ],
     }
 
@@ -319,7 +343,7 @@ DEPARTMENT_BUDGET = [
 ]
 
 TOPIC_LABELS = ["社會住宅", "青年就業", "青年創業", "托育資源", "交通建設"]
-LATEST_TOPIC_YEAR_ROC = 114
+LATEST_TOPIC_YEAR_ROC = CURRENT_YEAR_ROC
 
 
 def _analysis_youth_topic_weight():
@@ -362,9 +386,11 @@ def _analysis_fertility_family_friendliness():
 
 
 def _analysis_policy_outcomes():
+    # Wage data lags a year behind population data (api_contract.md §8.1),
+    # so it only covers the 4 years before the latest annual year.
     wage_trend = [
         {"year_roc": yr, "wage": None, "yoy": None, "quality_status": "observed"}
-        for yr in (110, 111, 112, 113)
+        for yr in ANNUAL_YEARS_ROC[:-1]
     ]
     return {
         "analysis_id": "policy-outcomes",
@@ -398,10 +424,9 @@ def build_items() -> list[dict]:
         "calculation_version": "test",
         "districts_count": len(DISTRICTS),
         "time_policy": {
-            "annual_years_roc": [110, 111, 112, 113, 114],
+            "annual_years_roc": ANNUAL_YEARS_ROC,
             "election_years_roc": [103, 107, 111],
         },
-        "quality": {"status": "test"},
         "warnings": [],
     }
 
