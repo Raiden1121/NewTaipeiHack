@@ -412,7 +412,7 @@ export default function FertilityDistributionMap() {
                 onClick={() => zoomBy(SCALE_STEP)}
                 disabled={view.scale >= MAX_SCALE}
                 aria-label="放大"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40 sm:h-8 sm:w-8"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -421,7 +421,7 @@ export default function FertilityDistributionMap() {
                 onClick={() => zoomBy(1 / SCALE_STEP)}
                 disabled={view.scale <= MIN_SCALE}
                 aria-label="縮小"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40 sm:h-8 sm:w-8"
               >
                 <Minus className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -430,7 +430,7 @@ export default function FertilityDistributionMap() {
                 onClick={resetView}
                 disabled={view.scale === 1 && view.x === 0 && view.y === 0}
                 aria-label="重設視圖"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40 sm:h-8 sm:w-8"
               >
                 <RotateCcw className="h-4 w-4" aria-hidden="true" />
               </button>

@@ -139,6 +139,43 @@ export default function DistrictChoroplethMap() {
       ]
     : features;
 
+  // 面板內容抽出共用：手機（<sm）改為疊在地圖下方的區塊，桌面則維持浮貼在地圖右上角。
+  const panelContent = activeFeature ? (
+    <>
+      <p className="text-sm font-bold text-slate-900">
+        {activeFeature.properties.name}
+      </p>
+      <dl className="mt-2 space-y-1.5 text-xs">
+        <div className="flex items-center justify-between">
+          <dt className="flex items-center gap-1 text-accent-slate">
+            機會指數
+            <MetricInfoTooltip formula={OPPORTUNITY_INDEX_FORMULA} />
+          </dt>
+          <dd className="font-bold text-slate-900">
+            {activeSummary ? activeSummary.opportunityIndex : "—"}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between">
+          <dt className="text-accent-slate">留才風險</dt>
+          <dd
+            className={cn(
+              "font-bold",
+              activeSummary
+                ? RISK_TEXT_CLASS[activeSummary.retentionRiskLevel]
+                : "text-slate-400",
+            )}
+          >
+            {activeSummary ? RISK_LABEL[activeSummary.retentionRiskLevel] : "—"}
+          </dd>
+        </div>
+      </dl>
+    </>
+  ) : (
+    <p className="text-xs leading-relaxed text-slate-400">
+      將游標移至地圖，或點選行政區查看各區指數
+    </p>
+  );
+
   return (
     <section
       aria-labelledby="map-title"
@@ -214,45 +251,13 @@ export default function DistrictChoroplethMap() {
           </g>
         </svg>
 
-        <div className="pointer-events-none absolute right-3 top-3 w-44 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
-          {activeFeature ? (
-            <>
-              <p className="text-sm font-bold text-slate-900">
-                {activeFeature.properties.name}
-              </p>
-              <dl className="mt-2 space-y-1.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <dt className="flex items-center gap-1 text-accent-slate">
-                    機會指數
-                    <MetricInfoTooltip formula={OPPORTUNITY_INDEX_FORMULA} />
-                  </dt>
-                  <dd className="font-bold text-slate-900">
-                    {activeSummary ? activeSummary.opportunityIndex : "—"}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-accent-slate">留才風險</dt>
-                  <dd
-                    className={cn(
-                      "font-bold",
-                      activeSummary
-                        ? RISK_TEXT_CLASS[activeSummary.retentionRiskLevel]
-                        : "text-slate-400",
-                    )}
-                  >
-                    {activeSummary
-                      ? RISK_LABEL[activeSummary.retentionRiskLevel]
-                      : "—"}
-                  </dd>
-                </div>
-              </dl>
-            </>
-          ) : (
-            <p className="text-xs leading-relaxed text-slate-400">
-              將游標移至地圖，或點選行政區查看各區指數
-            </p>
-          )}
+        <div className="pointer-events-none absolute right-3 top-3 hidden w-44 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:block">
+          {panelContent}
         </div>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:hidden">
+        {panelContent}
       </div>
     </section>
   );

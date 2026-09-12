@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +24,8 @@ function DepartmentBarChart({
 }: {
   departments: { label: string; amount_thousand: number; share_percent: number }[];
 }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
   const vbW = CHART_VB_W;
   const vbH = CHART_VB_H;
   const labelH = 44;
@@ -45,14 +48,22 @@ function DepartmentBarChart({
     };
   });
 
+  const hovered = hoveredIndex !== null ? bars[hoveredIndex] : null;
+  const tooltipW = 108;
+  const tooltipH = 24;
+  const tooltipX = hovered
+    ? clamp(hovered.x + hovered.width / 2 - tooltipW / 2, 2, vbW - tooltipW - 2)
+    : 0;
+  const tooltipY = hovered ? Math.max(2, hovered.y - tooltipH - 6) : 0;
+
   return (
     <svg
       viewBox={`0 0 ${vbW} ${vbH}`}
       className="block h-auto w-full"
       role="img"
-      aria-label="青年局各科別預算比例長條圖"
+      aria-label="青年局各科別預算比例長條圖，滑鼠移至長條可查看實際金額"
     >
-      {bars.map((bar) => (
+      {bars.map((bar, index) => (
         <rect
           key={bar.label}
           x={bar.x}
@@ -60,7 +71,9 @@ function DepartmentBarChart({
           width={bar.width}
           height={bar.height}
           rx={3}
-          className="fill-primary/60"
+          className={index === hoveredIndex ? "fill-primary" : "fill-primary/60"}
+          onMouseEnter={() => setHoveredIndex(index)}
+          onMouseLeave={() => setHoveredIndex(null)}
         />
       ))}
       <line
@@ -98,6 +111,29 @@ function DepartmentBarChart({
           ))}
         </text>
       ))}
+      {hovered && (
+        <g pointerEvents="none">
+          <rect
+            x={tooltipX}
+            y={tooltipY}
+            width={tooltipW}
+            height={tooltipH}
+            rx={6}
+            fill="#10233f"
+          />
+          <text
+            x={tooltipX + tooltipW / 2}
+            y={tooltipY + tooltipH / 2 + 1}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill="#ffffff"
+            fontSize={11}
+            fontWeight={700}
+          >
+            {hovered.amount_thousand.toLocaleString("zh-Hant-TW")} 千元
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
