@@ -14,6 +14,78 @@ import run_analytics  # noqa: E402
 
 
 class TestRunAnalytics(unittest.TestCase):
+    def test_policy_support_branch_embeds_analysis_in_snapshot(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            config_dir = root / "config"
+            config_dir.mkdir()
+            (config_dir / "homepage_analytics.json").write_text(
+                json.dumps(
+                    {
+                        "version": "1",
+                        "annual_years_roc": [110, 111, 112, 113, 114],
+                        "population_reference_year_roc": 114,
+                        "election_years_roc": [103, 107, 111],
+                        "service_radius_m": 2500,
+                        "normalization": {"method": "p5_p95", "constant_value": 50},
+                        "yoi_weights": {"job": 0.25, "salary": 0.25, "talent": 0.05, "housing": 0.25, "transport": 0.2},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            homepage = {
+                "metric_id": "homepage",
+                "generated_at": "2026-09-11T09:39:13.190552+00:00",
+                "districts": [],
+                "_quality": {"source_periods": {}},
+            }
+            policy_support = {
+                "metric_id": "policy_support",
+                "generated_at": "2026-09-11T09:39:13.190552+00:00",
+                "policyOutcomes": {"wageTrend": [], "populationTrend": []},
+                "_quality": {"source_periods": {}, "coverage": {}},
+            }
+            with patch.object(run_analytics, "HomepageInputResolver"):
+                with patch.object(run_analytics, "generate_homepage_data", return_value=homepage) as generate_homepage:
+                    with patch.object(
+                        run_analytics,
+                        "generate_policy_support_data",
+                        return_value=policy_support,
+                    ) as generate:
+                        with patch.object(
+                            run_analytics,
+                            "write_policy_support_data",
+                            return_value=(root / "policy_support.json", root / "quality.json"),
+                        ) as write:
+                            with patch.object(run_analytics, "publish_homepage_snapshot") as publish:
+                                self.assertEqual(
+                                    run_analytics.main(
+                                        [
+                                            "--metric",
+                                            "policy_support",
+                                            "--output-dir",
+                                            str(root / "data"),
+                                            "--config-dir",
+                                            str(config_dir),
+                                            "--publish",
+                                            "--snapshot-id",
+                                            "dev-policy-support",
+                                        ]
+                                    ),
+                                    0,
+                                )
+            generate.assert_called_once()
+            write.assert_called_once()
+            generate_homepage.assert_called_once()
+            publish.assert_called_once()
+            self.assertEqual(
+                publish.call_args.kwargs["analyses"]["policy_support"]["metric_id"],
+                "policy_support",
+            )
+            self.assertNotIn(
+                "_quality", publish.call_args.kwargs["analyses"]["policy_support"]
+            )
+
     def test_fertility_branch_embeds_analysis_in_snapshot(self):
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)

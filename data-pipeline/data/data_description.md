@@ -1,6 +1,6 @@
 # Data Pipeline 資料說明
 
-本文件依據 `data/curated/` 內的既有處理結果、2026-09-12 真實資料刷新、官方來源 live check 與 analytics 資料契約撰寫，涵蓋目前已串接的 canonical datasets。`elections`、`youth_service_points`、`population_villages`、`village_boundaries`、`youth_budgets`、`youth_grants` 與 `babysitting_places` 均由 pipeline 管理；首頁、青年就業、青年參政與生育 analytics 分別寫入 `data/analytics/homepage/`、`data/analytics/employment/`、`data/analytics/youth_participation/`、`data/analytics/fertility/`，並各自產生品質報告。範例值直接取自 generated JSON 或官方 live response，沒有自行編造或重新計算；未能安全解析的來源會保留 raw artifact 並記錄在 `document_failures`。
+本文件依據 `data/curated/` 內的既有處理結果、2026-09-12 真實資料刷新、官方來源 live check 與 analytics 資料契約撰寫，涵蓋目前已串接的 canonical datasets。`elections`、`youth_service_points`、`population_villages`、`village_boundaries`、`youth_budgets`、`youth_grants` 與 `babysitting_places` 均由 pipeline 管理；首頁、青年就業、青年參政、生育與施政協助 analytics 分別寫入 `data/analytics/homepage/`、`data/analytics/employment/`、`data/analytics/youth_participation/`、`data/analytics/fertility/`、`data/analytics/policy_support/`，並各自產生品質報告。範例值直接取自 generated JSON 或官方 live response，沒有自行編造或重新計算；未能安全解析的來源會保留 raw artifact 並記錄在 `document_failures`。
 
 > 範例只展示標準化後較重要的欄位。完整來源內容仍保存在各筆資料的 `raw_record`、`raw_records`、`overview_raw_record` 或 `detail_raw_records`，因內容很大，不在本文件重複展開。
 
@@ -17,6 +17,7 @@
 - `youth_grants` 2026-09-11 live output 為 110 筆（ROC 111–115）；官方 PDF 沒有可可靠解析的計畫執行地或受補助單位地址，因此 110 筆保留原始補助欄位但 `district_id=null`、`geo_basis=unresolved`，年度金額趨勢可算，行政區分布標示 `partial`。
 - `babysitting_places` 已加入 collector、transform 與 pipeline registry；2026-09-11 live refresh 取得私托 261 筆、公托 130 筆，共 391 筆，391 筆均通過 transform，來源本身沒有歷史年度參數。
 - Fertility analytics 已實際產出 ROC 110–114 年度生育率／青年人口占比、最新參考年度 29 區資料、1 km 托育覆蓋率、FaFI 與 YOI × 生育率 OLS；ROC 113 因缺 1 個人口月份為 `partial`。2026-09-12 托育名冊 391 筆中，220 筆由固定的官方門牌參照檔取得可驗證座標，171 筆保留但標記 `excluded_no_verified_coordinate`，托育覆蓋率因此為 `partial`。
+- Policy Support analytics 已實際產出且目前為 `observed`：薪資 ROC 108–113 每年 16 筆來源列均可取得，人口使用 ROC 111–115 每年 7 月、29 區完整快照。25–29 歲平均薪資由 51.8 增至 59.9 萬元／年，最新薪資 YoY 為 4.54%；青年人口由 897,892 降至 832,214，最新人口 YoY 為 -2.55%。公開結果為 `data/analytics/policy_support/all.json`，品質報告為 `data/quality/analytics_policy_support.json`。
 - 2026-09-04 的 TDX 執行成功取得 `bus_stops`、`railway_stops`、`bike_stops`。
 - 2026-09-09 的 `11201`～`11601` range 執行結果為 102 組成功、28 組來源無資料、1 組傳輸失敗；唯一失敗的是 `population` 的 `11206`，原因為 HTTP 回應中途截斷 (`IncompleteRead`)。
 - `data/quality/collection_range.json` 記錄本次 `11509` range 執行結果；三個新增／擴充 dataset 的 status 都是 `ok`，詳細的 111／112 年決算 PDF 解析失敗則在 raw envelope 的 `document_failures` 保存。
@@ -99,6 +100,7 @@
 | `employment` analytics | `data/analytics/employment/all.json`；品質報告為 `data/quality/analytics_employment.json` |
 | `youth_participation` analytics | `data/analytics/youth_participation/all.json`；品質報告為 `data/quality/analytics_youth_participation.json` |
 | `fertility` analytics | `data/analytics/fertility/all.json`；品質報告為 `data/quality/analytics_fertility.json` |
+| `policy_support` analytics | `data/analytics/policy_support/all.json`；品質報告為 `data/quality/analytics_policy_support.json` |
 | `join_proposals` | `data/curated/join_proposals/all.json` |
 | `youth_council_minutes` | `data/curated/youth_council_minutes/all.json` |
 
@@ -1007,6 +1009,62 @@ data/analytics/published/<snapshot_id>/analyses/fertility.json
 data/analytics/published/<snapshot_id>/manifest.json
 data/analytics/published/current.json
 ```
+
+## 25.3 `policy_support` analytics
+
+執行 `run_analytics.py --metric policy_support` 會只讀 curated 的 `wages` 與
+`population`，產生薪資與 18–35 歲青年人口的年度趨勢及 YoY。公開輸出為
+`data/analytics/policy_support/all.json`，品質報告為
+`data/quality/analytics_policy_support.json`；公開 JSON 不含
+`raw_record`、`raw_records` 或來源全文。
+
+### 時間、欄位與公式
+
+- 薪資年度固定為 ROC 108–113（2019–2024），只選 `official_age_group=25-29歲`、`statistic_method=平均數` 的新北市縣市層級資料；`wage` 單位為 `萬元／年`。第一年 YoY 為 `null`。
+- 官方年齡組是 25–29 歲，不是精確 18–35 歲，因此薪資結果的 `proxy_usage` 會標記此限制；中位數與其他年齡組不納入計算。
+- 薪資 YoY 為 `(今年 wage - 前一年 wage) / 前一年 wage × 100`。前一年缺值時不跨年度計算，當年 `yoy` 保留 `null`。
+- 人口年度固定為 ROC 111–115（2022–2026），每年只讀 `{ROC_YEAR}07`，使用 `metric_id=youth_18_35_total`。城市人口是 29 個行政區的加總，不是 29 區平均。
+- 人口 YoY 為 `(今年青年人口 - 前一年青年人口) / 前一年青年人口 × 100`。缺少前一年、7 月資料或未滿 29 區時，數值與 YoY 保留 `null`，不補 0、不借用其他月份。
+
+### 公開輸出結構
+
+| JSON 區塊 | 內容 |
+|---|---|
+| `status` | `observed`、`partial` 或 `unavailable`；缺年度／缺值／行政區不完整會標記 `partial`。 |
+| `source_period` | 實際讀取的薪資年度與人口 7 月快照，例如 `wages=["108", ...]`、`population=["11107", ...]`。 |
+| `policyOutcomes.wageTrend` | 每年 `year`、`year_roc`、`wage`、`yoy`；缺值為 `null`。 |
+| `policyOutcomes.populationTrend` | 每年 `year`、`year_roc`、`population`、`yoy`；人口為 29 區加總。 |
+| `policyOutcomes.currentWageGrowth`、`currentPopGrowth` | 最後一筆有效 YoY；沒有有效 YoY 時為 `null`。 |
+| `coverage`、`proxy_usage`、`blocking_reasons` | 年度覆蓋數、薪資年齡組 proxy 與缺期／缺值原因。 |
+
+2026-09-12 實際輸出為 `status=observed`：薪資 6／6 年有效，25–29 歲平均薪資依序為
+51.8、52.4、53.4、55.3、57.3、59.9；人口 5／5 年完整且每年 29 區，7 月青年人口依序為
+897,892、891,833、873,702、853,969、832,214。`currentWageGrowth=4.54`、
+`currentPopGrowth=-2.55`。
+
+### Published snapshot
+
+執行：
+
+```bash
+PYTHONPATH=src .venv/bin/python src/run_analytics.py \
+  --metric policy_support \
+  --publish \
+  --snapshot-id dev-policy-support-YYYYMMDD
+```
+
+Published artifact 為：
+
+```text
+data/analytics/published/<snapshot_id>/analyses/policy_support.json
+data/analytics/published/<snapshot_id>/manifest.json
+data/analytics/published/current.json
+```
+
+`manifest.json` 的 `artifacts.analyses.policy_support` 指向同一 snapshot 內的
+`analyses/policy_support.json`。若要保留 ROC 108–109 這類超出預設 5 年 retention
+窗口的年度資料，刷新時需使用較長的 retention，例如
+`run_pipeline.py ... --retention-years 8`；這只影響本地輸出保留，不改變指標公式。
 
 ## 26. `homepage` analytics
 
