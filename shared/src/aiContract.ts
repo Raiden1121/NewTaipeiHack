@@ -187,22 +187,44 @@ export interface WebReference {
   note: string | null;
 }
 
-/** 六塊結構化輸出。 */
+/**
+ * 結構化輸出。三個 action 共用同一個型別，但**填法不同**：
+ *
+ * | action | `answer` | 四塊分析 |
+ * |---|---|---|
+ * | `explain` / `policy` | 一律 `null` | 有內容（這是它們的主要產出） |
+ * | `qa` | **一定有內容** | 通常是空陣列，只有政策類問題才有 |
+ *
+ * 前端接 Q&A（聊天框）時**顯示 `answer` 就好**；四塊如果非空可以額外展開。
+ * 接 Dashboard 卡片時看四塊，`answer` 會是 null。
+ */
 export interface StructuredOutput {
   dataSufficiency: DataSufficiency;
-  /** 問題辨識 */
+  /**
+   * 直接回答使用者的問題。**只有 `action: 'qa'` 會有值，其他 action 是 `null`。**
+   *
+   * 這是聊天框應該顯示的內容：一段完整的話，被問到數值時第一句就會給出數值與單位。
+   *
+   * 保證：`action: 'qa'` 時一定非空。即使資料不足，也會是「目前沒有這個資料，
+   * 無法回答」這類明確說明，而不是空字串。
+   */
+  answer: string | null;
+  /** 問題辨識。Q&A 在純查值問題時是空陣列。 */
   issues: string[];
-  /** 發展優勢 */
+  /** 發展優勢。Q&A 在純查值問題時是空陣列。 */
   strengths: string[];
-  /** 資源缺口 */
+  /** 資源缺口。Q&A 在純查值問題時是空陣列。 */
   resourceGaps: string[];
-  /** 政策方向 */
+  /** 政策方向。Q&A 在純查值問題時是空陣列。 */
   policyDirections: string[];
   /**
    * 判斷依據。**只會引用資料管線的 evidence，不會有網路來源。**
    *
-   * 保證：只要上面四塊有任何內容，`basis` 或 `webReferences` 至少有一筆
+   * 保證：只要上面四塊有任何內容，**或 `answer` 有內容且 `dataSufficiency` 不是
+   * `insufficient`**，`basis` 或 `webReferences` 至少有一筆
    * （「有結論就要有可追溯的依據」是 schema 強制的）。
+   *
+   * 也就是說 Q&A 的回答同樣受這條規則保護 —— 不會出現一句沒有任何依據的答案。
    *
    * `basis` 為空但 `webReferences` 非空 = **純網路回答**，代表資料管線完全沒有
    * 相關指標。這種情況 `limitations` 一定會有一條明確說明「本次沒有資料管線的

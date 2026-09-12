@@ -61,6 +61,9 @@ export function makeOutput(overrides: Partial<StructuredOutput> = {}): Structure
   return {
     evidenceReview: makeEvidenceReview(),
     dataSufficiency: 'sufficient',
+    // 六塊格式（explain / policyCopilot）沒有使用者問題，所以 answer 是 null。
+    // Q&A 的預設用 makeQaOutput()。
+    answer: null,
     issues: ['板橋區青年人口高於三重區，但職缺資料粒度不足以判斷機會是否相稱。'],
     strengths: [],
     resourceGaps: [],
@@ -103,3 +106,27 @@ export function makeRequestContext(
 }
 
 export { DISCLAIMER };
+
+/**
+ * 一份通過所有不變式的 **Q&A** 輸出。
+ *
+ * 跟 `makeOutput()` 的差別就是 Q&A 格式的差別：`answer` 有內容、四塊留空。
+ * 這是「純查值問題」的正常形狀 —— 使用者問一個數字，就回一句話加引用，
+ * 不需要政策分析。
+ */
+export function makeQaOutput(overrides: Partial<StructuredOutput> = {}): StructuredOutput {
+  return {
+    evidenceReview: makeEvidenceReview(),
+    dataSufficiency: 'sufficient',
+    answer: '板橋區 18–35 歲青年人口為 106,473 人（內政部戶政司戶籍人口統計）。',
+    issues: [],
+    strengths: [],
+    resourceGaps: [],
+    policyDirections: [],
+    basis: [{ evidenceId: 'population:11507:1:youth_18_35_total', note: '引用青年人口指標' }],
+    webReferences: [],
+    limitations: [],
+    disclaimer: DISCLAIMER,
+    ...overrides,
+  };
+}

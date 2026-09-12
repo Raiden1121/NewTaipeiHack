@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  QA_OUTPUT_JSON_SCHEMA,
   STRUCTURED_OUTPUT_JSON_SCHEMA,
   UNSUPPORTED_JSON_SCHEMA_KEYWORDS,
+  qaOutputSchemaJson,
   structuredOutputSchemaJson,
 } from '../src/types/structuredOutputJsonSchema.js';
-import { StructuredOutputSchema } from '../src/types/structuredOutput.js';
+import { QaOutputSchema, StructuredOutputSchema } from '../src/types/structuredOutput.js';
 
 /**
  * 這組測試的存在理由：Bedrock structured outputs 只吃 JSON Schema Draft 2020-12 的
@@ -73,12 +75,64 @@ describe('Bedrock structured outputs 的 JSON Schema 限制', () => {
  * 就會出現「Bedrock 說形狀合法，zod 卻拒絕」的無窮重試。所以要鎖住兩邊一致。
  */
 describe('JSON Schema 與 zod schema 必須同步', () => {
-  it('required 欄位清單跟 zod 的 key 完全一致', () => {
+  /**
+   * `answer` 刻意只存在 Q&A 的 schema 裡。
+   *
+   * 六塊格式（explain / policyCopilot）沒有使用者問題，所以不該有 answer；
+   * 而 `additionalProperties: false` 會讓模型連想輸出都不行。
+   * zod 那邊 `answer` 是 `.default(null)`，所以模型不給也能通過驗證。
+   */
+  const QA_ONLY_KEYS = ['answer'];
+
+  it('六塊 schema 的 required 等於 zod 的 key（扣掉只有 Q&A 才有的欄位）', () => {
     const jsonRequired = [...STRUCTURED_OUTPUT_JSON_SCHEMA.required].sort();
     // superRefine 包在外層，用 innerType() 取回底下的 object schema。
-    const zodKeys = Object.keys(StructuredOutputSchema.innerType().shape).sort();
+    const zodKeys = Object.keys(StructuredOutputSchema.innerType().shape)
+      .filter((key) => !QA_ONLY_KEYS.includes(key))
+      .sort();
 
     expect(jsonRequired).toEqual(zodKeys);
+  });
+
+  it('Q&A schema 的 required 等於 zod 的全部 key（含 answer）', () => {
+    const jsonRequired = [...QA_OUTPUT_JSON_SCHEMA.required].sort();
+    const zodKeys = Object.keys(QaOutputSchema.innerType().shape).sort();
+
+    expect(jsonRequired).toEqual(zodKeys);
+  });
+
+  it('六塊 schema 不可以出現 answer（那是 Q&A 專屬）', () => {
+    expect(Object.keys(STRUCTURED_OUTPUT_JSON_SCHEMA.properties)).not.toContain('answer');
+    expect(STRUCTURED_OUTPUT_JSON_SCHEMA.required).not.toContain('answer');
+  });
+
+  it('Q&A schema 沒有用到 Bedrock 不支援的關鍵字', () => {
+    const serializedQa = qaOutputSchemaJson();
+    for (const keyword of UNSUPPORTED_JSON_SCHEMA_KEYWORDS) {
+      expect(serializedQa).not.toContain(`"${keyword}"`);
+    }
+  });
+
+  it('Q&A schema 的 evidenceReview 也只要 missingForQuestion', () => {
+    expect(QA_OUTPUT_JSON_SCHEMA.properties.evidenceReview.required).toEqual(['missingForQuestion']);
+  });
+
+  it('Q&A schema 的形狀可以通過 QaOutputSchema 驗證', () => {
+    const sample = {
+      evidenceReview: { missingForQuestion: [] },
+      dataSufficiency: 'sufficient',
+      answer: '板橋區 18–35 歲青年人口為 107,970 人。',
+      basis: [{ evidenceId: 'population:11507:0:youth_18_35_total', note: null }],
+      issues: [],
+      strengths: [],
+      resourceGaps: [],
+      policyDirections: [],
+      webReferences: [],
+      limitations: [],
+      disclaimer: 'AI 建議屬於政策輔助資訊，不代表政府正式政策決定。',
+    };
+
+    expect(() => QaOutputSchema.parse(sample)).not.toThrow();
   });
 
   it('JSON Schema 描述的形狀可以通過 zod 驗證', () => {

@@ -170,6 +170,107 @@ export function structuredOutputSchemaJson(): string {
 }
 
 /**
+ * AI Data Q&A 專用的 JSON Schema。
+ *
+ * 跟六塊的差別只有兩件事：多一個 `answer`，以及四塊分析的說明改成
+ * 「只有政策類問題才填」。
+ *
+ * ## 為什麼四塊仍然留在 `required` 裡
+ *
+ * 直覺上「選填」應該是把它們從 `required` 拿掉。但 Bedrock structured outputs
+ * 對 schema 子集的限制很嚴（踩到不支援的寫法是直接回 400，不是靜默忽略），
+ * 而「部分屬性不在 required」在各家 strict 模式的支援度不一致 ——
+ * 拿 demo 前一天去試這件事風險太高。
+ *
+ * 所以改成：**欄位保留、由 description 指示模型在非政策類問題時填空陣列**。
+ * 代價只有 `"issues":[],"strengths":[],"resourceGaps":[],"policyDirections":[],`
+ * 這四個空陣列的 token（約 30 個），實質效果跟選填一樣，
+ * 而且完全不動 Bedrock 的相容性。
+ *
+ * 順序仍然有意義：`evidenceReview` → `dataSufficiency` → `answer` → `basis` →
+ * 四塊 → `limitations`。先盤點、再判斷充足度、才回答，最後補依據與限制。
+ */
+export const QA_OUTPUT_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    evidenceReview: STRUCTURED_OUTPUT_JSON_SCHEMA.properties.evidenceReview,
+    dataSufficiency: {
+      ...STRUCTURED_OUTPUT_JSON_SCHEMA.properties.dataSufficiency,
+      description:
+        '第 2 步：依規則判斷充足度，不要憑感覺。' +
+        'insufficient=evidence 完全無法回答被問的問題，此時 answer 要直接說明無法回答、四塊留空；' +
+        'partial=部分面向缺漏，只要 missingForQuestion 非空就至少是 partial；' +
+        'sufficient=問題涵蓋的每個面向都有對應 evidence 且沒有需保留的解讀限制。',
+    },
+    answer: {
+      type: 'string',
+      description:
+        '第 3 步：**直接回答使用者的問題。這是聊天框會顯示的內容。**' +
+        '被問到具體數值時，第一句就要給出那個數值與單位，不要先講背景或分析。' +
+        '**使用者的問題內含事實斷言時（例如「排第六高」），先用 evidence 查證；' +
+        '斷言錯誤就在第一句溫和更正，再往下解釋。**' +
+        '問「為什麼」時的結構：先確認或更正數字 → 同一份資料裡哪些指標方向一致 → ' +
+        '網路資料補的背景（寫成「根據網路資料…（未經驗證）」）→ 這個解釋的不確定性。' +
+        '**只能說「可能與…有關」「方向一致」，不可以寫成因果（「因為 A 所以 B」）。**' +
+        '用完整的句子寫成可以直接讀給人聽的一段話（可以多句），不要用條列。' +
+        '數字一律照抄 evidence，並在需要時註明它是 context_only / proxy_only。' +
+        '如果資料不足以回答，就直接說明無法回答以及缺什麼，不要用相近但不同的指標硬答。',
+    },
+    basis: STRUCTURED_OUTPUT_JSON_SCHEMA.properties.basis,
+    issues: {
+      type: 'array',
+      description:
+        '問題辨識。**只有在使用者問的是政策類問題（例如「該怎麼改善」「有什麼建議」）時才填。**' +
+        '單純查詢數值的問題請填空陣列 —— 不要為了填滿欄位而把 answer 的內容換句話再講一次。',
+      items: { type: 'string' },
+    },
+    strengths: {
+      type: 'array',
+      description:
+        '發展優勢。同上，只有政策類問題才填，否則空陣列。' +
+        '**不要寫「資料管線已提供某些指標」這種關於資料本身的敘述** —— 那不是發展優勢。',
+      items: { type: 'string' },
+    },
+    resourceGaps: {
+      type: 'array',
+      description: '資源缺口。同上，只有政策類問題才填，否則空陣列。',
+      items: { type: 'string' },
+    },
+    policyDirections: {
+      type: 'array',
+      description: '政策方向。同上，只有政策類問題才填，否則空陣列。',
+      items: { type: 'string' },
+    },
+    webReferences: STRUCTURED_OUTPUT_JSON_SCHEMA.properties.webReferences,
+    limitations: STRUCTURED_OUTPUT_JSON_SCHEMA.properties.limitations,
+    disclaimer: STRUCTURED_OUTPUT_JSON_SCHEMA.properties.disclaimer,
+  },
+  required: [
+    'evidenceReview',
+    'dataSufficiency',
+    'answer',
+    'basis',
+    'issues',
+    'strengths',
+    'resourceGaps',
+    'policyDirections',
+    'webReferences',
+    'limitations',
+    'disclaimer',
+  ],
+  additionalProperties: false,
+} as const;
+
+export const QA_OUTPUT_SCHEMA_NAME = 'youth_policy_qa_answer';
+export const QA_OUTPUT_SCHEMA_DESCRIPTION =
+  '新北青年 Dashboard 的資料問答輸出：直接回答使用者的問題，附上可追溯的判斷依據與資料限制；' +
+  '四塊政策分析只在使用者問政策類問題時才填。';
+
+export function qaOutputSchemaJson(): string {
+  return JSON.stringify(QA_OUTPUT_JSON_SCHEMA);
+}
+
+/**
  * Bedrock structured outputs 不支援的 JSON Schema 關鍵字。
  * 匯出給測試用：schema 一旦不小心長出這些關鍵字，就會在 CI 被擋下來，
  * 而不是等到 demo 現場才吃 400。

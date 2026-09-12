@@ -6,18 +6,14 @@ import {
   type Message,
 } from '@aws-sdk/client-bedrock-runtime';
 import { z } from 'zod';
-import {
-  DISCLAIMER_KEYWORD,
-  StructuredOutputSchema,
-  type StructuredOutput,
-} from '../types/structuredOutput.js';
+import { DISCLAIMER_KEYWORD, type StructuredOutput } from '../types/structuredOutput.js';
 import { KNOWN_LIMITATIONS_HEADER } from '../prompts/guardrails.js';
+import { QA_OUTPUT_SCHEMA_NAME } from '../types/structuredOutputJsonSchema.js';
 import {
-  STRUCTURED_OUTPUT_SCHEMA_DESCRIPTION,
-  STRUCTURED_OUTPUT_SCHEMA_NAME,
-  structuredOutputSchemaJson,
-} from '../types/structuredOutputJsonSchema.js';
-import type { PromptPayload } from '../prompts/promptPayload.js';
+  SIX_BLOCK_OUTPUT_SPEC,
+  type OutputSchemaSpec,
+  type PromptPayload,
+} from '../prompts/promptPayload.js';
 import { resolveBedrockEnv, type BedrockAuthMode } from './env.js';
 
 export interface BedrockClient {
@@ -51,7 +47,15 @@ export class MockBedrockClient implements BedrockClient {
       limitations.push('[mock] 本次沒有資料管線的官方統計，以下內容僅來自網路搜尋，未經驗證。');
     }
 
-    return StructuredOutputSchema.parse({
+    // mock 也要跟著這次要求的格式走，否則 Q&A 的路徑在 mock 模式下等於沒被測到
+    // （會拿到一份沒有 answer 的六塊輸出，而真模型會給 answer）。
+    const outputSchema = payload.outputSchema ?? SIX_BLOCK_OUTPUT_SPEC;
+    const isQa = outputSchema.name === QA_OUTPUT_SCHEMA_NAME;
+
+    return outputSchema.parse({
+      answer: isQa
+        ? '[mock] 尚未接上 Bedrock，這是 MockBedrockClient 的佔位回答，不是對資料的實際分析。'
+        : null,
       // 刻意只給 missingForQuestion，跟真模型現在的行為一致：
       // availableMetrics / youthSpecificMetrics / contextOnlyMetrics 由程式盤點
       // （見 handlers/evidenceInventory.ts），模型與 mock 都不輸出。
@@ -65,7 +69,11 @@ export class MockBedrockClient implements BedrockClient {
       // partial 而不是 sufficient：mock 沒有真的分析資料，宣稱資料充足會讓
       // 「資料不足會誠實標示」這件事在 mock 模式下測起來是假綠燈。
       dataSufficiency: 'partial',
-      issues: ['[mock] 尚未接上 Bedrock，這是 MockBedrockClient 回傳的假資料，僅供介面測試用。'],
+      // Q&A 走 answer，四塊留空 —— 這正是真模型在「純查值問題」時該有的行為，
+      // mock 也照著做，這樣 mock 模式下看到的形狀跟真模型一致。
+      issues: isQa
+        ? []
+        : ['[mock] 尚未接上 Bedrock，這是 MockBedrockClient 回傳的假資料，僅供介面測試用。'],
       strengths: [],
       resourceGaps: [],
       policyDirections: [],
@@ -171,11 +179,12 @@ export class BedrockRuntimeAdapter implements BedrockClient {
 
   async invokeStructured(payload: PromptPayload): Promise<StructuredOutput> {
     const messages: Message[] = [{ role: 'user', content: [{ text: payload.user }] }];
+    const outputSchema = payload.outputSchema ?? SIX_BLOCK_OUTPUT_SPEC;
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
       const response = await this.client.send(
-        new ConverseCommand(this.buildRequest(payload.system, messages)),
+        new ConverseCommand(this.buildRequest(payload.system, messages, outputSchema)),
       );
       const text = extractResponseText(response.output?.message?.content);
       if (text === null) {
@@ -197,7 +206,9 @@ export class BedrockRuntimeAdapter implements BedrockClient {
       }
 
       try {
-        return StructuredOutputSchema.parse(parseJsonPayload(text));
+        // 用這次 prompt 指定的格式驗證。驗證失敗仍然走原本的修正流程
+        // （把錯誤回饋給模型再試一次），所以 Q&A 漏填 answer 時模型有機會補上。
+        return outputSchema.parse(parseJsonPayload(text));
       } catch (error) {
         lastError = error;
         if (attempt === this.maxAttempts) {
@@ -210,12 +221,16 @@ export class BedrockRuntimeAdapter implements BedrockClient {
     }
 
     throw new Error(
-      `Bedrock 回應無法通過 StructuredOutputSchema 驗證（${this.description}，已嘗試 ${this.maxAttempts} 次）：` +
+      `Bedrock 回應無法通過 ${outputSchema.name} 的語意驗證（${this.description}，已嘗試 ${this.maxAttempts} 次）：` +
         formatValidationError(lastError),
     );
   }
 
-  private buildRequest(system: string, messages: Message[]): ConverseCommandInput {
+  private buildRequest(
+    system: string,
+    messages: Message[],
+    outputSchema: OutputSchemaSpec,
+  ): ConverseCommandInput {
     const request: ConverseCommandInput = {
       modelId: this.modelId,
       system: [{ text: system }],
@@ -228,10 +243,10 @@ export class BedrockRuntimeAdapter implements BedrockClient {
           type: 'json_schema',
           structure: {
             jsonSchema: {
-              name: STRUCTURED_OUTPUT_SCHEMA_NAME,
-              description: STRUCTURED_OUTPUT_SCHEMA_DESCRIPTION,
+              name: outputSchema.name,
+              description: outputSchema.description,
               // Bedrock 要求這裡是 JSON 字串，不是物件。
-              schema: structuredOutputSchemaJson(),
+              schema: outputSchema.json,
             },
           },
         },

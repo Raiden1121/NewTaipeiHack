@@ -30,10 +30,29 @@ describe('few-shot example', () => {
     expect(FEW_SHOT_EXAMPLE_OUTPUT.limitations.length).toBeGreaterThan(0);
   });
 
-  it('範例把既知限制原封不動抄進 limitations，示範這個行為', () => {
+  /**
+   * 這條原本是反過來的：驗「範例把既知限制原封不動抄進 limitations」。
+   *
+   * 後來實測發現那個行為佔掉整體輸出的 25%（34 條 limitations 裡約 31 條是回抄），
+   * 而 `withKnownLimitations()` 本來就會把缺的補回去，所以抄寫純屬浪費。
+   * prompt 改成「不要抄寫」之後，**範例也必須跟著改** ——
+   * 範例跟指示打架的時候，模型通常照範例做。
+   */
+  it('範例刻意不抄既知限制，因為系統會自動附加', () => {
     for (const note of FEW_SHOT_EXAMPLE_CONTEXT.knownLimitations) {
-      expect(FEW_SHOT_EXAMPLE_OUTPUT.limitations).toContain(note);
+      expect(FEW_SHOT_EXAMPLE_OUTPUT.limitations).not.toContain(note);
     }
+    // 但仍然要有模型自己看出來的限制，否則就變成示範「不寫限制」了。
+    expect(FEW_SHOT_EXAMPLE_OUTPUT.limitations.length).toBeGreaterThan(0);
+  });
+
+  it('範例輸出的 JSON 不含程式盤點的三個欄位（模型不該輸出它們）', () => {
+    const rendered = formatFewShotExample();
+
+    expect(rendered).not.toContain('availableMetrics');
+    expect(rendered).not.toContain('youthSpecificMetrics');
+    expect(rendered).not.toContain('contextOnlyMetrics');
+    expect(rendered).toContain('missingForQuestion');
   });
 
   it('示範的是 partial 而不是 sufficient —— 部分能答才是實際最常見的情況', () => {

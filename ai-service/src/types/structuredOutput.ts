@@ -90,14 +90,31 @@ export type EvidenceReview = z.infer<typeof EvidenceReviewSchema>;
  * - disclaimer 用 refine 檢查關鍵字而不是要求逐字一致，因為模型措辭會有差異；
  *   但一定要包含「不代表政府正式政策決定」。
  */
-export const StructuredOutputSchema = z
+const outputObject = z
   .object({
     evidenceReview: EvidenceReviewSchema,
     dataSufficiency: DataSufficiencySchema,
-    issues: z.array(z.string()).describe('問題辨識'),
-    strengths: z.array(z.string()).describe('發展優勢'),
-    resourceGaps: z.array(z.string()).describe('資源缺口'),
-    policyDirections: z.array(z.string()).describe('政策方向'),
+    /**
+     * 直接回答使用者的問題。**只有 AI Data Q&A 會用到。**
+     *
+     * 為什麼要有這個欄位：Q&A 是聊天框（`PolicyDecisionAssistant`），使用者打字問
+     * 「板橋區的租金中位數是多少」，期待的是一句話回答。但六塊格式裡沒有任何
+     * 「回答」的位置 —— 實測那個數字是夾在 `issues[0]` 的句子中間出現的，
+     * 而 `issues` 的語意是「問題辨識」，不是「回答」。
+     *
+     * 六塊是 README 為 **AI Policy Copilot** 定的格式（dashboard 卡片用），
+     * Q&A 的輸出格式規格裡沒有規定，所以這裡另外定。
+     * explain / policyCopilot 這個欄位維持 null。
+     */
+    answer: z
+      .string()
+      .nullable()
+      .default(null)
+      .describe('直接回答使用者的問題；只有 Q&A 使用，其他功能為 null'),
+    issues: z.array(z.string()).default([]).describe('問題辨識'),
+    strengths: z.array(z.string()).default([]).describe('發展優勢'),
+    resourceGaps: z.array(z.string()).default([]).describe('資源缺口'),
+    policyDirections: z.array(z.string()).default([]).describe('政策方向'),
     basis: z
       .array(BasisCitationSchema)
       .describe('判斷依據，只能引用資料管線的 evidenceId，不可放網路來源'),
@@ -122,13 +139,49 @@ export const StructuredOutputSchema = z
     disclaimer: z.string().refine((value) => value.includes(DISCLAIMER_KEYWORD), {
       message: `disclaimer 必須包含「${DISCLAIMER_KEYWORD}」字樣`,
     }),
-  })
-  .superRefine((output, ctx) => {
-    const hasConclusions =
-      output.issues.length > 0 ||
-      output.strengths.length > 0 ||
-      output.resourceGaps.length > 0 ||
-      output.policyDirections.length > 0;
+  });
+
+/**
+ * 這一份 output 的 `answer` 是否真的講了東西。
+ *
+ * 刻意用 `typeof === 'string'` 而不是 `!== null`：zod 的 `.default(null)` 只在
+ * **parse 的時候**才會把缺少的 key 補成 null，所以任何直接建構物件的路徑
+ * （測試 helper、其他程式手動組的 output）都可能拿到 `undefined`。
+ * 寫成 `answer !== null && answer.trim()` 在那種情況下會炸成 TypeError。
+ */
+function hasAnswer(output: z.infer<typeof outputObject>): boolean {
+  return typeof output.answer === 'string' && output.answer.trim().length > 0;
+}
+
+/**
+ * 六塊與 Q&A 兩種格式**共用**的不變式。
+ *
+ * 抽出來的理由：格式可以不同，但「不可捏造、有結論要有依據、資料不足要誠實」
+ * 這些是這個服務存在的意義，不能因為換一個輸出格式就掉一半。
+ * 兩個 schema 各自 `superRefine` 同一個函式，所以不可能只改到其中一邊。
+ */
+function applySharedInvariants(
+  output: z.infer<typeof outputObject>,
+  ctx: z.RefinementCtx,
+): void {
+  const hasBlockConclusions =
+    output.issues.length > 0 ||
+    output.strengths.length > 0 ||
+    output.resourceGaps.length > 0 ||
+    output.policyDirections.length > 0;
+
+  /**
+   * 需要引用的「主張」包含兩種：四塊分析的任一條，以及 Q&A 的 `answer`。
+   *
+   * `answer` 一定要算進來，否則會開一個大洞：Q&A 只填 `answer`、四塊留空時
+   * `hasBlockConclusions` 是 false，於是「有結論要有依據」不會觸發 ——
+   * 模型就可以回一句沒有任何 evidence 支撐的答案。那正是這個服務最不該發生的事。
+   *
+   * 但 `insufficient` 的時候例外：那種情況下 `answer` 是「目前沒有這個資料，
+   * 無法回答」，它沒有主張任何事實，不需要引用。
+   */
+  const answerMakesClaim = hasAnswer(output) && output.dataSufficiency !== 'insufficient';
+  const hasConclusions = hasBlockConclusions || answerMakesClaim;
 
     // 有結論就必須有依據。這是整個 schema 最核心的一條規則。
     //
@@ -165,7 +218,12 @@ export const StructuredOutputSchema = z
     }
 
     // 標示資料不足，就不該同時給出實質結論——那是自相矛盾。
-    if (output.dataSufficiency === 'insufficient' && hasConclusions) {
+    //
+    // 這裡刻意只看四塊（`hasBlockConclusions`）而不含 `answer`：
+    // Q&A 在資料不足時，`answer` 應該是「目前沒有這個資料，無法回答」——
+    // 那是必要的說明，不是實質結論。把它算進來會逼模型在該說「不知道」的時候
+    // 回一個空字串，那對使用者更糟。
+    if (output.dataSufficiency === 'insufficient' && hasBlockConclusions) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['dataSufficiency'],
@@ -236,10 +294,17 @@ export const StructuredOutputSchema = z
 
     // 用了網路資料，就不可能是 sufficient。
     //
-    // 理由：如果資料管線的 evidence 已經足夠回答問題，就不需要上網。反過來說，
-    // 一旦引用了網路來源，代表管線資料有缺口 —— 那個缺口必須被標示出來，
-    // 不可以因為「上網補到了」就宣稱資料充足。這條規則讓網路搜尋不會變成
-    // 掩蓋資料缺口的手段。
+    // ⚠️ 網路搜尋現在是**預設開啟**的（見 `buildAiContext`），所以這條規則的理由
+    // 要重新講一次 —— 它不再是「有搜尋代表管線有缺口」，因為搜尋根本不是因為缺口
+    // 才觸發的。
+    //
+    // 現在的理由是：`dataSufficiency` 描述的是**資料管線的資料夠不夠回答問題**，
+    // 而網路內容永遠不是資料管線的資料。模型**選擇引用**網路來源，就等於它承認
+    // 「光靠管線的 evidence 講不完這題」—— 那本身就不是 sufficient。
+    //
+    // 這條規則因此仍然有意義，而且在常開之後更重要：它擋掉「上網補一下就宣稱
+    // 資料充足」這種把缺口藏起來的行為。搜尋常開但沒有引用（webReferences 為空）
+    // 時，sufficient 仍然是可能的。
     if (output.webReferences.length > 0 && output.dataSufficiency === 'sufficient') {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -261,8 +326,39 @@ export const StructuredOutputSchema = z
           '引用了網路來源時，limitations 必須有一條說明「部分內容來自網路搜尋，非資料管線的官方統計」。',
       });
     }
-  });
+}
+
+/**
+ * 六塊格式：Dashboard Data Explanation 與 AI Policy Copilot 用。
+ *
+ * 對應 README 對 AI Policy Copilot 的定義（問題、優勢、缺口、政策方向）。
+ * 這兩個功能沒有使用者問題，所以 `answer` 維持 null。
+ */
+export const StructuredOutputSchema = outputObject.superRefine(applySharedInvariants);
 export type StructuredOutput = z.infer<typeof StructuredOutputSchema>;
+
+/**
+ * Q&A 格式：`answer` 必填，四塊分析選填。
+ *
+ * 跟六塊共用同一個物件與同一套不變式，只多一條「必須真的回答問題」。
+ *
+ * 為什麼四塊變選填：實測「板橋區的租金中位數是多少」這種查值問題，
+ * 六塊格式逼模型把同一個事實用四種說法各講一次，而 `strengths` 因為沒有東西可寫，
+ * 出現了「資料管線已提供…三項彙總指標，可直接回答使用者問題」這種
+ * 根本不是發展優勢的填充內容。選填之後模型可以在政策類問題才補這幾塊。
+ */
+export const QaOutputSchema = outputObject.superRefine((output, ctx) => {
+  applySharedInvariants(output, ctx);
+
+  if (!hasAnswer(output)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['answer'],
+      message:
+        'Q&A 必須在 answer 欄位直接回答使用者的問題（即使是「目前沒有這個資料，無法回答」也要寫在這裡），不可留空或只填四塊分析。',
+    });
+  }
+});
 
 /**
  * 檢查 webReferences 是否只引用了真的存在的 findingId。

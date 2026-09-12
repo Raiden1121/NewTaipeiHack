@@ -131,7 +131,9 @@ describe('BedrockRuntimeAdapter 的回應處理', () => {
     const client = fakeClient(JSON.stringify({ ...validOutput, disclaimer: '僅供參考' }));
     const adapter = new BedrockRuntimeAdapter({ modelId: 'm', region: 'r', client, maxAttempts: 2 });
 
-    await expect(adapter.invokeStructured(prompt)).rejects.toThrow(/StructuredOutputSchema/);
+    // 錯誤訊息帶的是這次實際使用的 schema 名稱，因為現在有兩種輸出格式
+    // （六塊與 Q&A），只寫「StructuredOutputSchema」看不出是哪一種失敗。
+    await expect(adapter.invokeStructured(prompt)).rejects.toThrow(/youth_policy_structured_output/);
     expect(client.send).toHaveBeenCalledTimes(2);
   });
 
