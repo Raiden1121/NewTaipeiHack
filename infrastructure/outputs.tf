@@ -10,6 +10,10 @@ output "frontend_url" {
   value = "https://${module.frontend.cloudfront_domain_name}"
 }
 
+output "slides_url" {
+  value = "https://${module.frontend.cloudfront_domain_name}/slides/"
+}
+
 output "api_endpoint" {
   value = module.api.api_endpoint
 }
