@@ -32,6 +32,99 @@ SOURCE_CATALOG = [
 
 
 class TestDynamoProjection(unittest.TestCase):
+    def test_projects_participation_budget_allocation_to_api_department_shape(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            snapshot_dir = Path(tempdir) / "fixture"
+            (snapshot_dir / "analyses").mkdir(parents=True)
+            (snapshot_dir / "analyses" / "participation.json").write_text(
+                json.dumps(
+                    {
+                        "budget_allocation": {
+                            "budget_year_roc": 116,
+                            "document_status": "proposed_budget",
+                            "total_amount": 159521000,
+                            "unit": "TWD",
+                            "items": [
+                                {
+                                    "code": "01",
+                                    "name": "綜合規劃業務",
+                                    "amount": 38960000,
+                                    "share_percent": 24.42,
+                                },
+                                {
+                                    "code": "04",
+                                    "name": "青年業務設施",
+                                    "amount": 11852000,
+                                    "share_percent": 7.43,
+                                },
+                            ],
+                        }
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            manifest = {
+                "snapshot_id": "fixture",
+                "artifacts": {
+                    "analyses": {"participation": "analyses/participation.json"}
+                },
+                "sources": [],
+                "datasets": [],
+            }
+
+            items = project_snapshot_items(snapshot_dir, manifest)
+
+            self.assertEqual(
+                items,
+                [
+                    {
+                        "PK": "SNAPSHOT#fixture#ANALYSIS#politics-resource-io",
+                        "SK": "DATA",
+                        "snapshot_id": "fixture",
+                        "analysis_id": "politics-resource-io",
+                        "budget_by_department": [
+                            {
+                                "label": "綜合規劃業務",
+                                "amount_thousand": 38960,
+                                "share_percent": 24.42,
+                            },
+                            {
+                                "label": "青年業務設施",
+                                "amount_thousand": 11852,
+                                "share_percent": 7.43,
+                            },
+                        ],
+                        "budget_year_roc": 116,
+                        "document_status": "proposed_budget",
+                        "sourceRefs": [],
+                    }
+                ],
+            )
+
+    def test_projects_missing_budget_allocation_as_empty_department_list(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            snapshot_dir = Path(tempdir) / "fixture"
+            (snapshot_dir / "analyses").mkdir(parents=True)
+            (snapshot_dir / "analyses" / "participation.json").write_text(
+                json.dumps({"budget": {"status": "observed"}}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            manifest = {
+                "snapshot_id": "fixture",
+                "artifacts": {
+                    "analyses": {"participation": "analyses/participation.json"}
+                },
+                "sources": [],
+                "datasets": [],
+            }
+
+            items = project_snapshot_items(snapshot_dir, manifest)
+
+            self.assertEqual(len(items), 1)
+            self.assertEqual(items[0]["analysis_id"], "politics-resource-io")
+            self.assertEqual(items[0]["budget_by_department"], [])
+
     def test_projects_direct_metric_source_fields_without_changing_value(self):
         metric = {
             "value": 100,

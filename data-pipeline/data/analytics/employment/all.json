@@ -1,7 +1,7 @@
 {
   "metric_id": "employment",
   "calculation_version": "1",
-  "generated_at": "2026-09-12T14:50:30.181717+00:00",
+  "generated_at": "2026-09-12T15:22:05.917210+00:00",
   "time_policy": {
     "current_yoi": "latest_available_snapshot",
     "annual_years_roc": [

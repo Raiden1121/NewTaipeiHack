@@ -1,7 +1,7 @@
 {
   "metric_id": "fertility",
   "calculation_version": "1",
-  "generated_at": "2026-09-12T14:50:31.861500+00:00",
+  "generated_at": "2026-09-12T15:22:07.595408+00:00",
   "time_policy": {
     "annual_years_roc": [
       110,

@@ -1,0 +1,510 @@
+{
+  "metric_id": "youth_topic_weight",
+  "calculation_version": "1",
+  "source_datasets": [
+    "join_proposals",
+    "youth_council_minutes"
+  ],
+  "config_version": "1",
+  "normalization": "yearly_max",
+  "generated_at": "2026-09-12T04:51:31.578779+00:00",
+  "years": [
+    {
+      "year_roc": 109,
+      "topics": [
+        {
+          "label": "居住正義",
+          "weight": 4,
+          "signal": "join",
+          "join_mentions": 13,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 36.717954,
+          "raw_score": 0.676461
+        },
+        {
+          "label": "社會住宅",
+          "weight": 3,
+          "signal": "join",
+          "join_mentions": 9,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 31.473025,
+          "raw_score": 0.579833
+        },
+        {
+          "label": "就業支持",
+          "weight": 5,
+          "signal": "join",
+          "join_mentions": 9,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 50.110063,
+          "raw_score": 0.923186
+        },
+        {
+          "label": "青年創業",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0,
+          "raw_score": 0
+        },
+        {
+          "label": "公共參與",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 1,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 6.09375,
+          "raw_score": 0.112266
+        },
+        {
+          "label": "交通通勤",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 1,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 4.526361,
+          "raw_score": 0.08339
+        }
+      ]
+    },
+    {
+      "year_roc": 110,
+      "topics": [
+        {
+          "label": "居住正義",
+          "weight": 2,
+          "signal": "join",
+          "join_mentions": 11,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 29.978753,
+          "raw_score": 0.637578
+        },
+        {
+          "label": "社會住宅",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 12,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 35.372614,
+          "raw_score": 3.752293
+        },
+        {
+          "label": "就業支持",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 3,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 17.745971,
+          "raw_score": 0.377415
+        },
+        {
+          "label": "青年創業",
+          "weight": 4,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0,
+          "raw_score": 3
+        },
+        {
+          "label": "公共參與",
+          "weight": 4,
+          "signal": "minutes",
+          "join_mentions": 1,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 3.70805,
+          "raw_score": 3.078862
+        },
+        {
+          "label": "交通通勤",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 1,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 9.519191,
+          "raw_score": 0.202451
+        }
+      ]
+    },
+    {
+      "year_roc": 111,
+      "topics": [
+        {
+          "label": "居住正義",
+          "weight": 5,
+          "signal": "join",
+          "join_mentions": 8,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 33.769719,
+          "raw_score": 0.93369
+        },
+        {
+          "label": "社會住宅",
+          "weight": 5,
+          "signal": "join",
+          "join_mentions": 14,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 36.168028,
+          "raw_score": 1
+        },
+        {
+          "label": "就業支持",
+          "weight": 2,
+          "signal": "join",
+          "join_mentions": 5,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 8.044522,
+          "raw_score": 0.222421
+        },
+        {
+          "label": "青年創業",
+          "weight": 3,
+          "signal": "join",
+          "join_mentions": 2,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 14.13683,
+          "raw_score": 0.390865
+        },
+        {
+          "label": "公共參與",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0,
+          "raw_score": 0
+        },
+        {
+          "label": "交通通勤",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0,
+          "raw_score": 0
+        }
+      ]
+    },
+    {
+      "year_roc": 112,
+      "topics": [
+        {
+          "label": "居住正義",
+          "weight": 2,
+          "signal": "join",
+          "join_mentions": 13,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 41.893251,
+          "raw_score": 0.503815
+        },
+        {
+          "label": "社會住宅",
+          "weight": 3,
+          "signal": "minutes",
+          "join_mentions": 29,
+          "minutes_mentions": 1,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 69.876454,
+          "raw_score": 1.097489
+        },
+        {
+          "label": "就業支持",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 9,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 29.399567,
+          "raw_score": 0.353564
+        },
+        {
+          "label": "青年創業",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 0,
+          "minutes_mentions": 7,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 0,
+          "raw_score": 3
+        },
+        {
+          "label": "公共參與",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0,
+          "raw_score": 0
+        },
+        {
+          "label": "交通通勤",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 6,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 15.130648,
+          "raw_score": 0.181964
+        }
+      ]
+    },
+    {
+      "year_roc": 113,
+      "topics": [
+        {
+          "label": "居住正義",
+          "weight": 2,
+          "signal": "join",
+          "join_mentions": 9,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 29.972004,
+          "raw_score": 0.309861
+        },
+        {
+          "label": "社會住宅",
+          "weight": 2,
+          "signal": "join",
+          "join_mentions": 12,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 32.761777,
+          "raw_score": 0.338702
+        },
+        {
+          "label": "就業支持",
+          "weight": 2,
+          "signal": "join",
+          "join_mentions": 9,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 23.816172,
+          "raw_score": 0.24622
+        },
+        {
+          "label": "青年創業",
+          "weight": 1,
+          "signal": null,
+          "join_mentions": 0,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 0,
+          "raw_score": 0
+        },
+        {
+          "label": "公共參與",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 1,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 1,
+          "raw_score": 0.010338
+        },
+        {
+          "label": "交通通勤",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 4,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 4,
+          "raw_score": 0.041353
+        }
+      ]
+    },
+    {
+      "year_roc": 114,
+      "topics": [
+        {
+          "label": "居住正義",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 15,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 46.397758,
+          "raw_score": 0.161645
+        },
+        {
+          "label": "社會住宅",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 30,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 64.053936,
+          "raw_score": 0.223157
+        },
+        {
+          "label": "就業支持",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 12,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 39.993752,
+          "raw_score": 0.139334
+        },
+        {
+          "label": "青年創業",
+          "weight": 5,
+          "signal": "minutes",
+          "join_mentions": 3,
+          "minutes_mentions": 4,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 5.564949,
+          "raw_score": 3.019388
+        },
+        {
+          "label": "公共參與",
+          "weight": 3,
+          "signal": "minutes",
+          "join_mentions": 11,
+          "minutes_mentions": 1,
+          "resolved": true,
+          "escalated": false,
+          "join_support_score": 24.529555,
+          "raw_score": 1.735458
+        },
+        {
+          "label": "交通通勤",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 21,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 59.492268,
+          "raw_score": 0.207265
+        }
+      ]
+    },
+    {
+      "year_roc": 115,
+      "topics": [
+        {
+          "label": "居住正義",
+          "weight": 2,
+          "signal": "join",
+          "join_mentions": 18,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 65.890528,
+          "raw_score": 0.297608
+        },
+        {
+          "label": "社會住宅",
+          "weight": 3,
+          "signal": "join",
+          "join_mentions": 37,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 99.698929,
+          "raw_score": 0.45031
+        },
+        {
+          "label": "就業支持",
+          "weight": 2,
+          "signal": "join",
+          "join_mentions": 19,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 70.626896,
+          "raw_score": 0.319
+        },
+        {
+          "label": "青年創業",
+          "weight": 1,
+          "signal": "join",
+          "join_mentions": 7,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 14.957177,
+          "raw_score": 0.067557
+        },
+        {
+          "label": "公共參與",
+          "weight": 2,
+          "signal": "join",
+          "join_mentions": 13,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 47.686294,
+          "raw_score": 0.215385
+        },
+        {
+          "label": "交通通勤",
+          "weight": 2,
+          "signal": "join",
+          "join_mentions": 23,
+          "minutes_mentions": 0,
+          "resolved": false,
+          "escalated": false,
+          "join_support_score": 43.298742,
+          "raw_score": 0.195567
+        }
+      ]
+    }
+  ]
+}
