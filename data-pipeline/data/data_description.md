@@ -108,76 +108,30 @@
 
 ### 青年文字分析 JSON
 
-目前有兩份 analytics JSON，兩者都由 `run_analytics.py` 讀取 `join_proposals` 與 `youth_council_minutes` 的 curated JSON 產生：
+目前有一份青年文字雲 analytics JSON，由 `run_analytics.py` 讀取 `join_proposals` 與 `youth_council_minutes` 的 curated JSON 產生：
 
 1. `data/analytics/youth_keyword_frequency/all.json`
 
-   外層 Keys：`metric_id`、`calculation_version`、`source_datasets`、`config_version`、`normalization`、`generated_at`、`years`。`years` 的每個元素包含 `year_roc` 與 `keywords`；每個 keyword 包含：
+   外層 Keys：`metric_id`、`analysis_id`、`calculation_version`、`source_datasets`、`config_version`、`period_scope`、`source_periods`、`normalization`、`generated_at`、`keywords`。這是所有可用年度合併後的單一全期間結果；每個 keyword 包含：
 
    `term`、`weight`、`signal`、`term_frequency`、`document_count`、`join_mentions`、`minutes_mentions`、`join_support_score`、`frequency_score`、`raw_score`、`ranking_score`、`policy_relevance`、`topic_mentions`、`resolved`、`escalated`。
 
-2. `data/analytics/youth_topic_weight/all.json`
-
-   外層結構相同，但 `years` 的每個元素改為 `year_roc` 與 `topics`；每個 topic 包含 `label`、`weight`、`signal`、`join_mentions`、`minutes_mentions`、`join_support_score`、`raw_score`、`resolved`、`escalated`。這份檔案保留固定 22 個標準議題，供既有前端格式相容使用。
-
-兩份 analytics 都是「年度結果」，不是逐筆提案或逐份會議紀錄。若要追溯原文，應回到 `data/curated/join_proposals/all.json`、`data/curated/youth_council_minutes/all.json`，再視需要查閱 `data/raw/` 的來源快照或 PDF artifact。
+若要追溯原文，應回到 `data/curated/join_proposals/all.json`、`data/curated/youth_council_minutes/all.json`，再視需要查閱 `data/raw/` 的來源快照或 PDF artifact。固定 22 個 `youth_topic_weight` 不再是 active analytics、published manifest 或 API 資料。
 
 ### 目前文字雲輸出摘要
 
-以下是目前 `data/analytics/` 內 JSON 的實際快照摘要；完整內容仍以 JSON 為準，pipeline 重新執行後，`generated_at`、詞彙、次數與分數都可能更新。
+`youth_keyword_frequency` 使用 `calculation_version=7`、`config_version=7`，`period_scope=all_available`、`candidate_mode=policy_relevant`、`normalization=global_max` 與 `weight_normalization=selected_min_max`。輸出筆數由實際政策相關候選詞決定，最多 `top_n=23`，不補固定議題或零分列。`generated_at`、詞彙、次數與分數會在 pipeline 重新執行後更新。
 
-| 輸出 | calculation version | config version | generated_at | 年度／筆數 |
-|---|---:|---:|---|---|
-| `youth_keyword_frequency` | 5 | 5 | `2026-09-10T17:55:09Z` | ROC 110～113：各 100 個；ROC 114：19 個 |
-| `youth_topic_weight` | 1 | 1 | `2026-09-10T13:31:10Z` | ROC 110、112、114：各 22 個固定議題 |
+清洗規則位於 `config/youth_keyword_cleaning.json`，停用詞位於 `config/youth_keyword_stopwords.txt`。quality 會記錄 `removed_role_name_count`、`removed_metadata_count`、`removed_stopword_count`、`unknown_period_rows`、`candidate_keyword_count` 與 `output_keyword_count`，方便檢查清洗是否誤傷資料。
 
-#### 動態關鍵字各年度前 10 名
-
-這裡的排名依 `ranking_score`，不是單純依 `term_frequency` 或 `raw_score`；完整輸出仍包含 `raw_score`、`ranking_score`、`policy_relevance` 與次數欄位。
-
-| ROC 年度 | 前 10 個詞（依輸出順序） |
-|---:|---|
-| 110 | 問題、台灣、以及、工作、應該、一個、規定、能夠、生活、或是 |
-| 111 | 台灣、問題、工作、勞動、規定、以及、應該、安全、生活、以上 |
-| 112 | 合作、心理健康、大家、活動、未來、不同、工作、地方、台灣、是否 |
-| 113 | 問題、學習、台灣、安全、勞動、一個、工作、健康、心理健康、這些 |
-| 114 | 青年創業、青少年、勞動、青年影視創作、共享工具庫、陪伴支持網絡、高關懷青少年、安全、產業聚落、勞工 |
-
-ROC 114 的前 10 筆實際欄位如下；`weight` 是前端文字大小使用的 1～5 級距，`signal` 表示主要訊號來源：
-
-| 排名 | term | weight | term_frequency | document_count | raw_score | ranking_score | signal |
-|---:|---|---:|---:|---:|---:|---:|---|
-| 1 | 青年創業 | 5 | 4 | 4 | 3.460299 | 4.260299 | minutes |
-| 2 | 青少年 | 5 | 12 | 5 | 3.819865 | 4.019865 | minutes |
-| 3 | 勞動 | 5 | 32 | 3 | 3.076656 | 3.943322 | minutes |
-| 4 | 青年影視創作 | 5 | 3 | 3 | 2.946480 | 3.879813 | minutes |
-| 5 | 共享工具庫 | 5 | 3 | 3 | 2.946480 | 3.879813 | minutes |
-| 6 | 陪伴支持網絡 | 5 | 4 | 3 | 3.010299 | 3.810299 | minutes |
-| 7 | 高關懷青少年 | 5 | 3 | 3 | 2.946480 | 3.746480 | minutes |
-| 8 | 安全 | 4 | 14 | 7 | 3.124501 | 3.324501 | minutes |
-| 9 | 產業聚落 | 4 | 3 | 2 | 2.496480 | 3.296480 | minutes |
-| 10 | 勞工 | 4 | 18 | 3 | 2.918764 | 3.118764 | minutes |
-
-114 年只有 19 個動態候選詞，是因為詞頻、文件數、政策關聯與行政／流程詞排除條件共同篩選後，實際符合條件的詞少於 `top_n=100`；不是資料讀取失敗。
-
-#### 固定議題文字雲的非零結果
-
-`youth_topic_weight` 每年仍輸出完整 22 個標準議題；未列出的議題在該年度為 `raw_score=0`、`join_mentions=0`、`minutes_mentions=0`，通常會保留 `weight=1` 以維持前端格式。
-
-| ROC 年度 | 有訊號的議題（label：weight） |
-|---:|---|
-| 110 | 社會住宅：5、青年創業：5、公共參與：5、租金補貼：5、心理健康：5、托育支持：5 |
-| 112 | 社會住宅：3、青年創業：5、租金補貼：3、心理健康：5、地方創生：4 |
-| 114 | 青年創業：5、公共參與：3、心理健康：3、社會安全網：3 |
-
-文字雲的責任分工是：analytics JSON 負責產生詞彙、次數與 `weight`；backend 未來只需讀取並提供 JSON；frontend 再依 `term`／`label` 與 `weight` 進行文字雲排版。`word_cloud` 類套件屬於繪製／排版工具，不會取代本 pipeline 的資料計算。
+文字雲的責任分工是：analytics JSON 負責產生詞彙、次數與 `weight`；API／其他消費者只讀取已計算結果；排版層依 `term` 與 `weight` 顯示。`word_cloud` 類套件屬於繪製／排版工具，不會取代本 pipeline 的資料計算。
 
 ### Quality JSON
 
 - `data/quality/dataset_index.json`：最近一次成功執行單元的索引；不是所有歷史期間的完整清單。
 - `data/quality/collection.json`、`collection_range.json`：單次或區間 pipeline 執行結果。
 - `data/quality/<dataset>/<period>.json`：各資料集的筆數、欄位與品質檢查結果。
-- `data/quality/analytics_youth_keyword_frequency.json`、`analytics_youth_topic_weight.json`：兩份青年文字分析的輸入筆數、年度數、版本與輸出數量檢查。
+- `data/quality/analytics_youth_keyword_frequency.json`：青年文字雲的輸入筆數、來源期間、清洗統計、版本與輸出數量檢查。
 
 ## 資料集總覽
 
@@ -948,15 +902,17 @@ analytics 會輸出 ROC 110–114 的年度金額（單位 `TWD_thousand`），�
 
 主要欄位：`meeting_id`、`meeting_name`、`meeting_date`、`term`、`item_no`、`source_page_start`、`source_page_end`、`topic_text`、`discussion_text`、`resolution_text`、`source_text`、`discussed`、`resolved`、`escalated`、`parse_status`、`manual_review_required`、`source_pdf_sha256`、`raw_record`。`topic_text` 保存提案／議題標題，供關鍵字 analytics 提高政策議題辨識度；`discussion_text` 與 `resolution_text` 保留分段文字。PDF 版面無法辨識決議段落時，保留 partial record 並標記人工檢查，不補推 `resolved=true`。all-available 輸出為 `data/curated/youth_council_minutes/all.json`。
 
-## 24. `youth_topic_weight` analytics
+## 24. `youth_keyword_frequency` analytics
 
-analytics 只讀 `data/quality/dataset_index.json` 指向的兩份 curated all-available 檔案，使用 `config/youth_topic_rules.json` 與 `config/youth_topic_weights.json`。輸出為 `data/analytics/youth_topic_weight/all.json`，每個可用 `year_roc` 固定輸出 22 個 topic：`label`、`weight`、`signal`、`join_mentions`、`minutes_mentions`、`resolved`、`escalated` 與計算追蹤欄位。`weight` 範圍固定 1–5；會議訊號至少為 3，`escalated` 為 5。Frontend 只負責依 weight 排版文字雲。
+此 analytics 從青年 proxy 提案與青年局青年議會紀錄的文字動態抽取關鍵字，不限制於固定議題。設定檔為 `config/youth_keyword_config.json`，清洗規則為 `config/youth_keyword_cleaning.json`，另使用 `jieba`、keyword user dictionary、政策加分詞典、政策領域錨點與行政／流程停用詞。
 
-## 25. `youth_keyword_frequency` analytics
+計算流程固定為：Unicode／格式正規化 → 移除網址、Email、電話、日期、頁碼、編號 → 移除職稱上下文中的人名 → 移除會議格式與行政詞 → Jieba 分詞 → 停用詞與 token 過濾 → 候選詞資格篩選。角色清洗只處理角色相鄰或角色欄位中的姓名，不把所有 2–4 個中文字當成人名；政策複合詞有保護優先權。
 
-此 analytics 從青年 proxy 提案與青年局會議提案文字動態抽取關鍵字，不限制於 22 個固定議題。設定檔為 `config/youth_keyword_config.json`，目前使用 `jieba`、keyword user dictionary、政策加分詞典、政策領域錨點與行政／流程停用詞。政策詞不是候選白名單；詞先依 `min_document_frequency` 篩選，詞典以外的三字以上複合詞若出現在議題／提案文字，或同時出現在 join 與會議來源且達 `min_dynamic_frequency`，也可進入正式候選；二字詞則需額外具備議題重複證據或跨來源政策錨點。局處、會議程序與一般行政詞會排除。會議詞的 `resolved`／`escalated` 只在該詞實際出現在 `resolution_text` 時成立。`raw_score` 納入對數化的 `term_frequency`，避免長文件單純重複造成過度放大。輸出為 `data/analytics/youth_keyword_frequency/all.json`，每年最多輸出 `top_n` 個 keyword，包含 `term`、`term_frequency`、`document_count`、`join_mentions`、`minutes_mentions`、`frequency_score`、`raw_score`、`ranking_score`、`policy_relevance`、`topic_mentions`、`weight`、`resolved` 與 `escalated`。
+所有可用年度合併成單一語料庫，`year_roc` 不參與分組，只填入 `source_periods`；未知年度資料仍納入文字統計並記錄在 `unknown_period_rows`。詞先依 `min_document_frequency` 篩選，再由 `candidate_mode=policy_relevant` 保留政策詞典、政策錨點或標題／議題具體證據的詞，排除高頻口語／泛用詞。最多選 23 個候選詞；`raw_score` 使用全期間 `global_max` normalization，`ranking_score` 用於排序，`weight` 則在入選候選內以 `selected_min_max` 映射為 1–5。
 
-## 25.1 `youth_participation` analytics
+輸出為 `data/analytics/youth_keyword_frequency/all.json`，最多 `top_n=23` 個實際政策 keyword，包含 `term`、`weight`、`signal`、`term_frequency`、`document_count`、`join_mentions`、`minutes_mentions`、`join_support_score`、`frequency_score`、`raw_score`、`ranking_score`、`policy_relevance`、`topic_mentions`、`resolved` 與 `escalated`。沒有實際文字證據的固定議題列不會輸出。
+
+## 24.1 `youth_participation` analytics
 
 執行 `run_analytics.py --metric youth_participation` 會只讀 curated datasets，整合青年參選、服務涵蓋、提案漏斗、補助、預算與文字雲結果。公開輸出為 `data/analytics/youth_participation/all.json`，品質報告為 `data/quality/analytics_youth_participation.json`。公開 JSON 不含 `raw_record`、`raw_records` 或 PDF 全文；原始來源與解析品質仍留在 `data/raw/`、`data/curated/` 與 quality reports。
 
@@ -977,7 +933,7 @@ analytics 只讀 `data/quality/dataset_index.json` 指向的兩份 curated all-a
 | `proposal_funnel` | 會議紀錄可觀察的提案漏斗 | 第 1–3 階由去重後會議紀錄計算；第 4–5 階沒有 `youth_proposal_tracker` 時為 `null`，`status=partial` |
 | `grants` | 青年局補助年度趨勢與行政區分布 | 金額單位 `TWD_thousand`；只聚合有可靠 `district_id` 的列，未解析地址列記入 `unresolved_district_row_count` |
 | `budget` | 青年局預算／決算與執行率 | 執行率 = `realized_amount / legal_budget_amount × 100`；沒有可解析決算的年度保留 `execution_rate=null` |
-| `topics` | 固定議題與動態關鍵字 | 同時嵌入既有 `youth_topic_weight`／`youth_keyword_frequency` 結果，並保留 `standalone_artifacts` 路徑 |
+| `topics` | 青年動態關鍵字 | 僅嵌入 `youth_keyword_frequency` 結果，並保留 `standalone_artifacts.keyword_frequency` 路徑；不再嵌入固定議題權重 |
 
 V1 的 YRR 目前使用 `population` 的 18–35 歲人口比例作為選舉人年齡比例 proxy，資料列會標記 `denominator_type=population_proxy`、`proxy=true`；這不是年齡別選舉人名冊。所有子指標都帶有 `status`、`source_period`、`blocking_reasons` 或品質欄位，`observed`、`partial`、`unavailable` 的意義由實際輸入覆蓋率決定。
 
@@ -1169,8 +1125,7 @@ data/analytics/published/
         ├── fertility.json
         ├── participation.json
         ├── policy_support.json
-        ├── keyword_frequency.json
-        └── topic_weight.json
+        └── keyword_frequency.json
 ```
 
 `current.json` 只保存目前 snapshot id：
@@ -1182,8 +1137,7 @@ data/analytics/published/
 Backend 先讀取此 id，再讀同一個 snapshot 的 `manifest.json`，依
 `artifacts.dashboard_overview`、`artifacts.district_details` 與
 `artifacts.analyses` 的相對路徑取得資料。manifest 會列出 homepage、
-employment、fertility、participation、policy_support、topic_weight、
-keyword_frequency 共 7 個 dataset，並記錄各自的 `source_period`、
+employment、fertility、participation、policy_support、keyword_frequency 共 6 個 dataset，並記錄各自的 `source_period`、
 `coverage` 與品質旗標。
 
 個別 `--metric homepage`、`employment`、`fertility`、

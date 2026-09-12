@@ -11,8 +11,9 @@ from typing import Any, Mapping
 
 
 _REQUIRED_WEIGHTS = ("w_join", "w_minutes", "w_resolved", "w_escalated")
-_SUPPORTED_NORMALIZATIONS = frozenset({"yearly_max"})
+_SUPPORTED_NORMALIZATIONS = frozenset({"yearly_max", "global_max"})
 _SUPPORTED_HOMEPAGE_NORMALIZATIONS = frozenset({"min_max", "p5_p95"})
+_SUPPORTED_KEYWORD_CANDIDATE_MODES = frozenset({"dynamic", "policy_relevant"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,11 +58,13 @@ class KeywordConfig:
     max_token_length: int
     userdict_path: Path | None = None
     stopwords_path: Path | None = None
+    cleaning_rules_path: Path | None = None
     policy_terms: tuple[str, ...] = ()
     policy_anchors: tuple[str, ...] = ()
     policy_relevance_bonus: float = 0.8
     frequency_weight: float = 1.0
     min_dynamic_frequency: int = 5
+    candidate_mode: str = "dynamic"
 
 
 @dataclass(frozen=True, slots=True)
@@ -268,6 +271,12 @@ def load_keyword_config(path: str | Path) -> KeywordConfig:
         or min_dynamic_frequency <= 0
     ):
         raise ValueError("keyword config min_dynamic_frequency must be a positive integer")
+    candidate_mode = payload.get("candidate_mode", "dynamic")
+    if candidate_mode not in _SUPPORTED_KEYWORD_CANDIDATE_MODES:
+        raise ValueError(
+            "keyword config candidate_mode must be one of: "
+            + ", ".join(sorted(_SUPPORTED_KEYWORD_CANDIDATE_MODES))
+        )
     policy_terms_path = _resolve_optional_path(config_path, payload.get("policy_terms"))
     policy_anchors = _unique_texts(
         payload.get("policy_anchors", []), field="policy_anchors"
@@ -280,11 +289,15 @@ def load_keyword_config(path: str | Path) -> KeywordConfig:
         max_token_length=max_token_length,
         userdict_path=_resolve_optional_path(config_path, payload.get("jieba_userdict")),
         stopwords_path=_resolve_optional_path(config_path, payload.get("stopwords")),
+        cleaning_rules_path=_resolve_optional_path(
+            config_path, payload.get("cleaning_rules")
+        ),
         policy_terms=_load_policy_terms(policy_terms_path),
         policy_anchors=policy_anchors,
         policy_relevance_bonus=float(policy_relevance_bonus),
         frequency_weight=float(frequency_weight),
         min_dynamic_frequency=min_dynamic_frequency,
+        candidate_mode=candidate_mode,
     )
 
 

@@ -11,7 +11,6 @@ from typing import Any, Mapping
 from analytics.config import (
     load_homepage_analytics_config,
     load_keyword_config,
-    load_topic_rules,
     load_topic_weights,
 )
 from analytics.homepage import generate_homepage_data, write_homepage_data
@@ -32,7 +31,6 @@ from analytics.youth_keyword_frequency import (
     calculate_youth_keyword_frequency,
     write_youth_keyword_frequency,
 )
-from analytics.youth_topic_weight import calculate_youth_topic_weights, write_youth_topic_weights
 from analytics.youth_participation import (
     generate_youth_participation_data,
     write_youth_participation_data,
@@ -155,17 +153,6 @@ def _run_all_analytics(
     join_rows = _load_indexed_dataset("join_proposals", output_dir=output_dir)
     minute_rows = _load_indexed_dataset("youth_council_minutes", output_dir=output_dir)
 
-    rules = load_topic_rules(config_dir / "youth_topic_rules.json")
-    topic_result = calculate_youth_topic_weights(
-        join_rows, minute_rows, rules=rules, weights=weights
-    )
-    output_path, quality_path = write_youth_topic_weights(
-        topic_result, output_dir=output_dir
-    )
-    print(f"analytics written: {output_path}")
-    print(f"quality written: {quality_path}")
-    add_analysis("topic_weight", topic_result)
-
     keyword_config = load_keyword_config(config_dir / "youth_keyword_config.json")
     keyword_result = calculate_youth_keyword_frequency(
         join_rows, minute_rows, config=keyword_config, weights=weights
@@ -198,6 +185,7 @@ def _run_all_analytics(
     snapshot_id = args.snapshot_id or _default_full_snapshot_id(
         str(homepage_result["generated_at"])
     )
+    keyword_snapshot_complete = _keyword_snapshot_is_complete(keyword_result)
     published = publish_homepage_snapshot(
         homepage_result,
         homepage_result.get("_quality"),
@@ -207,11 +195,29 @@ def _run_all_analytics(
         analysis_quality=analysis_quality,
         source_catalog=build_public_source_catalog(source_registry),
         source_refs_by_dataset=source_refs_by_dataset,
-        update_current=True,
+        update_current=keyword_snapshot_complete,
     )
-    print(f"complete published snapshot written: {published.snapshot_dir}")
-    print(f"published pointer written: {published.current_path}")
+    if keyword_snapshot_complete:
+        print(f"complete published snapshot written: {published.snapshot_dir}")
+        print(f"published pointer written: {published.current_path}")
+    else:
+        print(
+            "candidate snapshot written without updating current.json: "
+            f"{published.snapshot_dir}"
+        )
     return 0
+
+
+def _keyword_snapshot_is_complete(result: Mapping[str, Any]) -> bool:
+    """Only activate a full snapshot when both word-cloud sources were read."""
+
+    quality = result.get("_quality")
+    if not isinstance(quality, Mapping) or quality.get("status") != "observed":
+        return False
+    return all(
+        type(quality.get(key)) is int and quality.get(key, 0) > 0
+        for key in ("eligible_join_rows", "eligible_minutes_rows")
+    )
 
 
 def _quality_dataset_names(quality: Any) -> list[str]:
@@ -237,7 +243,6 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         choices=(
             "all",
-            "youth_topic_weight",
             "youth_keyword_frequency",
             "homepage",
             "employment",
@@ -423,20 +428,13 @@ def main(argv: list[str] | None = None) -> int:
     weights = load_topic_weights(config_dir / "youth_topic_weights.json")
     join_rows = _load_indexed_dataset("join_proposals", output_dir=output_dir)
     minute_rows = _load_indexed_dataset("youth_council_minutes", output_dir=output_dir)
-    if args.metric == "youth_topic_weight":
-        rules = load_topic_rules(config_dir / "youth_topic_rules.json")
-        result = calculate_youth_topic_weights(
-            join_rows, minute_rows, rules=rules, weights=weights
-        )
-        output_path, quality_path = write_youth_topic_weights(result, output_dir=output_dir)
-    else:
-        keyword_config = load_keyword_config(config_dir / "youth_keyword_config.json")
-        result = calculate_youth_keyword_frequency(
-            join_rows, minute_rows, config=keyword_config, weights=weights
-        )
-        output_path, quality_path = write_youth_keyword_frequency(
-            result, output_dir=output_dir
-        )
+    keyword_config = load_keyword_config(config_dir / "youth_keyword_config.json")
+    result = calculate_youth_keyword_frequency(
+        join_rows, minute_rows, config=keyword_config, weights=weights
+    )
+    output_path, quality_path = write_youth_keyword_frequency(
+        result, output_dir=output_dir
+    )
     print(f"analytics written: {output_path}")
     print(f"quality written: {quality_path}")
     return 0

@@ -63,3 +63,5 @@ ai-service/opus-*.md
 /data-pipeline/data/quarantine
 /data-pipeline/data/raw
 /data-pipeline/data/youth_participation_metrics.md
+
+sandbox/

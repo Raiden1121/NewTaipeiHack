@@ -20,7 +20,6 @@ from .data_gaps import explain_reason_codes
 from .config import (
     HomepageAnalyticsConfig,
     load_keyword_config,
-    load_topic_rules,
     load_topic_weights,
     normalize_topic_text,
 )
@@ -30,7 +29,6 @@ from .input_resolver import HomepageInputResolver
 from .io import CuratedSlice, atomic_json_write
 from .service_coverage import calculate_service_coverage
 from .youth_keyword_frequency import calculate_youth_keyword_frequency
-from .youth_topic_weight import calculate_youth_topic_weights
 
 
 def calculate_youth_borough_metrics(
@@ -540,25 +538,18 @@ def generate_youth_participation_data(
     )
     budget_allocation_public = _public(budget_allocation)
     rules_path = Path(config_dir) if config_dir is not None else Path(__file__).resolve().parents[2] / "config"
-    rules = load_topic_rules(rules_path / "youth_topic_rules.json")
     weights = load_topic_weights(rules_path / "youth_topic_weights.json")
     keyword_config = load_keyword_config(rules_path / "youth_keyword_config.json")
-    filtered_minutes = [row for row in minute_records if _row_year(row) in annual_years]
-    filtered_join = [row for row in join_records if _row_year(row) in annual_years]
-    topic_result = calculate_youth_topic_weights(
-        filtered_join, filtered_minutes, rules=rules, weights=weights
-    )
     keyword_result = calculate_youth_keyword_frequency(
-        filtered_join, filtered_minutes, config=keyword_config, weights=weights
+        join_records, minute_records, config=keyword_config, weights=weights
     )
+    keyword_quality = dict(keyword_result.get("_quality") or {})
     topics = {
-        "topic_weight": _public(topic_result),
         "keyword_frequency": _public(keyword_result),
         "standalone_artifacts": {
-            "topic_weight": "analytics/youth_topic_weight/all.json",
             "keyword_frequency": "analytics/youth_keyword_frequency/all.json",
         },
-        "status": "observed" if filtered_join or filtered_minutes else "unavailable",
+        "status": keyword_quality.get("status", "unavailable"),
         "proxy_usage": [
             {
                 "reason": "youth_topic_proxy_rules",
@@ -566,10 +557,11 @@ def generate_youth_participation_data(
             }
         ],
     }
-    topics["source_period"] = [str(year) for year in annual_years]
+    topics["source_periods"] = keyword_result.get("source_periods", {})
     topics["coverage"] = {
-        "join_record_count": len(filtered_join),
-        "minutes_record_count": len(filtered_minutes),
+        "join_record_count": keyword_quality.get("eligible_join_rows", 0),
+        "minutes_record_count": keyword_quality.get("eligible_minutes_rows", 0),
+        "unknown_period_rows": keyword_quality.get("unknown_period_rows", 0),
     }
     topics["blocking_reasons"] = []
     quality["proxy_usage"].extend(topics["proxy_usage"])
@@ -602,7 +594,7 @@ def generate_youth_participation_data(
         "grants": grants.get("status", "unavailable"),
         "budget_execution": _budget_status(budget),
         "budget_allocation": budget_allocation.get("status", "unavailable"),
-        "topics": topics.get("status", "unavailable"),
+        "keyword_frequency": topics.get("status", "unavailable"),
     }
 
     latest_borough = _borough_rows(borough, latest=True)

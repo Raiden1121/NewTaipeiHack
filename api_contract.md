@@ -128,7 +128,7 @@ response 不得包含 `raw_record`、`raw_records`、本地路徑或 stack trace
 
 **本次修正的具體案例**（都是「Series 有了，但沒人告訴前端該怎麼收斂成 Scalar」造成的）：
 
-1. **`youth-topic-weight`**：底層 pipeline 產出是 5 年 Series（110–114），但 UI 拿掉年份選擇器後只要 1 年。契約已決議：**API 對外固定收斂成 Scalar 輸出**（`{ analysis_id, year_roc: 114, topics: [] }`，不帶 `years` 包裝），底層 Series 留在 pipeline 內部，不對外暴露。見 §6.4。
+1. **青年動態文字雲**：pipeline 將所有可用年度合併成一個全期間 keyword payload，API 不帶年份選擇器，也不回傳 `years[]`。舊的 `/api/v1/analyses/youth-topic-weight` 只保留為相容 alias，canonical analysis 是 `youth-keyword-frequency`，見 §6.4。
 2. **青年里長占比**：`elections.borough_chief_v1[]` 是 3 屆 Series，但契約從沒說過 KPI 卡該挑哪一屆——這正是導致它從沒被前端消費、永遠顯示「資料待補」的原因（並非缺資料，是缺「怎麼收斂」的規格）。已補上 `districts[].youthBoroughChiefRatioPercent`（純量，固定 111 年屆）與 `elections.borough_chief_v1_citywide`（純量，全市加總），見 §6.2。
 3. **`policy-outcomes.desiredDirection`**：不是時間維度問題，但同一類錯誤——欄位語意（方向）沒寫清楚，前端只好自己寫死猜測，猜錯一次就對調成 bug。見 §8.1。
 
@@ -447,59 +447,72 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 >
 > ⚠️ **待 pipeline 補上（2026-09-13 已提供規格，尚未實作）**：`_build_homepage_policy()` 需把「最新法定預算年」（給 `currentBudget`／`budgetYoY` 用，114 不變）跟「最新有執行率的一年」拆成兩個獨立查找；`executionRate` 改抓 113 年的值，並新增 `executionRateYearRoc: 113` 供前端標註年份。
 
-### 6.4 青年關注議題文字雲（`YouthTopicWordCloud`）
+### 6.4 青年議題全期間動態文字雲（`YouthKeywordWordCloud`）
 
-`GET /api/v1/analyses/youth-topic-weight`（不再帶 `year` 參數，見下方決議）
+canonical endpoint 是：
 
-⚠️ **這是最接近可用的一項**：analytics 已經跑出來了，只是沒發布進 snapshot。
+```text
+GET /api/v1/analyses/youth-keyword-frequency
+```
 
-> ✅ **2026-09-12 已決議**：前端已拿掉年份選擇器（`YouthTopicWordCloud.tsx` 不再有 `YEARS`/`setYear`），改為單一固定文字雲。**API 固定回傳最新一年（114）的 `topics[]`**，不需要 `year` query 參數。
->
-> `youth_topic_weight/all.json` 底層仍保留 110–114 完整五年資料，這份歷史序列不丟棄——只是目前 UI 不消費，未來若要做「議題歷年變化」之類的功能可以直接復用，不需重新計算。
+相容 endpoint 保留：
 
-底層 pipeline 產出（`data-pipeline/data/analytics/youth_topic_weight/all.json`）仍是完整 5 年包：
+```text
+GET /api/v1/analyses/youth-topic-weight
+```
+
+兩個 URL 都讀取同一筆 `ANALYSIS#youth-keyword-frequency`。相容 alias 的 response 仍回傳 canonical `analysis_id`，不回傳舊的 `topics[]` 或 `year_roc`。
+
+pipeline 使用 `join_proposals` 與 `youth_council_minutes` 的所有可用資料，於 analytics 層進行格式／人名／行政詞清洗、分詞、停用詞過濾與候選詞篩選。raw／curated 內容不修改。
+
+API 對外 payload：
 
 ```jsonc
 {
-  "metric_id": "youth_topic_weight",
-  "calculation_version": "1",
+  "analysis_id": "youth-keyword-frequency",
+  "calculation_version": "7",
+  "config_version": "7",
   "source_datasets": ["join_proposals", "youth_council_minutes"],
-  "normalization": "yearly_max",
-  "years": [
-    { "year_roc": 110, "topics": [
-      { "label": "社會住宅", "weight": 5, "signal": "minutes",
-        "join_mentions": 0, "minutes_mentions": 1,
-        "resolved": true, "escalated": false,
-        "join_support_score": 0.0, "raw_score": 3.0 }
-    ]}
-    // …110–114 共 5 筆
+  "period_scope": "all_available",
+  "source_periods": {
+    "join_proposals": ["109", "110", "111", "112", "113", "114", "115"],
+    "youth_council_minutes": ["109", "110", "111", "112", "113", "114", "115"]
+  },
+  "normalization": "global_max",
+  "weight_normalization": "selected_min_max",
+  "candidate_mode": "policy_relevant",
+  "keywords": [
+    {
+      "term": "居住正義",
+      "weight": 5,
+      "signal": "minutes",
+      "term_frequency": 12,
+      "document_count": 7,
+      "join_mentions": 4,
+      "minutes_mentions": 3,
+      "join_support_score": 36.7,
+      "resolved": true,
+      "escalated": false,
+      "frequency_score": 1.0,
+      "raw_score": 4.2,
+      "ranking_score": 5.0,
+      "policy_relevance": 1.0,
+      "topic_mentions": 3
+    }
   ]
 }
 ```
 
-**API 對外回傳的形狀**（backend 從上面挑出 `year_roc === 114` 那筆，拆掉 `years` 包裝）：
+`term_frequency`、`document_count`、兩類 mention 與 JOIN 支持度都是跨年度累計。候選詞先通過 `candidate_mode=policy_relevant`：政策詞典命中、政策錨點與標題／議題證據優先；口語／泛用詞與行政詞不因高頻而保留。再從有實際文字證據的候選詞依 `ranking_score` 選最多 23 個，`weight` 只在這批入選詞內以 `selected_min_max` 標準化到 1–5，不補固定議題列。
 
-```jsonc
-{
-  "analysis_id": "youth-topic-weight",
-  "year_roc": 114,
-  "topics": [
-    { "label": "社會住宅", "weight": 5, "signal": "minutes",
-      "join_mentions": 0, "minutes_mentions": 1,
-      "resolved": true, "escalated": false }
-  ]
-}
-```
-
-| UI 顯示 | 欄位 | 現況 |
+| UI 顯示 | 欄位 | 規則 |
 |---|---|---|
-| 議題文字 | `topics[].label`（取 `years[].year_roc === 114` 該筆）| ✅ |
-| 字級（1–5）| `topics[].weight` | ✅ |
-| ~~年份選擇器 110–114~~ | ~~`years[].year_roc`~~ | 🗑️ **UI 已移除**，不再需要前端切換；backend 固定取 114 |
+| 關鍵詞文字 | `keywords[].term` | 實際出現在兩個資料源的清洗後文字 |
+| 字級（1–5） | `keywords[].weight` | 入選政策詞的 `selected_min_max` 標準化權重 |
+| 資料涵蓋期間 | `source_periods` | 顯示各來源實際可讀的年度；未知年度仍納入文字統計並記在 quality |
+| 年份選擇器 | — | 不提供；這是全期間 aggregate |
 
-**待辦**：把 `youth_topic_weight` 加進 `manifest.artifacts.analyses`，`publish_homepage_snapshot()` 目前只寫 `dashboard_overview` 與 `district_details`。發布時只需固定取 `years[].year_roc === 114` 那一筆的 `topics[]`，不必整包 5 年都送到前端。
-
-> 另有 `youth_keyword_frequency/all.json`（`calculation_version: 5`），但其 top terms 是「問題／台灣／以及／工作／應該／一個」等**未濾除的常見詞**，不適合直接當文字雲。文字雲請用 `youth_topic_weight`（22 個固定議題詞），不要用 keyword_frequency。
+缺少來源、資料不足或清洗後沒有候選詞時，使用 published quality／API status 表達，不以 `raw_score: 0` 補造不存在的 keyword。`keywords.length` 為符合政策相關性條件的候選數量與 23 的較小值。
 
 ---
 
@@ -630,7 +643,7 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 
 ### ⚠️ analytics 已算出，但未發布進 snapshot（1 項）
 
-- [ ] **參政 青年關注議題文字雲** — `youth_topic_weight/all.json` 已有資料；UI 年份選擇器已移除（2026-09-12），只需固定發布 114 年那筆 `topics[]` 進 `manifest.artifacts.analyses`
+- [x] **參政 青年議題全期間動態文字雲** — `youth_keyword_frequency` 已改為全期間聚合，清洗後發布 `keywords[]`；舊 `youth-topic-weight` URL 僅作相容 alias
 
 ### ⚠️ 部分可用，資料覆蓋不足（2 項）
 
@@ -687,9 +700,9 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 | 11 | `EDGRDESC`（職缺學歷）未在 curated keys | `job_vacancies` transform | 確認是否穩定輸出 |
 | 12 | 年齡口徑文案殘留 20–39 / 20–35 | 生育頁、施政頁 | 全部改 18–35 |
 | 13 | `yoiComponents.talent` 仍含學校所在地 proxy | `college_majors` 為學校所在地；人口欄位為結構與變動訊號，不等同人才品質 | 已改為青年人口佔比 0.4、青年人口 YoY 0.4、大專學生密度 0.2；總權重 0.15，UI 可加註 |
-| 14 | `youth_keyword_frequency` top terms 為未濾除常見詞 | `youth_keyword_config.json` | 文字雲改用 `youth_topic_weight` |
+| 14 | 青年動態文字雲需排除常見詞、人名與行政格式 | `youth_keyword_config.json`、`youth_keyword_cleaning.json` | 已改為全期間清洗後的 `keywords[]`，保留政策複合詞；舊 URL 僅作 API alias |
 | 15 | 就業散佈圖 Plot 2 的 `yLabel` 仍是「房價所得比（倍）」，未跟上文件決議的「每坪平均房價」 | `CrossAnalysisScatter.tsx` | 已於 2026-09-12 決議採文件版並改字串，已完成 |
-| 16 | 文字雲年份選擇器已移除，UI 改為單一固定畫面 | `YouthTopicWordCloud.tsx` | 已於 2026-09-12 決議固定回傳 114 年，見 §6.4；`year` query 參數不再需要 |
+| 16 | 文字雲年份選擇器／年度分組已移除 | `youth_keyword_frequency` analytics、`api_contract.md` §6.4 | 已改為全期間 `keywords[]` 契約；前端元件同步不在本次範圍 |
 | 17 | 「資源投入與產出」第一張圖從地區別補助換成部門別預算比例，且新科別名稱對不上 `youth_budgets.business_plan` 既有 3 類 | `ResourceIoCharts.tsx` | 見 §6.3；需與青年局確認決算科別拆分口徑 |
 | 18 | `PolicyOutcomeTracker` 的 up/down 顏色寫死且方向對調，兩張卡好壞方向相反卻共用同一規則，薪資成長 +2.8% 現顯示為警示色 | `PolicyOutcomeTracker.tsx` | ✅ 2026-09-12 已修：API 加 `desiredDirection`，前端改讀它，拿掉本地寫死常數 |
 | 19 | **Repo 與正式部署脫鉤**：`infrastructure/modules/api/lambda/handler.py` 唯一一次 commit（`fee5418`）的內容，與 `frontend/.env` 指向的正式 API Gateway 實際回傳的內容不一致——正式環境已經是對的（`youth-topic-weight` 攤平格式、`budget_by_department`、`desiredDirection` 都在），但 repo 裡的原始碼還是舊的錯誤版本。代表有人手動改過部署但沒 commit，下次 `terraform apply` 會把正式環境打回錯誤格式 | `handler.py` | ✅ 2026-09-12 已修：重寫 `handler.py` 對齊正式環境的回應，另外補上 `youthBoroughChiefRatioPercent`／`borough_chief_v1_citywide`（正式環境目前還沒有，需要重新部署）；**部署本身需要另外執行 `terraform apply`，本次只改了原始碼，沒有觸發部署** |
