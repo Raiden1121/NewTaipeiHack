@@ -19,13 +19,15 @@ export default function ParticipationKpiGrid() {
   const scopeLabel = selectedDistrict ? selectedDistrict.district_name : "全市";
   const serviceCoverageValue = selectedDistrict
     ? selectedDistrict.serviceCoverageRate
-    : (overview?.service_coverage.value ?? null);
+    : (overview?.service_coverage?.value ?? null);
 
   // 青年里長占比：選取行政區時用該區的收斂值；未選取時用全市加總（皆固定為民國 111 年屆，
   // 見 api_contract.md §6.2——這是唯一有完整人口分母可用的一屆）。
+  // API 契約雖標為必填，但目前後端回應偶爾缺漏該欄位，故全程用 optional chaining
+  // 防禦，缺漏時降級顯示「資料待補」而非讓整個區塊噴錯。
   const boroughChiefRatio = selectedDistrict
     ? selectedDistrict.youthBoroughChiefRatioPercent
-    : (overview?.elections.borough_chief_v1_citywide.ratio_percent ?? null);
+    : (overview?.elections?.borough_chief_v1_citywide?.ratio_percent ?? null);
 
   const kpis = [
     {
