@@ -1,0 +1,20 @@
+# The analytics Lambda image builds from the repo root (it needs both
+# infrastructure/modules/analytics_lambda/lambda/ and data-pipeline/), so the
+# context has to exclude everything that would otherwise be sent to the daemon
+# -- data-pipeline/data/ alone is tens of GB.
+data-pipeline/data/
+**/__pycache__/
+**/.pytest_cache/
+**/*.pyc
+
+node_modules/
+**/node_modules/
+frontend/dist/
+ai-service/dist*/
+
+.git/
+.terraform/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+slides/

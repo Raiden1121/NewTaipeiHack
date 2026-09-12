@@ -49,6 +49,20 @@ module "transformed_data" {
   environment  = var.environment
 }
 
+module "analytics_lambda" {
+  source = "./modules/analytics_lambda"
+
+  project_name            = var.project_name
+  environment             = var.environment
+  aws_region              = var.aws_region
+  repo_root               = "${path.module}/.."
+  pipeline_dir            = "${path.module}/../data-pipeline"
+  transformed_bucket_name = module.transformed_data.bucket_name
+  transformed_bucket_arn  = module.transformed_data.bucket_arn
+  dynamodb_table_name     = module.analytics_table.table_name
+  dynamodb_table_arn      = module.analytics_table.table_arn
+}
+
 # `terraform apply` always rebuilds and redeploys the frontend, so the
 # CloudFront-served site matches whatever is currently in frontend/src.
 
