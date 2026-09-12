@@ -1,10 +1,16 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AiEvidence, AiRequestContext } from '../types/aiEvidence.js';
+import type { WebSearchScope, WebSearchSettings } from '../types/webFinding.js';
 import { AnalyticsSnapshotEvidenceRepository } from './analyticsSnapshotRepository.js';
 import { CompositeEvidenceRepository } from './compositeRepository.js';
 import { CuratedFileEvidenceRepository } from './curatedFileRepository.js';
-import type { EvidenceQuery, EvidenceRepository } from './evidenceRepository.js';
+import {
+  DEFAULT_LIMIT_PER_DATASET,
+  type EvidenceQuery,
+  type EvidenceRepository,
+} from './evidenceRepository.js';
+import { inferComparisonMetrics, inferFocusMetrics } from './comparisonMetrics.js';
 
 export * from './evidenceRepository.js';
 export * from './curatedFileRepository.js';
@@ -13,6 +19,7 @@ export * from './analyticsSnapshot.js';
 export * from './analyticsRecord.js';
 export * from './analyticsSnapshotRepository.js';
 export * from './compositeRepository.js';
+export * from './comparisonMetrics.js';
 
 /**
  * data-pipeline 本機輸出目錄的預設位置：`<repo>/data-pipeline/data`。
@@ -81,7 +88,42 @@ export interface BuildAiContextOptions extends EvidenceQuery {
    * `DEFAULT_MAX_CONTEXT_EVIDENCE`。設 0 或負數代表不限制。
    */
   maxEvidence?: number;
+  /**
+   * 上網搜尋設定。**預設開啟**（`enabled: true`、`contextSize: 'low'`）。
+   * 只想覆寫其中一項時可以只傳那一項。
+   */
+  webSearch?: Partial<WebSearchSettings>;
+  /**
+   * 這些 metricId **不受行政區篩選限制**，會額外撈全 29 區的值進 context。
+   *
+   * 用途是跨區比較與排名問題。`focusDistrict` 的預設篩選會把 evidence 縮成一區，
+   * 那對「為何八里薪資第六高」這種問題是致命的 —— 模型看得到八里的數字，
+   * 卻無法知道它排第幾，只能照抄使用者的前提（而前提可能是錯的）。
+   *
+   * Q&A 會用 `inferComparisonMetrics(question)` 自動推導，見 `comparisonMetrics.ts`。
+   * Dashboard 的 explain / policy 不需要（它們沒有使用者問題）。
+   */
+  comparisonMetrics?: readonly string[];
+  /**
+   * 焦點行政區這次只取這些 metricId。**傳 `[]` 代表不限制。**
+   *
+   * 省略時由 `inferFocusMetrics(question)` 從問題推導（主題對不上就不限制）。
+   * 目的是降低 input token —— 實測同一個問題 6 筆 vs 250 筆 evidence 差 7.8 秒。
+   *
+   * 呼叫端自己傳了 `metricIds` 時這個不生效（明確指定優先）。
+   */
+  focusMetricIds?: readonly string[];
 }
+
+/**
+ * 指標收斂生效時，每個 dataset 的取樣上限。
+ *
+ * 比預設的 200 小很多。理由：收斂之後彙總指標都在了，curated 逐筆記錄的作用是
+ * 讓模型判斷「母體多大、資料品質有沒有問題」—— 30 筆就足以看出
+ * `query_district_mismatch_filtered` 這類旗標與薪資的分布形狀，
+ * 200 筆只是多付 token（而 input 每 1K token 約 0.2 秒）。
+ */
+export const FOCUSED_LIMIT_PER_DATASET = 30;
 
 /**
  * 合併後的 evidence 筆數上限。
@@ -225,7 +267,16 @@ export async function buildAiContext(
   repository: EvidenceRepository,
   options: BuildAiContextOptions = {},
 ): Promise<AiRequestContext> {
-  const { question, focusDistrict, focusArea, maxEvidence, ...rest } = options;
+  const {
+    question,
+    focusDistrict,
+    focusArea,
+    maxEvidence,
+    webSearch,
+    comparisonMetrics,
+    focusMetricIds,
+    ...rest
+  } = options;
 
   // focusArea 要傳給 repository，不能在這裡被丟掉：analytics repository 用它決定
   // 要讀哪幾個分析（見 ANALYTICS_ARTIFACTS_BY_FOCUS_AREA）。少了它，一個行政區
@@ -233,25 +284,106 @@ export async function buildAiContext(
   const query: EvidenceQuery = { ...rest, focusArea: focusArea ?? null };
 
   // 使用者選了行政區時，把它當成預設的篩選條件，否則會把 29 區的資料全撈進來。
-  const effectiveQuery: EvidenceQuery =
+  const districtScopedQuery: EvidenceQuery =
     query.districtNames === undefined && query.districtIds === undefined && focusDistrict
       ? { ...query, districtNames: [focusDistrict] }
       : query;
 
+  // 依問題主題收斂焦點行政區的指標。
+  //
+  // 為什麼：input 是真的有成本（實測同一個問題 6 筆 vs 250 筆差 7.8 秒），而
+  // 「為何八里薪資高」不需要生育率、服務涵蓋率、議題關鍵詞 —— 焦點行政區的
+  // analytics 有 121 筆，其中大多數跟問題無關。
+  //
+  // 只在「呼叫端沒有自己指定 metricIds」且「主題判斷成功」時才套用。
+  // 主題對不上就維持原本什麼都給的行為（見 `inferFocusMetrics`）。
+  const focusMetrics = focusMetricIds ?? inferFocusMetrics(question);
+  const applyFocusScope = query.metricIds === undefined && focusMetrics.length > 0;
+  const effectiveQuery: EvidenceQuery = applyFocusScope
+    ? {
+        ...districtScopedQuery,
+        metricIds: focusMetrics,
+        // 指標收斂之後，每個 dataset 仍然可能有大量逐筆記錄符合條件
+        // （例如 200 筆職缺各有 salary_lower）。彙總指標已經在了，逐筆的作用是
+        // 讓模型判斷母體與資料品質，30 筆足夠 —— 200 筆只是多付 token。
+        limitPerDataset: Math.min(
+          districtScopedQuery.limitPerDataset ?? DEFAULT_LIMIT_PER_DATASET,
+          FOCUSED_LIMIT_PER_DATASET,
+        ),
+      }
+    : districtScopedQuery;
+
   const bundle = await repository.query(effectiveQuery);
+
+  // 跨區比較資料。跟主查詢分開跑，因為它要的正好是主查詢排除掉的東西：
+  // 其他 28 區的同一個指標。
+  //
+  // 沒有明確指定時，從使用者問題自動推導。這樣 backend 不需要知道這件事的存在，
+  // 而 explain / policy 因為 question 是 null，自然不會受影響。
+  // 要明確關掉就傳 `comparisonMetrics: []`。
+  //
+  // 呼叫端自己傳了 `metricIds` 時也不推導：那代表它要完全接管取用範圍，
+  // 這時候還自動加幾個它沒要求的跨區指標會很難預期。需要的話明確傳
+  // `comparisonMetrics` 就好。
+  const effectiveComparisonMetrics =
+    comparisonMetrics ?? (query.metricIds === undefined ? inferComparisonMetrics(question) : []);
+  const comparison = await queryComparisonEvidence(repository, query, effectiveComparisonMetrics);
+
+  // 比較資料刻意放**最前面**。
+  //
+  // `prioritizeEvidenceForContext()` 超過上限時是「每組取前 N 筆」，所以順序就是
+  // 優先權。跨區比較的值是這類問題的核心證據 —— 排在焦點區的 121 筆之後的話，
+  // 配額用完就被截掉了，於是「答不出排名」的問題又回來了。
+  const mergedEvidence = dedupeByEvidenceId([...comparison.evidence, ...bundle.evidence]);
+
   const limit = maxEvidence ?? DEFAULT_MAX_CONTEXT_EVIDENCE;
-  const prioritized = prioritizeEvidenceForContext(bundle.evidence, limit);
+  const prioritized = prioritizeEvidenceForContext(mergedEvidence, limit);
 
   return {
     question: question ?? null,
     focusDistrict: focusDistrict ?? null,
     focusArea: focusArea ?? null,
     evidence: prioritized.evidence,
-    // 上網搜尋預設關閉：犧牲可追溯性的行為必須由使用者明確開啟。
     webFindings: [],
-    webSearch: { enabled: false, contextSize: 'low' },
+    /**
+     * 上網搜尋**預設開啟**。
+     *
+     * 原本預設是關閉的，理由是「犧牲可追溯性的行為必須由使用者明確開啟」。
+     * 那個顧慮沒有消失，但它已經由別的機制處理掉了，而不是靠「預設不要用」：
+     *
+     * - `webReferences` 與 `basis` 是**分開的陣列**，前端分得出「有官方統計支撐」
+     *   和「某個網頁說的」
+     * - 引用網路來源時，`limitations` 一定會有一條說明，而且
+     *   `dataSufficiency` 不可能是 `sufficient`
+     * - `findUnknownFindingIds()` 擋掉模型憑記憶編網址
+     *
+     * 而開啟的理由是這個服務的定位：Q&A 要做的是**數據解釋**。
+     * 「為何八里薪資排在前面」這種問題，資料管線能給的是「相關的指標長什麼樣」，
+     * 給不出「八里有台北港與工業區」這種地理與產業背景 —— 那個背景只能上網拿。
+     * 預設關閉等於預設放棄解釋能力。
+     *
+     * 仍然可以關：呼叫端傳 `webSearch: { enabled: false }`，
+     * 或在伺服器端設 `WEB_SEARCH_PROVIDER=off`（那個優先，見 factory）。
+     */
+    webSearch: {
+      enabled: webSearch?.enabled ?? true,
+      contextSize: webSearch?.contextSize ?? 'low',
+      // `all`（全網）或 `trusted`（只搜 gov.tw / edu.tw）。
+      // 這是使用者的選擇，所以優先吃傳進來的值；沒傳就用伺服器端的預設。
+      scope: webSearch?.scope ?? defaultWebSearchScope(),
+    },
     knownLimitations: [
       ...bundle.notes,
+      ...comparison.notes,
+      // 指標收斂一定要說。不說的話模型會以為手上就是全部資料，
+      // 而使用者也無從知道「我問的面向被縮小了」。
+      ...(applyFocusScope
+        ? [
+            `本次依問題主題收斂了取用範圍：${focusDistrict ?? '焦點行政區'}只取與問題相關的指標` +
+              `（${focusMetrics.length} 個指標，每個資料集最多 ${FOCUSED_LIMIT_PER_DATASET} 筆）。` +
+              '其他面向的指標本次未納入，若問題涉及那些面向，本次回應無法涵蓋。',
+          ]
+        : []),
       // 截斷一定要說。不說的話模型會拿 250 筆當成全部資料去解讀，
       // 那正是 ai-service.md 禁止的「假裝資料充足」。
       ...(prioritized.dropped > 0
@@ -267,6 +399,92 @@ export async function buildAiContext(
         : []),
     ],
   };
+}
+
+/**
+ * 伺服器端的搜尋範圍預設值。
+ *
+ * `WEB_SEARCH_SCOPE=trusted` 可以把整個服務的預設改成只搜可信來源。
+ * 前端那顆開關（`webSearch.scope`）仍然可以逐請求覆寫 —— 這裡只是預設。
+ *
+ * 要「使用者不能選全網」的話，設 `WEB_SEARCH_INCLUDE_DOMAINS`，
+ * 那是 provider 層的硬限制，會跟使用者的選擇取交集。
+ */
+function defaultWebSearchScope(env: NodeJS.ProcessEnv = process.env): WebSearchScope {
+  return env.WEB_SEARCH_SCOPE?.trim().toLowerCase() === 'trusted' ? 'trusted' : 'all';
+}
+
+/**
+ * 撈跨區比較用的 evidence。
+ *
+ * 刻意**不帶**行政區篩選，也不帶 `metricIds` 以外的既有條件裡跟區域相關的部分 ——
+ * 這個查詢要的就是全 29 區的同一個指標。
+ *
+ * 回傳的 notes 會告訴模型「這些指標有全區資料可以比較」。這句話不是裝飾：
+ * 沒有它的話，模型看到 29 筆同名指標可能以為是重複資料，或者不確定手上是否
+ * 真的涵蓋所有行政區，於是不敢下排名的判斷。
+ */
+async function queryComparisonEvidence(
+  repository: EvidenceRepository,
+  baseQuery: EvidenceQuery,
+  comparisonMetrics: readonly string[] | undefined,
+): Promise<{ evidence: AiEvidence[]; notes: string[] }> {
+  if (comparisonMetrics === undefined || comparisonMetrics.length === 0) {
+    return { evidence: [], notes: [] };
+  }
+
+  const { districtNames: _names, districtIds: _ids, metricIds: _metrics, ...withoutScope } = baseQuery;
+  const bundle = await repository.query({
+    ...withoutScope,
+    metricIds: [...comparisonMetrics],
+    // 29 區 × 幾個指標，200 的預設上限夠用；明確寫出來免得被別處的預設影響。
+    limitPerDataset: 400,
+  });
+
+  if (bundle.evidence.length === 0) {
+    return {
+      evidence: [],
+      notes: [
+        `本次嘗試取得跨行政區的比較資料（${comparisonMetrics.join('、')}）但沒有結果，` +
+          '因此無法回答排名或跨區比較類的問題。',
+      ],
+    };
+  }
+
+  const districts = new Set(
+    bundle.evidence
+      .map((item) => item.districtName)
+      .filter((name): name is string => typeof name === 'string'),
+  );
+
+  return {
+    evidence: bundle.evidence,
+    notes: [
+      `本次額外納入跨行政區的比較資料：${comparisonMetrics.join('、')}，` +
+        `涵蓋 ${districts.size} 個行政區。排名與跨區比較只能依據這些指標，` +
+        '其他指標本次只有焦點行政區的值。',
+    ],
+  };
+}
+
+/**
+ * 依 evidenceId 去重。
+ *
+ * 需要它是因為跨區查詢一定會把焦點行政區自己那一筆再撈一次 ——
+ * 同一個 evidenceId 出現兩次會讓模型以為有兩個獨立來源，
+ * 那正是 `dedupeAnalyticsEvidence()` 在防的同一類問題。
+ */
+function dedupeByEvidenceId(evidence: readonly AiEvidence[]): AiEvidence[] {
+  const seen = new Set<string>();
+  const kept: AiEvidence[] = [];
+  for (const item of evidence) {
+    if (seen.has(item.evidenceId)) {
+      continue;
+    }
+    seen.add(item.evidenceId);
+    kept.push(item);
+  }
+  return kept;
 }
 
 function describeDropped(droppedBySource: Readonly<Record<string, number>>): string {

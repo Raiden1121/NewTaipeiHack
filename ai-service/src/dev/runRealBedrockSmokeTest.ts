@@ -70,7 +70,7 @@ const smokeContext: AiRequestContext = {
     '這是 Bedrock 連線測試，只餵了一筆人口指標，不涵蓋就業、居住或資源面向。',
   ],
   webFindings: [],
-  webSearch: { enabled: false, contextSize: 'low' },
+  webSearch: { enabled: false, contextSize: 'low', scope: 'all' },
 };
 
 const envConfig = resolveBedrockEnv();

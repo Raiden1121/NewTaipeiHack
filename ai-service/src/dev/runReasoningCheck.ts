@@ -93,7 +93,7 @@ const scenarios: Scenario[] = [
         evidence: populationOnly,
         knownLimitations: [],
         webFindings: [],
-        webSearch: { enabled: false, contextSize: 'low' },
+        webSearch: { enabled: false, contextSize: 'low', scope: 'all' },
       }),
   },
   {
@@ -107,7 +107,7 @@ const scenarios: Scenario[] = [
         evidence: populationOnly,
         knownLimitations: [],
         webFindings: [],
-        webSearch: { enabled: false, contextSize: 'low' },
+        webSearch: { enabled: false, contextSize: 'low', scope: 'all' },
       }),
   },
 ];

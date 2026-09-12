@@ -126,6 +126,32 @@ fn.addToRolePolicy(new PolicyStatement({
 | `BEDROCK_TEMPERATURE` | ✖ | 預設 0 |
 | `BEDROCK_MAX_ATTEMPTS` | ✖ | 預設 2 |
 | `BEDROCK_STRUCTURED_OUTPUT` | ✖ | 設 `off` 可關掉原生 structured outputs（逃生門） |
+| `TAVILY_API_KEY` | ⚠️ 建議 | 網路搜尋現在**預設開啟**，每個請求都會打 Tavily。沒設就用 keyless（有 rate limit） |
+| `WEB_SEARCH_INCLUDE_DOMAINS` | ✖ | 網域白名單（營運者硬限制）。使用者的 `scope` 選擇繞不過它 |
+| `WEB_SEARCH_SCOPE` | ✖ | `trusted` 把預設改成只搜 `gov.tw` / `edu.tw`；預設 `all` |
+| `WEB_SEARCH_PROVIDER=off` | ✖ | 全域關閉網路搜尋（預設開啟，這是唯一的全域關法） |
+| `TAVILY_TIMEOUT_MS` | ✖ | 預設 8000，算進 Lambda timeout |
+
+### ⚠️ 網路搜尋預設開啟（行為變更）
+
+原本是前端那顆開關控制、預設關閉；現在 `buildAiContext` 的預設是 `enabled: true`。
+營運上有三個影響：
+
+1. **每個請求都會打 Tavily。** keyless 有 rate limit，多人同時 demo 可能被限流。
+   搜尋失敗不會讓請求失敗（會誠實寫進 `limitations`），但回答會少掉背景說明。
+   **建議設 `TAVILY_API_KEY`。**
+2. **延遲增加。** 「為什麼」類問題實測 33–43 秒（純查值 8.9 秒）。
+   `TAVILY_TIMEOUT_MS`（預設 8 秒）要算進 Lambda timeout。
+3. **來源品質可以由使用者切換。** `webSearch.scope` 有 `all`（全網，預設）與
+   `trusted`（只搜 `gov.tw` / `edu.tw`）。前端可以做成一顆開關。
+   伺服器端的預設用 `WEB_SEARCH_SCOPE=trusted` 改，硬限制用
+   `WEB_SEARCH_INCLUDE_DOMAINS`（兩者同時存在時取交集，使用者繞不過營運政策）。
+
+   ⚠️ **`trusted` 模式常常找不到東西**，這是預期行為 —— 很多產業背景不在政府網站上。
+   被濾掉的筆數會寫進 `limitations`，前端可以據此提示使用者切換成全網。
+
+搜尋本身很快：實測 `all` 748ms、`trusted` 1,050ms（後者會多抓 4 倍再過濾）。
+所以 `TAVILY_TIMEOUT_MS` 預設 8 秒有很大餘裕，搜尋不是延遲的主因。
 
 **不要設** `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`
 （用 execution role）。也不要設 `AWS_REGION` —— 那是 Lambda 的保留變數，
@@ -283,6 +309,26 @@ aws lambda invoke --function-name <name> \
 
 `{ action, generatedBy, output, sources }`。型別在
 `shared/src/aiContract.ts`，frontend / backend 直接引用那份。
+
+⚠️ **`output` 有兩種填法，前端要分開處理：**
+
+| | `action: 'explain'` / `'policy'` | `action: 'qa'` |
+|---|---|---|
+| `output.answer` | 一律 `null` | **一定有內容**（聊天框顯示這個） |
+| 四塊分析 | 有內容 | 通常是空陣列，只有政策類問題才有 |
+
+所以聊天框的實作是「顯示 `output.answer`」，不是「把四塊拼起來」。
+四塊非空時可以在回答下面另外展開成分析區塊。
+
+Q&A 的重心是**數據解釋**：使用者問「是多少」「為什麼」「排第幾」時四塊會是空的，
+只有明確問「該怎麼做」才會有內容。所以聊天框不需要為四塊預留固定版位。
+
+> `answer` 可能會**更正使用者的前提**（「排第 5 高，不是第 6 高」）——
+> 這是刻意的行為，不是錯誤。
+
+`answer` 的保證：`action: 'qa'` 時一定非空。即使資料不足也會是
+「目前沒有這個資料，無法回答」這類明確說明，而不是空字串 —— 所以前端不需要
+為 null 準備 fallback 文案。
 
 HTTP 狀態碼：
 
