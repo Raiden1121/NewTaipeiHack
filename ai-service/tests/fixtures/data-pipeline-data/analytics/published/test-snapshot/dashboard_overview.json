@@ -1,0 +1,1376 @@
+{
+  "metric_id": "homepage",
+  "calculation_version": "1",
+  "generated_at": "2026-09-12T04:50:07.408831+00:00",
+  "time_policy": {
+    "annual_years_roc": [
+      110,
+      111,
+      112,
+      113,
+      114
+    ],
+    "current_yoi": "latest_available_snapshot",
+    "election_years_roc": [
+      103,
+      107,
+      111
+    ]
+  },
+  "kpis": {
+    "nationalYouthPopulation": 4820000,
+    "nationalYouthPopulationQuality": "proxy",
+    "cityYouthPopulation": 845938,
+    "cityYouthPopulationShare": 20.91405054994881,
+    "cityYouthPopulationYoY": -1.9694460635993756,
+    "referenceYearRoc": 114
+  },
+  "districts": [
+    {
+      "district_id": "65000010",
+      "district_name": "板橋區",
+      "youth_18_35_total": 107970,
+      "vacancies_per_10k_youth": 99.37945725664537,
+      "occupation_shannon_index": 3.5914334023681076,
+      "talent_demand_yoy": -5.997223330990398,
+      "salary_median": 35000,
+      "high_salary_ratio": 0.02516309412861137,
+      "adjusted_youth_wage": 77.61169390585283,
+      "college_student_density": 4864.497581249262,
+      "vt_course_count": 32,
+      "training_people_per_10k_youth": 24.871799115301595,
+      "rent_median": 20000,
+      "house_price_median": 574657.82969,
+      "rent_wage_ratio": 0.5714285714285714,
+      "bus_stops_per_10k_youth": 142.35435769195146,
+      "railway_stop_density": 0.5169048521888917,
+      "bike_stop_density": 10.385088393976824,
+      "opportunityIndex": 45.257169,
+      "yoiComponents": {
+        "job": 42.224378854539275,
+        "salary": 65.3164938194008,
+        "talent": 65.00000000000001,
+        "housing": 9.823120744386028,
+        "transport": 63.33085475227816
+      },
+      "normalizedInputs": {
+        "vacancies_per_10k_youth": 4.448757709078543,
+        "occupation_shannon_index": 100,
+        "talent_demand_yoy": 50,
+        "salary_median": 41.66666666666667,
+        "high_salary_ratio": 62.1660905091138,
+        "adjusted_youth_wage": 100,
+        "college_student_density": 100,
+        "vt_course_count": 50,
+        "training_people_per_10k_youth": 50,
+        "rent_median": 13.944223107569726,
+        "house_price_median": 0,
+        "rent_wage_ratio": 16.47547552245541,
+        "bus_stops_per_10k_youth": 0.5253173522921317,
+        "railway_stop_density": 100,
+        "bike_stop_density": 92.58797471590363
+      },
+      "sourcePeriods": {
+        "population": [
+          "10312",
+          "10712",
+          "11001",
+          "11002",
+          "11003",
+          "11004",
+          "11005",
+          "11006",
+          "11007",
+          "11008",
+          "11009",
+          "11010",
+          "11011",
+          "11012",
+          "11101",
+          "11102",
+          "11103",
+          "11104",
+          "11105",
+          "11106",
+          "11107",
+          "11108",
+          "11109",
+          "11110",
+          "11111",
+          "11112",
+          "11201",
+          "11202",
+          "11203",
+          "11204",
+          "11205",
+          "11206",
+          "11207",
+          "11208",
+          "11209",
+          "11210",
+          "11211",
+          "11212",
+          "11301",
+          "11302",
+          "11303",
+          "11304",
+          "11305",
+          "11306",
+          "11307",
+          "11309",
+          "11310",
+          "11311",
+          "11312",
+          "11401",
+          "11402",
+          "11403",
+          "11404",
+          "11405",
+          "11406",
+          "11407",
+          "11408",
+          "11409",
+          "11410",
+          "11411",
+          "11412"
+        ],
+        "births": [
+          "110",
+          "111",
+          "112",
+          "113",
+          "114"
+        ],
+        "wages": [
+          "110",
+          "111",
+          "112",
+          "113"
+        ],
+        "college_majors": [
+          "110",
+          "111",
+          "112",
+          "113",
+          "114"
+        ],
+        "youth_budgets": [
+          "all"
+        ],
+        "elections": [
+          "all"
+        ],
+        "job_vacancies": [
+          "11509"
+        ],
+        "job_vacancy_salaries": [
+          "11509"
+        ],
+        "rentals": [
+          "11509"
+        ],
+        "house_prices": [
+          "11509"
+        ],
+        "bus_stops": [
+          "11509"
+        ],
+        "railway_stops": [
+          "11509"
+        ],
+        "bike_stops": [
+          "11509"
+        ],
+        "vt_courses": [
+          "11509"
+        ],
+        "training_numbers": [
+          "11509"
+        ],
+        "talent_demand": [
+          "all"
+        ],
+        "population_villages": [
+          "11401",
+          "11402",
+          "11403",
+          "11404",
+          "11405",
+          "11406",
+          "11407",
+          "11408",
+          "11409",
+          "11410",
+          "11411",
+          "11412"
+        ],
+        "village_boundaries": [
+          "11509"
+        ],
+        "youth_service_points": [
+          "11509"
+        ]
+      },
+      "qualityStatus": "observed",
+      "retentionRiskLevel": "low",
+      "fertilityRate": 24.438494251063158,
+      "fertilityVsCityAvg": 95.74170578028769,
+      "serviceCoverageRate": 90.79411625920311,
+      "serviceCoverageStatus": "partial",
+      "youthParticipationIndex": 8.622250579846352,
+      "youthCandidacyRatePer100k": 8.622250579846352
+    },
+    {
+      "district_id": "65000020",
+      "district_name": "三重區",
+      "youth_18_35_total": 79539,
+      "vacancies_per_10k_youth": 127.10745671934522,
+      "occupation_shannon_index": 3.077959285863811,
+      "talent_demand_yoy": -5.997223330990398,
+      "salary_median": 33500,
+      "high_salary_ratio": 0.00791295746785361,
+      "adjusted_youth_wage": 78.33771845606601,
+      "college_student_density": 0,
+      "vt_course_count": 32,
+      "training_people_per_10k_youth": 24.871799115301595,
+      "rent_median": 22000,
+      "house_price_median": 592783.448845,
+      "rent_wage_ratio": 0.6567164179104478,
+      "bus_stops_per_10k_youth": 116.7980487559562,
+      "railway_stop_density": 0.5926497878767878,
+      "bike_stop_density": 11.768331502124786,
+      "opportunityIndex": 35.882034,
+      "yoiComponents": {
+        "job": 42.45138518744925,
+        "salary": 40.03141796824083,
+        "talent": 35.00000000000001,
+        "housing": 2.0453347300956537,
+        "transport": 65
+      },
+      "normalizedInputs": {
+        "vacancies_per_10k_youth": 14.36387314760433,
+        "occupation_shannon_index": 84.23149537882361,
+        "talent_demand_yoy": 50,
+        "salary_median": 10.416666666666668,
+        "high_salary_ratio": 19.549171005247203,
+        "adjusted_youth_wage": 100,
+        "college_student_density": 0,
+        "vt_course_count": 50,
+        "training_people_per_10k_youth": 50,
+        "rent_median": 3.9840637450199097,
+        "house_price_median": 0,
+        "rent_wage_ratio": 2.1697080644622844,
+        "bus_stops_per_10k_youth": 0,
+        "railway_stop_density": 100,
+        "bike_stop_density": 100
+      },
+      "sourcePeriods": {
+        "population": [
+          "10312",
+          "10712",
+          "11001",
+          "11002",
+          "11003",
+          "11004",
+          "11005",
+          "11006",
+          "11007",
+          "11008",
+          "11009",
+          "11010",
+          "11011",
+          "11012",
+          "11101",
+          "11102",
+          "11103",
+          "11104",
+          "11105",
+          "11106",
+          "11107",
+          "11108",
+          "11109",
+          "11110",
+          "11111",
+          "11112",
+          "11201",
+          "11202",
+          "11203",
+          "11204",
+          "11205",
+          "11206",
+          "11207",
+          "11208",
+          "11209",
+          "11210",
+          "11211",
+          "11212",
+          "11301",
+          "11302",
+          "11303",
+          "11304",
+          "11305",
+          "11306",
+          "11307",
+          "11309",
+          "11310",
+          "11311",
+          "11312",
+          "11401",
+          "11402",
+          "11403",
+          "11404",
+          "11405",
+          "11406",
+          "11407",
+          "11408",
+          "11409",
+          "11410",
+          "11411",
+          "11412"
+        ],
+        "births": [
+          "110",
+          "111",
+          "112",
+          "113",
+          "114"
+        ],
+        "wages": [
+          "110",
+          "111",
+          "112",
+          "113"
+        ],
+        "college_majors": [
+          "110",
+          "111",
+          "112",
+          "113",
+          "114"
+        ],
+        "youth_budgets": [
+          "all"
+        ],
+        "elections": [
+          "all"
+        ],
+        "job_vacancies": [
+          "11509"
+        ],
+        "job_vacancy_salaries": [
+          "11509"
+        ],
+        "rentals": [
+          "11509"
+        ],
+        "house_prices": [
+          "11509"
+        ],
+        "bus_stops": [
+          "11509"
+        ],
+        "railway_stops": [
+          "11509"
+        ],
+        "bike_stops": [
+          "11509"
+        ],
+        "vt_courses": [
+          "11509"
+        ],
+        "training_numbers": [
+          "11509"
+        ],
+        "talent_demand": [
+          "all"
+        ],
+        "population_villages": [
+          "11401",
+          "11402",
+          "11403",
+          "11404",
+          "11405",
+          "11406",
+          "11407",
+          "11408",
+          "11409",
+          "11410",
+          "11411",
+          "11412"
+        ],
+        "village_boundaries": [
+          "11509"
+        ],
+        "youth_service_points": [
+          "11509"
+        ]
+      },
+      "qualityStatus": "observed",
+      "retentionRiskLevel": "medium",
+      "fertilityRate": 23.92694617519582,
+      "fertilityVsCityAvg": 93.73763446275828,
+      "serviceCoverageRate": 86.07537235327817,
+      "serviceCoverageStatus": "partial",
+      "youthParticipationIndex": 8.235487893832797,
+      "youthCandidacyRatePer100k": 8.235487893832797
+    }
+  ],
+  "availability": {
+    "opportunityIndex": "available",
+    "fertility": "available",
+    "youthParticipationIndex": "available",
+    "serviceCoverage": "partial",
+    "budget": "partial"
+  },
+  "policy": {
+    "budgetTrend": [
+      {
+        "year_roc": 110,
+        "value_thousand": null,
+        "budget_yoy_percent": null,
+        "quality_status": "unavailable"
+      },
+      {
+        "year_roc": 111,
+        "value_thousand": null,
+        "budget_yoy_percent": null,
+        "quality_status": "unavailable"
+      },
+      {
+        "year_roc": 112,
+        "value_thousand": 149029,
+        "budget_yoy_percent": null,
+        "quality_status": "observed"
+      },
+      {
+        "year_roc": 113,
+        "value_thousand": 158650,
+        "budget_yoy_percent": 6.455790483731354,
+        "quality_status": "observed"
+      },
+      {
+        "year_roc": 114,
+        "value_thousand": 196153,
+        "budget_yoy_percent": 23.638827607942012,
+        "quality_status": "observed"
+      }
+    ],
+    "currentBudget": 196153,
+    "budgetYoY": 23.638827607942012,
+    "executionRate": null,
+    "executionFailure": "final_settlement_unavailable"
+  },
+  "annual": {
+    "population": {
+      "metric_id": "annualPopulation",
+      "years": [
+        {
+          "year_roc": 110,
+          "source_period": [
+            "2021-12-01"
+          ],
+          "period_type": "annual",
+          "quality_status": "observed",
+          "districts": [
+            {
+              "district_id": "65000010",
+              "district_name": "板橋區",
+              "people_total": 552713,
+              "youth_18_35_total": 119102,
+              "youth_share_percent": 21.54861564681851
+            },
+            {
+              "district_id": "65000020",
+              "district_name": "三重區",
+              "people_total": 381731,
+              "youth_18_35_total": 86975,
+              "youth_share_percent": 22.78436909761062
+            }
+          ],
+          "city": {
+            "people_total": 4008113,
+            "youth_18_35_total": 913345,
+            "youth_share_percent": 22.787406442882226,
+            "yoy_percent": null
+          }
+        },
+        {
+          "year_roc": 111,
+          "source_period": [
+            "2022-12-01"
+          ],
+          "period_type": "annual",
+          "quality_status": "observed",
+          "districts": [
+            {
+              "district_id": "65000010",
+              "district_name": "板橋區",
+              "people_total": 549572,
+              "youth_18_35_total": 115979,
+              "youth_share_percent": 21.103513279424714
+            },
+            {
+              "district_id": "65000020",
+              "district_name": "三重區",
+              "people_total": 379825,
+              "youth_18_35_total": 84998,
+              "youth_share_percent": 22.37820048706641
+            }
+          ],
+          "city": {
+            "people_total": 3995551,
+            "youth_18_35_total": 895944,
+            "youth_share_percent": 22.423540583013455,
+            "yoy_percent": -0.31341431741071174
+          }
+        },
+        {
+          "year_roc": 112,
+          "source_period": [
+            "2023-12-01"
+          ],
+          "period_type": "annual",
+          "quality_status": "observed",
+          "districts": [
+            {
+              "district_id": "65000010",
+              "district_name": "板橋區",
+              "people_total": 554247,
+              "youth_18_35_total": 114195,
+              "youth_share_percent": 20.60362978960644
+            },
+            {
+              "district_id": "65000020",
+              "district_name": "三重區",
+              "people_total": 383108,
+              "youth_18_35_total": 83577,
+              "youth_share_percent": 21.81551938356808
+            }
+          ],
+          "city": {
+            "people_total": 4041120,
+            "youth_18_35_total": 885114,
+            "youth_share_percent": 21.90269034327117,
+            "yoy_percent": 1.1404935139108472
+          }
+        },
+        {
+          "year_roc": 113,
+          "source_period": [
+            "2024-12-01"
+          ],
+          "period_type": "annual",
+          "quality_status": "observed",
+          "districts": [
+            {
+              "district_id": "65000010",
+              "district_name": "板橋區",
+              "people_total": 553538,
+              "youth_18_35_total": 110857,
+              "youth_share_percent": 20.02699001694554
+            },
+            {
+              "district_id": "65000020",
+              "district_name": "三重區",
+              "people_total": 383355,
+              "youth_18_35_total": 81247,
+              "youth_share_percent": 21.193671662036493
+            }
+          ],
+          "city": {
+            "people_total": 4047001,
+            "youth_18_35_total": 862933,
+            "youth_share_percent": 21.32277703909636,
+            "yoy_percent": 0.14552896226788614
+          }
+        },
+        {
+          "year_roc": 114,
+          "source_period": [
+            "2025-12-01"
+          ],
+          "period_type": "annual",
+          "quality_status": "observed",
+          "districts": [
+            {
+              "district_id": "65000010",
+              "district_name": "板橋區",
+              "people_total": 549762,
+              "youth_18_35_total": 107970,
+              "youth_share_percent": 19.639407598197035
+            },
+            {
+              "district_id": "65000020",
+              "district_name": "三重區",
+              "people_total": 382778,
+              "youth_18_35_total": 79539,
+              "youth_share_percent": 20.779407384959427
+            }
+          ],
+          "city": {
+            "people_total": 4044831,
+            "youth_18_35_total": 845938,
+            "youth_share_percent": 20.91405054994881,
+            "yoy_percent": -0.05361995215716527
+          }
+        }
+      ]
+    },
+    "fertility": {
+      "metric_id": "generalFertilityRate",
+      "years": [
+        {
+          "year_roc": 110,
+          "city": {
+            "births_mother_age_18_35": 17645,
+            "average_monthly_female_18_35": 447906.9166666667,
+            "fertility_rate": 39.39434588622673,
+            "available_months": 12,
+            "coverage_ratio": 1,
+            "quality_status": "observed"
+          },
+          "districts": [
+            {
+              "district_id": "65000010",
+              "births_mother_age_18_35": 2344,
+              "average_monthly_female_18_35": 59120.5,
+              "fertility_rate": 39.647837890410266,
+              "available_months": 12,
+              "coverage_ratio": 1,
+              "source_period": "110",
+              "period_type": "annual",
+              "fertilityVsCityAvg": 100.64347306315386
+            },
+            {
+              "district_id": "65000020",
+              "births_mother_age_18_35": 1633,
+              "average_monthly_female_18_35": 42578.166666666664,
+              "fertility_rate": 38.35298999095781,
+              "available_months": 12,
+              "coverage_ratio": 1,
+              "source_period": "110",
+              "period_type": "annual",
+              "fertilityVsCityAvg": 97.35658538848082
+            }
+          ]
+        },
+        {
+          "year_roc": 111,
+          "city": {
+            "births_mother_age_18_35": 15073,
+            "average_monthly_female_18_35": 433596.5833333333,
+            "fertility_rate": 34.762727796709655,
+            "available_months": 12,
+            "coverage_ratio": 1,
+            "quality_status": "observed"
+          },
+          "districts": [
+            {
+              "district_id": "65000010",
+              "births_mother_age_18_35": 1917,
+              "average_monthly_female_18_35": 56710.75,
+              "fertility_rate": 33.803114929709096,
+              "available_months": 12,
+              "coverage_ratio": 1,
+              "source_period": "111",
+              "period_type": "annual",
+              "fertilityVsCityAvg": 97.2395351923695
+            },
+            {
+              "district_id": "65000020",
+              "births_mother_age_18_35": 1350,
+              "average_monthly_female_18_35": 40997.083333333336,
+              "fertility_rate": 32.929171790676165,
+              "available_months": 12,
+              "coverage_ratio": 1,
+              "source_period": "111",
+              "period_type": "annual",
+              "fertilityVsCityAvg": 94.725511712556
+            }
+          ]
+        },
+        {
+          "year_roc": 112,
+          "city": {
+            "births_mother_age_18_35": 12906,
+            "average_monthly_female_18_35": 429529.4166666667,
+            "fertility_rate": 30.046836140248836,
+            "available_months": 12,
+            "coverage_ratio": 1,
+            "quality_status": "observed"
+          },
+          "districts": [
+            {
+              "district_id": "65000010",
+              "births_mother_age_18_35": 1662,
+              "average_monthly_female_18_35": 55978.416666666664,
+              "fertility_rate": 29.69001445497595,
+              "available_months": 12,
+              "coverage_ratio": 1,
+              "source_period": "112",
+              "period_type": "annual",
+              "fertilityVsCityAvg": 98.81244839354348
+            },
+            {
+              "district_id": "65000020",
+              "births_mother_age_18_35": 1165,
+              "average_monthly_female_18_35": 40361.916666666664,
+              "fertility_rate": 28.863842359650086,
+              "available_months": 12,
+              "coverage_ratio": 1,
+              "source_period": "112",
+              "period_type": "annual",
+              "fertilityVsCityAvg": 96.06283411978247
+            }
+          ]
+        },
+        {
+          "year_roc": 113,
+          "city": {
+            "births_mother_age_18_35": 11377,
+            "average_monthly_female_18_35": 420867.45454545453,
+            "fertility_rate": 27.03226366668668,
+            "available_months": 11,
+            "coverage_ratio": 0.9166666666666666,
+            "quality_status": "partial"
+          },
+          "districts": [
+            {
+              "district_id": "65000010",
+              "births_mother_age_18_35": 1437,
+              "average_monthly_female_18_35": 54570.545454545456,
+              "fertility_rate": 26.332886872038863,
+              "available_months": 11,
+              "coverage_ratio": 0.9166666666666666,
+              "source_period": "113",
+              "period_type": "annual",
+              "fertilityVsCityAvg": 97.41280714308176
+            },
+            {
+              "district_id": "65000020",
+              "births_mother_age_18_35": 1029,
+              "average_monthly_female_18_35": 39429.818181818184,
+              "fertility_rate": 26.097000885347498,
+              "available_months": 11,
+              "coverage_ratio": 0.9166666666666666,
+              "source_period": "113",
+              "period_type": "annual",
+              "fertilityVsCityAvg": 96.54019806527798
+            }
+          ]
+        },
+        {
+          "year_roc": 114,
+          "city": {
+            "births_mother_age_18_35": 10489,
+            "average_monthly_female_18_35": 410923.3333333333,
+            "fertility_rate": 25.525442702207226,
+            "available_months": 12,
+            "coverage_ratio": 1,
+            "quality_status": "observed"
+          },
+          "districts": [
+            {
+              "district_id": "65000010",
+              "births_mother_age_18_35": 1293,
+              "average_monthly_female_18_35": 52908.333333333336,
+              "fertility_rate": 24.438494251063158,
+              "available_months": 12,
+              "coverage_ratio": 1,
+              "source_period": "114",
+              "period_type": "annual",
+              "fertilityVsCityAvg": 95.74170578028769
+            },
+            {
+              "district_id": "65000020",
+              "births_mother_age_18_35": 921,
+              "average_monthly_female_18_35": 38492.166666666664,
+              "fertility_rate": 23.92694617519582,
+              "available_months": 12,
+              "coverage_ratio": 1,
+              "source_period": "114",
+              "period_type": "annual",
+              "fertilityVsCityAvg": 93.73763446275828
+            }
+          ]
+        }
+      ]
+    },
+    "budget_trend": [
+      {
+        "year_roc": 110,
+        "legal_budget_amount": null,
+        "budget_unit": null,
+        "budget_status": "unavailable",
+        "budget_yoy_percent": null,
+        "realized_amount": null,
+        "legal_budget_amount_for_execution": null,
+        "execution_denominator_unit": null,
+        "execution_unit_conversion": null,
+        "settlement_amount": null,
+        "payable_amount": null,
+        "reserved_amount": null,
+        "surplus_amount": null,
+        "execution_rate": null,
+        "execution_failure": "final_settlement_unavailable",
+        "source_period": [
+          "110"
+        ],
+        "period_type": "annual",
+        "quality_status": "unavailable"
+      },
+      {
+        "year_roc": 111,
+        "legal_budget_amount": null,
+        "budget_unit": null,
+        "budget_status": "unavailable",
+        "budget_yoy_percent": null,
+        "realized_amount": null,
+        "legal_budget_amount_for_execution": null,
+        "execution_denominator_unit": null,
+        "execution_unit_conversion": null,
+        "settlement_amount": null,
+        "payable_amount": null,
+        "reserved_amount": null,
+        "surplus_amount": null,
+        "execution_rate": null,
+        "execution_failure": "final_settlement_unavailable",
+        "source_period": [
+          "111"
+        ],
+        "period_type": "annual",
+        "quality_status": "unavailable"
+      },
+      {
+        "year_roc": 112,
+        "legal_budget_amount": 149029,
+        "budget_unit": "TWD_thousand",
+        "budget_status": "legal_budget",
+        "budget_yoy_percent": null,
+        "realized_amount": null,
+        "legal_budget_amount_for_execution": 149029,
+        "execution_denominator_unit": null,
+        "execution_unit_conversion": null,
+        "settlement_amount": null,
+        "payable_amount": null,
+        "reserved_amount": null,
+        "surplus_amount": null,
+        "execution_rate": null,
+        "execution_failure": "final_settlement_unavailable",
+        "source_period": [
+          "112"
+        ],
+        "period_type": "annual",
+        "quality_status": "observed"
+      },
+      {
+        "year_roc": 113,
+        "legal_budget_amount": 158650,
+        "budget_unit": "TWD_thousand",
+        "budget_status": "legal_budget",
+        "budget_yoy_percent": 6.455790483731354,
+        "realized_amount": 138627956,
+        "legal_budget_amount_for_execution": 158650000,
+        "execution_denominator_unit": "TWD",
+        "execution_unit_conversion": "legal_budget_thousand_to_twd",
+        "settlement_amount": 151676193,
+        "payable_amount": 1253506,
+        "reserved_amount": 11794731,
+        "surplus_amount": -10082715,
+        "execution_rate": 87.37973904821935,
+        "execution_failure": null,
+        "source_period": [
+          "113"
+        ],
+        "period_type": "annual",
+        "quality_status": "observed"
+      },
+      {
+        "year_roc": 114,
+        "legal_budget_amount": 196153,
+        "budget_unit": "TWD_thousand",
+        "budget_status": "legal_budget",
+        "budget_yoy_percent": 23.638827607942012,
+        "realized_amount": null,
+        "legal_budget_amount_for_execution": 196153,
+        "execution_denominator_unit": null,
+        "execution_unit_conversion": null,
+        "settlement_amount": null,
+        "payable_amount": null,
+        "reserved_amount": null,
+        "surplus_amount": null,
+        "execution_rate": null,
+        "execution_failure": "final_settlement_unavailable",
+        "source_period": [
+          "114"
+        ],
+        "period_type": "annual",
+        "quality_status": "observed"
+      }
+    ],
+    "budget_execution": [
+      {
+        "year_roc": 110,
+        "legal_budget_amount": null,
+        "budget_unit": null,
+        "budget_status": "unavailable",
+        "budget_yoy_percent": null,
+        "realized_amount": null,
+        "legal_budget_amount_for_execution": null,
+        "execution_denominator_unit": null,
+        "execution_unit_conversion": null,
+        "settlement_amount": null,
+        "payable_amount": null,
+        "reserved_amount": null,
+        "surplus_amount": null,
+        "execution_rate": null,
+        "execution_failure": "final_settlement_unavailable",
+        "source_period": [
+          "110"
+        ],
+        "period_type": "annual",
+        "quality_status": "unavailable"
+      },
+      {
+        "year_roc": 111,
+        "legal_budget_amount": null,
+        "budget_unit": null,
+        "budget_status": "unavailable",
+        "budget_yoy_percent": null,
+        "realized_amount": null,
+        "legal_budget_amount_for_execution": null,
+        "execution_denominator_unit": null,
+        "execution_unit_conversion": null,
+        "settlement_amount": null,
+        "payable_amount": null,
+        "reserved_amount": null,
+        "surplus_amount": null,
+        "execution_rate": null,
+        "execution_failure": "final_settlement_unavailable",
+        "source_period": [
+          "111"
+        ],
+        "period_type": "annual",
+        "quality_status": "unavailable"
+      },
+      {
+        "year_roc": 112,
+        "legal_budget_amount": 149029,
+        "budget_unit": "TWD_thousand",
+        "budget_status": "legal_budget",
+        "budget_yoy_percent": null,
+        "realized_amount": null,
+        "legal_budget_amount_for_execution": 149029,
+        "execution_denominator_unit": null,
+        "execution_unit_conversion": null,
+        "settlement_amount": null,
+        "payable_amount": null,
+        "reserved_amount": null,
+        "surplus_amount": null,
+        "execution_rate": null,
+        "execution_failure": "final_settlement_unavailable",
+        "source_period": [
+          "112"
+        ],
+        "period_type": "annual",
+        "quality_status": "observed"
+      },
+      {
+        "year_roc": 113,
+        "legal_budget_amount": 158650,
+        "budget_unit": "TWD_thousand",
+        "budget_status": "legal_budget",
+        "budget_yoy_percent": 6.455790483731354,
+        "realized_amount": 138627956,
+        "legal_budget_amount_for_execution": 158650000,
+        "execution_denominator_unit": "TWD",
+        "execution_unit_conversion": "legal_budget_thousand_to_twd",
+        "settlement_amount": 151676193,
+        "payable_amount": 1253506,
+        "reserved_amount": 11794731,
+        "surplus_amount": -10082715,
+        "execution_rate": 87.37973904821935,
+        "execution_failure": null,
+        "source_period": [
+          "113"
+        ],
+        "period_type": "annual",
+        "quality_status": "observed"
+      },
+      {
+        "year_roc": 114,
+        "legal_budget_amount": 196153,
+        "budget_unit": "TWD_thousand",
+        "budget_status": "legal_budget",
+        "budget_yoy_percent": 23.638827607942012,
+        "realized_amount": null,
+        "legal_budget_amount_for_execution": 196153,
+        "execution_denominator_unit": null,
+        "execution_unit_conversion": null,
+        "settlement_amount": null,
+        "payable_amount": null,
+        "reserved_amount": null,
+        "surplus_amount": null,
+        "execution_rate": null,
+        "execution_failure": "final_settlement_unavailable",
+        "source_period": [
+          "114"
+        ],
+        "period_type": "annual",
+        "quality_status": "observed"
+      }
+    ]
+  },
+  "elections": {
+    "city_councilor_t1": [
+      {
+        "election_year_roc": 103,
+        "election_district_name": "新北市第01選區",
+        "district_id": null,
+        "district_name": null,
+        "candidate_count": 6,
+        "age_known_candidate_count": 6,
+        "youth_candidate_count": 2,
+        "elected_count": 4,
+        "youth_elected_count": 1,
+        "election_district_code": "01",
+        "youth_population_18_35": 1086392,
+        "denominator_scope": "citywide",
+        "youth_candidacy_rate": 0.18409561189699483,
+        "source_period": "103",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      },
+      {
+        "election_year_roc": 103,
+        "election_district_name": "新北市第02選區",
+        "district_id": null,
+        "district_name": null,
+        "candidate_count": 13,
+        "age_known_candidate_count": 13,
+        "youth_candidate_count": 0,
+        "elected_count": 10,
+        "youth_elected_count": 0,
+        "election_district_code": "02",
+        "youth_population_18_35": 1086392,
+        "denominator_scope": "citywide",
+        "youth_candidacy_rate": 0,
+        "source_period": "103",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      },
+      {
+        "election_year_roc": 103,
+        "election_district_name": "新北市第03選區",
+        "district_id": null,
+        "district_name": null,
+        "candidate_count": 19,
+        "age_known_candidate_count": 19,
+        "youth_candidate_count": 2,
+        "elected_count": 9,
+        "youth_elected_count": 1,
+        "election_district_code": "03",
+        "youth_population_18_35": 1086392,
+        "denominator_scope": "citywide",
+        "youth_candidacy_rate": 0.18409561189699483,
+        "source_period": "103",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      }
+    ],
+    "borough_chief_v1": [
+      {
+        "election_year_roc": 103,
+        "election_district_name": null,
+        "district_id": "65000010",
+        "district_name": "板橋區",
+        "candidate_count": 214,
+        "age_known_candidate_count": 214,
+        "youth_candidate_count": 3,
+        "elected_count": 125,
+        "youth_elected_count": 1,
+        "youth_population_18_35": 152817,
+        "denominator_scope": "district",
+        "youth_candidacy_rate": 1.9631323740159798,
+        "source_period": "103",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      },
+      {
+        "election_year_roc": 103,
+        "election_district_name": null,
+        "district_id": "65000020",
+        "district_name": "三重區",
+        "candidate_count": 198,
+        "age_known_candidate_count": 198,
+        "youth_candidate_count": 5,
+        "elected_count": 119,
+        "youth_elected_count": 3,
+        "youth_population_18_35": 109842,
+        "denominator_scope": "district",
+        "youth_candidacy_rate": 4.551992862475192,
+        "source_period": "103",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      },
+      {
+        "election_year_roc": 107,
+        "election_district_name": null,
+        "district_id": "65000010",
+        "district_name": "板橋區",
+        "candidate_count": 239,
+        "age_known_candidate_count": 239,
+        "youth_candidate_count": 11,
+        "elected_count": 126,
+        "youth_elected_count": 2,
+        "youth_population_18_35": 131390,
+        "denominator_scope": "district",
+        "youth_candidacy_rate": 8.37202222391354,
+        "source_period": "107",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      },
+      {
+        "election_year_roc": 107,
+        "election_district_name": null,
+        "district_id": "65000020",
+        "district_name": "三重區",
+        "candidate_count": 204,
+        "age_known_candidate_count": 204,
+        "youth_candidate_count": 6,
+        "elected_count": 119,
+        "youth_elected_count": 3,
+        "youth_population_18_35": 95721,
+        "denominator_scope": "district",
+        "youth_candidacy_rate": 6.268217005672736,
+        "source_period": "107",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      },
+      {
+        "election_year_roc": 111,
+        "election_district_name": null,
+        "district_id": "65000010",
+        "district_name": "板橋區",
+        "candidate_count": 213,
+        "age_known_candidate_count": 213,
+        "youth_candidate_count": 10,
+        "elected_count": 126,
+        "youth_elected_count": 3,
+        "youth_population_18_35": 115979,
+        "denominator_scope": "district",
+        "youth_candidacy_rate": 8.622250579846352,
+        "source_period": "111",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      },
+      {
+        "election_year_roc": 111,
+        "election_district_name": null,
+        "district_id": "65000020",
+        "district_name": "三重區",
+        "candidate_count": 198,
+        "age_known_candidate_count": 198,
+        "youth_candidate_count": 7,
+        "elected_count": 119,
+        "youth_elected_count": 2,
+        "youth_population_18_35": 84998,
+        "denominator_scope": "district",
+        "youth_candidacy_rate": 8.235487893832797,
+        "source_period": "111",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      }
+    ],
+    "city_councilor_t1_citywide": [
+      {
+        "election_year_roc": 103,
+        "election_district_name": null,
+        "district_id": null,
+        "district_name": null,
+        "candidate_count": 111,
+        "age_known_candidate_count": 111,
+        "youth_candidate_count": 10,
+        "elected_count": 62,
+        "youth_elected_count": 4,
+        "youth_population_18_35": 1086392,
+        "denominator_scope": "citywide",
+        "youth_candidacy_rate": 0.9204780594849742,
+        "source_period": "103",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      },
+      {
+        "election_year_roc": 107,
+        "election_district_name": null,
+        "district_id": null,
+        "district_name": null,
+        "candidate_count": 112,
+        "age_known_candidate_count": 112,
+        "youth_candidate_count": 13,
+        "elected_count": 62,
+        "youth_elected_count": 5,
+        "youth_population_18_35": 977889,
+        "denominator_scope": "citywide",
+        "youth_candidacy_rate": 1.329394235951115,
+        "source_period": "107",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      },
+      {
+        "election_year_roc": 111,
+        "election_district_name": null,
+        "district_id": null,
+        "district_name": null,
+        "candidate_count": 114,
+        "age_known_candidate_count": 114,
+        "youth_candidate_count": 15,
+        "elected_count": 62,
+        "youth_elected_count": 8,
+        "youth_population_18_35": 895944,
+        "denominator_scope": "citywide",
+        "youth_candidacy_rate": 1.6742117810934611,
+        "source_period": "111",
+        "period_type": "election_event",
+        "quality_status": "observed",
+        "source_datasets": [
+          "elections",
+          "population"
+        ]
+      }
+    ]
+  },
+  "service_coverage": {
+    "metric_id": "serviceCoverageRate",
+    "radius_m": 2500,
+    "population_field": "youth_18_35_total",
+    "verified_point_count": 9,
+    "excluded_point_count": 0,
+    "source_datasets": [
+      "youth_service_points",
+      "village_boundaries",
+      "population_villages"
+    ],
+    "value": 49.22662308514867,
+    "status": "partial",
+    "blocking_reasons": [
+      "incomplete_village_population_coverage"
+    ],
+    "population_coverage_ratio": 0.9932627526467758,
+    "boundary_village_count": 1039,
+    "joined_village_count": 1032,
+    "districts": [
+      {
+        "district_id": "65000010",
+        "district_name": "板橋區",
+        "value": 90.79411625920311,
+        "covered_population": 98030.40732506159,
+        "target_population": 107970,
+        "village_count": 126,
+        "covered_village_count": 122,
+        "covered_youth": 98030.40732506159,
+        "youth_population": 107970
+      },
+      {
+        "district_id": "65000020",
+        "district_name": "三重區",
+        "value": 86.07537235327817,
+        "covered_population": 68463.49041607392,
+        "target_population": 79539,
+        "village_count": 119,
+        "covered_village_count": 116,
+        "covered_youth": 68463.49041607392,
+        "youth_population": 79539
+      }
+    ],
+    "villages": [
+      {
+        "village_code": "65000020119",
+        "district_id": "65000020",
+        "district_name": "三重區",
+        "target_population": 818,
+        "covered_population": 818,
+        "coverage_ratio": 1,
+        "youth_18_35_total": 818,
+        "covered_youth": 818
+      },
+      {
+        "village_code": "65000020097",
+        "district_id": "65000020",
+        "district_name": "三重區",
+        "target_population": 582,
+        "covered_population": 582,
+        "coverage_ratio": 1,
+        "youth_18_35_total": 582,
+        "covered_youth": 582
+      },
+      {
+        "village_code": "65000010049",
+        "district_id": "65000010",
+        "district_name": "板橋區",
+        "target_population": 251,
+        "covered_population": 16.936643530808023,
+        "coverage_ratio": 0.06747666745341842,
+        "youth_18_35_total": 251,
+        "covered_youth": 16.936643530808023
+      },
+      {
+        "village_code": "65000020059",
+        "district_id": "65000020",
+        "district_name": "三重區",
+        "target_population": 348,
+        "covered_population": 348,
+        "coverage_ratio": 1,
+        "youth_18_35_total": 348,
+        "covered_youth": 348
+      }
+    ]
+  },
+  "warnings": [
+    "incomplete_village_population_coverage"
+  ]
+}

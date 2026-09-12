@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "datasets": {
+    "population": [
+      {
+        "output_key": "11507",
+        "path": "curated/population.json",
+        "period_strategy": "monthly",
+        "source_period": "11507",
+        "transform_version": "2026-09-02.1"
+      }
+    ],
+    "job_vacancies": [
+      {
+        "output_key": "11507",
+        "path": "curated/job_vacancies.json",
+        "period_strategy": "snapshot",
+        "source_period": "11507",
+        "transform_version": "2026-09-02.1"
+      }
+    ],
+    "youth_budgets": [
+      {
+        "output_key": "11507",
+        "path": "curated/youth_budgets.json",
+        "period_strategy": "all_available",
+        "source_period": "11507",
+        "transform_version": "2026-09-02.1"
+      }
+    ],
+    "training_numbers": [
+      {
+        "output_key": "11507",
+        "path": "curated/training_numbers.json",
+        "period_strategy": "snapshot",
+        "source_period": "11507",
+        "transform_version": "2026-09-02.1"
+      }
+    ],
+    "house_prices": [
+      {
+        "output_key": "11507",
+        "path": "curated/house_prices.json",
+        "period_strategy": "snapshot",
+        "source_period": "11507",
+        "transform_version": "2026-09-02.1"
+      }
+    ]
+  }
+}
