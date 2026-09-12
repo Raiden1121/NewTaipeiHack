@@ -31,16 +31,16 @@ DynamoDB 存的是 **api_contract.md 實際要用的形狀**，不是每個 pipe
 | `META` | `MANIFEST` | `snapshot_id`、`generated_at`、`calculation_version`、`districts_count`、`time_policy{annual_years_roc, election_years_roc}`、`warnings[]` | <1KB | `GET /catalog`，以及每個 response 的 `meta` 區塊 |
 | `DASHBOARD` | `KPIS` | `kpis{...}`、`availability{...}` | <1KB | §4.1、§1.3 |
 | `DASHBOARD` | `POLICY` | `policy{currentBudget, budgetYoY, executionRate, executionFailure, budgetTrend[]}` | <1KB | §4.6；`budgetTrend`/`executionRate` 也被 §6.3 重用 |
-| `DASHBOARD` | `SERVICE_COVERAGE` | 城市層級 `value`/`status` + 診斷欄位（`radius_m`、`verified_point_count`、`population_coverage_ratio`、`boundary_village_count`、`joined_village_count`、`blocking_reasons`）——**不含** `villages[]` | <1KB | §4.4、§6.2 診斷欄位 |
+| `DASHBOARD` | `SERVICE_COVERAGE` | 城市層級 `value`/`status` + 診斷欄位（`radius_m`、`verified_point_count`、`excluded_point_count`、`population_coverage_ratio`、`boundary_village_count`、`joined_village_count`、`blocking_reasons`）——**不含** `villages[]` | <1KB | §4.4、§6.2 診斷欄位 |
 | `DASHBOARD` | `ELECTIONS` | `city_councilor_t1_citywide[3]`、`borough_chief_v1_citywide{year_roc, elected_count, youth_elected_count, ratio_percent}`（pipeline 算好的全市純量）、`borough_chief_v1[87]`（3 屆明細，保留供未來「近三屆趨勢」用，目前無端點直接消費整包） | ~44KB | §4.4、§6.1、§6.2 |
 | `DASHBOARD` | `POPULATION_TREND` | `annual.population.years[]`（5 年 × 城市 + 29 區） | ~24KB | §4.1 趨勢註、§7.2 青年人口占比、§8.1 `populationTrend`（Lambda 從這裡重新組陣列，不重複存） |
 | `DASHBOARD` | `FERTILITY_TREND` | `annual.fertility.years[]`（5 年 × 城市 + 29 區） | ~43KB | §4.5、§7.2 |
 | `DASHBOARD` | `DISTRICTS` | 完整 `districts[]`，29 筆，每筆含 §3.1 全部 **29** 個欄位（含新增的 `youthBoroughChiefRatioPercent`） | ~86KB | `GET /dashboard/overview` |
 | `DISTRICT#<district_id>` | `SUMMARY` | 與上面同一份逐區物件，單筆 | ~3KB ×29 | `GET /districts/{districtId}` |
-| `ANALYSIS#employment-scatter` | `DATA` | `employment.json` 的 `scatter.knowledge_job_vs_estimated_wage` + `scatter.monthly_wage_vs_house_price`（含 `points[]`/`regression`/`note`） | 數 KB | §5.3 |
+| `ANALYSIS#employment-scatter` | `DATA` | `plots[]`（2 個：`knowledge-wage`、`wage-housing`，各含 `id`/`title`/`x_label`/`y_label`/`points[]`/`regression`/`note`）+ `limitations[]`，即 api_contract.md §5.3 範例 JSON 的形狀 | 數 KB | §5.3 |
 | `ANALYSIS#fertility-overlay` | `DATA` | `fertility.json` 的 `scatter`（`points[]`/`regression`） | ~3KB | §7.3 |
-| `ANALYSIS#fertility-family-friendliness` | `DATA` | `fertility.json` 的 `fafi`（逐區 `fafi_score`/`fafi_level` + normalization 門檻） | ~5KB | §7.4 |
-| `ANALYSIS#youth-topic-weight` | `DATA` | `topic_weight.json` 原樣（完整歷史年份，不只 114 年） | ~49KB | §6.4——**backend 讀取時**才挑 `year_roc === 114`，這只是挑一筆既有資料、不含計算，年份選擇邏輯不搬進 storage 層，未來要做「議題歷年變化」可直接復用 |
+| `ANALYSIS#fertility-family-friendliness` | `DATA` | `fertility.json` 的 `fafi`（逐區 `fafi_score`/`fafi_level`） | ~5KB | §7.4——api_contract.md 沒有定義額外的門檻欄位，`fafi_level` 本身就是分級後的結果，不需要再存一份門檻 |
+| `ANALYSIS#youth-topic-weight` | `DATA` | 已攤平成單一年的形狀：`{analysis_id, year_roc, topics[]}`（固定 114 年） | 數 KB | §6.4——`handler.py` 原樣回傳這個 item，**不做任何年份挑選**；完整 5 年歷史留在 data-pipeline 自己的 `topic_weight/all.json`，不進這張表（只存 API 契約現在真的要用的形狀，同「設計原則」） |
 | `ANALYSIS#politics-resource-io` | `DATA` | `budget_by_department[]` | 小 / placeholder | §6.3——⚠️ pipeline 目前沒有對應資料源（`youth_budgets.business_plan` 只有 3 類，對不上前端 4 個新科別），這個 item 現在只能放空陣列或 null，等青年局科別拆分確認後再補。`budgetTrend`/`executionRate` 不重複存在這裡，backend 組 response 時去讀 `DASHBOARD/POLICY`。|
 | `ANALYSIS#policy-outcomes` | `DATA` | `policy_support.json` 的 `policyOutcomes`：`wageTrend[]`、`currentWageGrowth`、`currentPopGrowth`、`desiredDirection{wageGrowth, populationChange}` | 數 KB | §8.1——**不存 `populationTrend[]`**，該陣列 Lambda 讀取時從 `DASHBOARD/POPULATION_TREND` 的 `annual.population.years[]` 重新組裝（純整形，非計算），跟 §6.3 重用 `DASHBOARD/POLICY` 是同一個作法 |
 
