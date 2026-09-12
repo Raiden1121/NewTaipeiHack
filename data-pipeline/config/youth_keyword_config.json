@@ -1,0 +1,20 @@
+{
+  "version": "5",
+  "top_n": 100,
+  "min_document_frequency": 2,
+  "min_token_length": 2,
+  "max_token_length": 12,
+  "jieba_userdict": "youth_keyword_userdict.txt",
+  "stopwords": "youth_keyword_stopwords.txt",
+  "policy_terms": "youth_policy_terms.json",
+  "policy_anchors": [
+    "青年", "居住", "住宅", "租屋", "租金", "就業", "職涯", "勞動", "薪資",
+    "創業", "創新", "教育", "學習", "實習", "心理", "健康", "性別", "托育",
+    "育兒", "交通", "通勤", "數位", "資料", "環境", "氣候", "文化", "藝文",
+    "地方", "創生", "社會", "福利", "安全", "權益", "參與", "公民", "公共",
+    "產業", "創作", "青少年", "少年", "勞工", "陪伴"
+  ],
+  "policy_relevance_bonus": 0.8,
+  "frequency_weight": 1.0,
+  "min_dynamic_frequency": 3
+}

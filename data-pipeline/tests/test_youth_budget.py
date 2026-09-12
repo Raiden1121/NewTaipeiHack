@@ -16,6 +16,7 @@ from collectors.contracts import CollectedPayload  # noqa: E402
 
 
 LIST_URL = "https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=108"
+SETTLEMENT_LIST_URL = "https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=109"
 PAGE_TEXT_115 = """
 計畫及預算統計表
 單位：新臺幣千元、%
@@ -44,6 +45,44 @@ DETAIL_HTML = {
 }
 PDF_115 = b"%PDF-1.7\n115 budget"
 PDF_116 = b"%PDF-1.7\n116 budget"
+SETTLEMENT_SOURCE_PAGE = """
+中華民國
+款 項 目 節 名稱及編號 原預算數 預算增減數 合計 (1)
+            合計 161,758,908 - 161,758,908
+24 00240000000
+新北市政府青年局主管
+158,650,000 - 158,650,000
+001 00242400000
+新北市政府青年局
+158,650,000 - 158,650,000
+01 59242400100
+一般行政
+51,228,000 - 51,228,000
+02 59242400500
+青年發展業務
+107,122,000 - 107,122,000
+03 59242409800
+第一預備金
+300,000 - 300,000
+新北市政 歲出機關別決算表
+"""
+SETTLEMENT_RESULT_PAGE = """
+實現數 應付數 保留數 合計 (2)
+138,627,956 1,253,506 11,794,731 151,676,193 -10,082,715 93.77%
+135,519,048 1,253,506 11,794,731 148,567,285 -10,082,715 93.64%
+135,519,048 1,253,506 11,794,731 148,567,285 -10,082,715 93.64%
+45,454,160 - - 45,454,160 -5,773,840 88.73%
+90,064,888 1,253,506 11,794,731 103,113,125 -4,008,875 96.26%
+- - - - -300,000 -
+比 較 增減數 決算數 占預算數之比率 單位:新臺幣元
+"""
+SETTLEMENT_LISTING_HTML = """
+<a href="/youth/ch/app/data/doc/settlement-113">新北市政府青年局113年度單位決算</a>
+"""
+SETTLEMENT_DETAIL_HTML = {
+    "/youth/ch/app/data/doc/settlement-113": '<a href="/files/113-settlement.pdf">決算 PDF</a>',
+}
+PDF_113_SETTLEMENT = b"%PDF-1.7\n113 settlement"
 
 
 class _FakeResponse(io.BytesIO):
@@ -60,13 +99,17 @@ def _fake_open_url(request, *, timeout):
     url = request.full_url
     if url == LIST_URL:
         return _FakeResponse(LISTING_HTML.encode("utf-8"))
-    for path, html in DETAIL_HTML.items():
+    if url == SETTLEMENT_LIST_URL:
+        return _FakeResponse(SETTLEMENT_LISTING_HTML.encode("utf-8"))
+    for path, html in {**DETAIL_HTML, **SETTLEMENT_DETAIL_HTML}.items():
         if url.endswith(path):
             return _FakeResponse(html.encode("utf-8"))
     if url.endswith("/files/115-budget.pdf"):
         return _FakeResponse(PDF_115)
     if url.endswith("/files/116-budget.pdf"):
         return _FakeResponse(PDF_116)
+    if url.endswith("/files/113-settlement.pdf"):
+        return _FakeResponse(PDF_113_SETTLEMENT)
     raise AssertionError(f"unexpected URL: {url}")
 
 
@@ -89,6 +132,45 @@ class TestYouthBudgetCollector(unittest.TestCase):
         self.assertEqual(youth_budget._parse_document_status("法定預算"), ("legal_budget", "法定預算"))
         with self.assertRaises(youth_budget.BudgetCollectorError):
             youth_budget._parse_document_status("執行報告")
+
+    def test_settlement_listing_maps_final_settlement_status(self):
+        documents = youth_budget._parse_listing_page(
+            SETTLEMENT_LISTING_HTML,
+            page_url=SETTLEMENT_LIST_URL,
+            document_kind="settlement",
+        )
+
+        self.assertEqual(len(documents), 1)
+        self.assertEqual(documents[0].budget_year_roc, "113")
+        self.assertEqual(documents[0].document_status, "final_settlement")
+
+    def test_settlement_table_preserves_source_amount_columns(self):
+        document = youth_budget.BudgetDocument(
+            budget_year_roc="113",
+            document_status="final_settlement",
+            document_status_label="單位決算",
+            title="新北市政府青年局113年度單位決算",
+            detail_url="https://example.test/detail/113",
+            pdf_url="https://example.test/113.pdf",
+            published_date=None,
+            updated_date=None,
+            document_kind="settlement",
+        )
+
+        rows, page_number = youth_budget._extract_settlement_table(
+            [SETTLEMENT_SOURCE_PAGE, SETTLEMENT_RESULT_PAGE],
+            document=document,
+        )
+
+        total = rows[0]
+        self.assertEqual(page_number, 1)
+        self.assertEqual(total["row_type"], "total")
+        self.assertEqual(total["budget_amount"], "161,758,908")
+        self.assertEqual(total["realized_amount"], "138,627,956")
+        self.assertEqual(total["payable_amount"], "1,253,506")
+        self.assertEqual(total["reserved_amount"], "11,794,731")
+        self.assertEqual(total["settlement_amount"], "151,676,193")
+        self.assertEqual(total["source_execution_ratio_percent"], "93.77")
 
     def test_target_table_extracts_total_and_three_detail_rows(self):
         document = youth_budget.BudgetDocument(
@@ -147,6 +229,28 @@ class TestYouthBudgetCollector(unittest.TestCase):
         )
         self.assertTrue(all(record["document_id"] for record in payload.records))
 
+    def test_fetch_includes_final_settlement_listing_when_requested(self):
+        with patch.object(
+            youth_budget,
+            "_extract_pdf_pages",
+            side_effect=[[PAGE_TEXT_115], [SETTLEMENT_SOURCE_PAGE, SETTLEMENT_RESULT_PAGE]],
+        ):
+            payload = youth_budget.fetch_youth_budgets(
+                list_url=LIST_URL,
+                settlement_list_url=SETTLEMENT_LIST_URL,
+                open_url=_fake_open_url,
+                years=("113", "115"),
+            )
+
+        self.assertEqual(
+            {record["document_status"] for record in payload.records},
+            {"legal_budget", "final_settlement"},
+        )
+        self.assertEqual(
+            len([row for row in payload.records if row["document_status"] == "final_settlement"]),
+            6,
+        )
+
     def test_fetch_accepts_detail_url_that_returns_pdf_directly(self):
         html = '<a href="/direct.pdf">新北市政府青年局主管115年度單位預算(法定預算)</a>'
 
@@ -154,6 +258,8 @@ class TestYouthBudgetCollector(unittest.TestCase):
             del timeout
             if request.full_url == LIST_URL:
                 return _FakeResponse(html.encode())
+            if request.full_url == SETTLEMENT_LIST_URL:
+                return _FakeResponse(b"<html></html>")
             if request.full_url.endswith("/direct.pdf"):
                 return _FakeResponse(PDF_115)
             raise AssertionError(f"unexpected URL: {request.full_url}")

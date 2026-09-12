@@ -72,6 +72,31 @@ API 回傳 envelope，collector 最後只回傳 `responseData`：
 | 11507 | 65000010004 | 新北市板橋區 | 黃石里 | 551 | 1267 | 2 | 5 |
 | 11507 | 65000010005 | 新北市板橋區 | 挹秀里 | 875 | 1911 | 9 | 8 |
 
+### 4. ROC 10312 歷史人口來源
+
+ODRP014 實測 `10301`～`10612` 查無資料，因此 `population` 的選舉分母對
+`10312` 使用內政部戶政司資料集「各村（里）戶籍人口統計月報表」的歷史
+resource，而不是用新北市民政局五歲年齡組 ODS 估算單歲人口：
+
+```python
+from collectors.population_collector import fetch_population_for_period
+
+payload = fetch_population_for_period("10312")
+records = payload.records
+```
+
+`10312` ZIP 內的 `opendata-10312_age-65000.csv` 有新北市 1,032 個村里與
+`0歲`～`100歲以上`男女單一年齡欄位。adapter 只把來源欄位轉成既有
+`population` raw contract（`statistic_yyymm`、`site_id`、`village`、
+`people_total` 與 `people_age_018_m/f`～`people_age_035_m/f`），完整 ZIP
+以 SHA-256 `SourceArtifact` 保存；後續仍由 `transform_population` 彙總 29 區。
+歷史 CSV 沒有 ODRP014 的數字 `district_code`，所以以 `site_id` 的新北市行政區
+名稱解析，不自行編造村里代碼。
+
+實測 `10312` 產出 29 區、總人口 `3,966,818`、18–35 歲總人口
+`1,086,392`，與新北市 103 年人口年報的總人口交叉核對一致。`10712`、
+`11112` 仍由 ODRP014 提供；三個選舉年末 anchor 均由 pipeline 固定保留。
+
 ## 2. moving_in.py
 
 ### 1. 怎麼 call API
@@ -392,6 +417,25 @@ collector 只分別取得兩份原始資料；需要性別／年級欄位時，�
 | 114 | 94.07% | 99.16% |
 
 9621 有 103–114 學年度，但 9622 目前只有 113、114 學年度；103–112 學年度沒有詳細學生資料可合併。
+
+## 6.1 college_school.py
+
+`college_majors` 另外取得教育部「全國大學校院名錄」CSV，使用 `學校代碼` 對照學校地址與第三級行政區。這份資料只作為 transform 的位置參照，不在 collector 計算學生或教師統計。
+
+```python
+from collectors.college_school import fetch_college_school_locations
+
+locations = fetch_college_school_locations()
+```
+
+官方資料來源：
+
+```text
+https://data.gov.tw/dataset/33207
+https://ws.moe.edu.tw/001/Upload/4/relfile/0/5038/55f39b31-27a0-4009-866a-ea260eb45eaf.csv
+```
+
+collector 會處理教育部 CSV 的 BOM 與多行欄位標頭，輸出 `school_code`、`school_name`、`county_name`、`district_name`、`postal_code`、`school_address` 與 `raw_record`。教育部校碼沿革中的 `1084 ← 1166`、`1085 ← 1195` 會保留為對照別名，讓歷史學年度資料仍能映射。
 
 ## 7. graduate_major.py
 
@@ -1052,7 +1096,13 @@ payload = fetch_youth_budgets(years=("115", "116"))
 https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=108
 ```
 
-文件標題中的 `預算案` 對應 `proposed_budget`；`法定版` 與 `法定預算` 對應 `legal_budget`。同年度不同版本以 `document_id` 與 PDF SHA-256 共存，不互相覆蓋。
+決算列表來源：
+
+```text
+https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=109
+```
+
+文件標題中的 `預算案` 對應 `proposed_budget`；`法定版` 與 `法定預算` 對應 `legal_budget`；單位決算對應 `final_settlement`。同年度不同版本以 `document_id` 與 PDF SHA-256 共存，不互相覆蓋。預算版解析「計畫及預算統計表」，決算版解析「歲出機關別決算表」。
 
 ### 2. 回傳格式與保存規則
 
@@ -1062,9 +1112,58 @@ https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=108
 data/raw/youth_budgets/artifacts/{roc_year}_{status}_{sha256_prefix}.pdf
 ```
 
-每筆 raw row 至少包含 `budget_year_roc`、`document_status`、`row_type`、`business_plan`、`work_plan`、`budget_amount`、`ratio_percent`、`source_page_number`、`source_document_url`、`source_pdf_sha256` 與 `document_id`。`budget_amount`、`ratio_percent` 保留來源字串，型別驗證交由 transform。
+每筆預算 raw row 至少包含 `budget_year_roc`、`document_status`、`row_type`、`business_plan`、`work_plan`、`budget_amount`、`ratio_percent`、`source_page_number`、`source_document_url`、`source_pdf_sha256` 與 `document_id`。決算 raw row 另外保留 `original_budget_amount`、`budget_adjustment_amount`、`realized_amount`、`payable_amount`、`reserved_amount`、`settlement_amount`、`surplus_amount` 與 `source_execution_ratio_percent`。所有金額與比率先保留來源字串，型別驗證交由 transform；collector 不計算執行率。
 
-目前 parser 以 `pypdf` 搜尋表格標題與欄位，不固定第 28 頁；找不到標題／header、非 PDF、超過 50 MB、數值格式錯誤或重複 total row 時會記錄失敗。測試使用 fake HTML／PDF response；live source 僅作手動 smoke check。
+目前 parser 以 `pypdf` 搜尋表格標題與欄位，不固定頁碼；找不到標題／header、影像型 PDF 無可讀文字層、非 PDF、超過 50 MB、數值格式錯誤或重複 total row 時會記錄 `document_failures`。測試使用 fake HTML／PDF response；live source 會保存成功與失敗文件的 PDF artifact，供後續 OCR／人工複核。
+
+## elections.py
+
+### 1. 怎麼抓官方 ZIP
+
+```python
+from collectors.elections import fetch_elections
+
+payload = fetch_elections()
+payload = fetch_elections(election_terms=("2022",))
+```
+
+來源：
+
+```text
+https://data.cec.gov.tw/選舉資料庫/votedata.zip
+```
+
+collector 只選新北市代碼 `65`、2014／2018／2022，以及 `T1` 直轄市區域議員與 `V1` 村里長；ZIP 內的 `elcand.csv`／`elbase.csv` 會一併保存來源 member path。非這個 scope 的總統、立委、市長資料不會進入 `elections`。
+
+### 2. raw 欄位與地理規則
+
+raw 每列保留 `birth_date_roc`、`birth_year_roc`、`source_age`、`election_type`、`election_district_code`、候選人、政黨、性別、出生地、教育、現任／當選標記、村里代碼與 `raw_fields`。T1 的選區可能跨 29 區，因此只保留選區欄位；V1 才保存來源行政區與村里名稱。下載的 ZIP 以 SHA-256 保存為 `SourceArtifact`。
+
+### 3. 實際抓取結果（2026-09-10）
+
+2014／2018／2022 的 T1／V1 筆數分別為 `111/1708`、`112/1844`、`114/1688`，合計 5,577 筆。測試可注入 `open_url`，不會呼叫 live source；pipeline 使用 `all_available` 輸出 `data/curated/elections/all.json`。
+
+## youth_service_points.py
+
+### 1. 怎麼抓青年局青創基地
+
+```python
+from collectors.youth_service_points import fetch_youth_service_points
+
+payload = fetch_youth_service_points()
+```
+
+列表來源：
+
+```text
+https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0001&id=145
+```
+
+collector 先從列表的 `serno` 詳細頁逐頁擷取；每列固定 `point_type="startup_base"`，保留 `name`、`address`、`source_district_name`、電話、Email、公告／更新日期、`content_text`、詳細頁 URL 與 HTML `SourceArtifact`。地址缺值保持 `null`，不補猜。
+
+### 2. 地理欄位與實際抓取結果
+
+`latitude`／`longitude` 固定先為 `null`，`geocode_status="not_attempted"`，地理編碼與 2.5 km buffer 留給後續 geospatial analytics。2026-09-10 live 取得 9 筆，其中 3 筆有地址可對應行政區、6 筆來源未提供可用地址；pipeline 使用 `snapshot` 輸出 `data/curated/youth_service_points/latest.json`。
 
 ## Babysitting_place.py
 
@@ -1109,3 +1208,26 @@ https://data.ntpc.gov.tw/api/datasets/b3faf2aa-e96b-4f2f-b647-da47dc094860/json?
 ```
 
 來源欄位差異由 transform 處理：私托使用 `title`、`area`、`person`；公托使用 `name`、`town`、`unit`。此 collector 是最新名冊 snapshot，不產生歷史年度資料。
+
+## join_proposals.py
+
+`fetch_join_proposals()` 優先讀取 data.gov.tw「公共政策網路參與平臺－提點子」資源；資源無法發現或沒有可用列時，退回 join.gov.tw 提案列表與 detail 頁。collector 只保存來源內容，不計算青年議題權重。
+
+```python
+from collectors.join_proposals import fetch_join_proposals
+
+payload = fetch_join_proposals()
+# 測試時可注入 resource_urls=()、listing_url 與 open_url，不呼叫 live source。
+```
+
+raw row 會保存 `proposal_id`、`proposal_url`、`title`、`content`、`endorsement_count`、`submitted_at`、`status`、`agency`、`category`、`year_roc` 與完整 `source_payload`。來源沒有的欄位保留 JSON `null`；`year_roc` 以提案日期為準。metadata 會記錄 `source_mode`、來源 URL、成功／失敗數與逐案 failures。join 沒有年齡或新北行政區欄位，後續 transform 只標記 `youth_topic_proxy`，不宣稱是真實 18–35 歲民意。
+
+## youth_council_minutes.py
+
+`fetch_youth_council_minutes()` 從青年局會議紀錄入口動態發現 detail 文件。detail URL 不以 `.pdf` 結尾時，collector 先用 `%PDF-` magic bytes 判斷；HTML detail 再尋找 PDF link。每份成功文件保存逐頁 `page_texts`，並回傳 `SourceArtifact`，由 pipeline 寫入：
+
+```text
+data/raw/youth_council_minutes/artifacts/{meeting_id}_{sha256_prefix}.pdf
+```
+
+raw record 至少包含 `meeting_id`、`meeting_name`、`meeting_date`、`term`、`year_roc`、`detail_url`、`pdf_url`、`source_pdf_sha256`、`artifact_filename` 與 `page_texts`。PDF 下載、大小限制、抽文字或單一文件失敗會記在 metadata，不會清除其他成功文件。`pypdf` 為 requirements 依賴；未安裝時會回傳明確的 extraction failure。

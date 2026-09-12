@@ -12,6 +12,10 @@ from urllib.request import Request, urlopen
 
 from collectors.errors import CollectorNoDataError
 
+from .contracts import CollectedPayload
+from .historical_population import _open_url as _historical_open_url
+from .historical_population import fetch_historical_population
+
 
 API_URL_TEMPLATE = (
     "https://www.ris.gov.tw/rs-opendata/api/v1/datastore/ODRP014/{yyyymm}"
@@ -79,6 +83,34 @@ def fetch_population(
         records.extend(page_records)
 
     return records
+
+
+def fetch_population_for_period(
+    yyyymm: str,
+    county: str | None = DEFAULT_COUNTY,
+    town: str | None = None,
+    *,
+    open_url: OpenURL | None = None,
+) -> list[dict[str, str]] | CollectedPayload:
+    """Fetch population using ODRP014 or a registered historical archive.
+
+    The historical adapter returns a :class:`CollectedPayload` so the
+    pipeline can preserve the downloaded official ZIP alongside normalized
+    records.  Current ODRP014 behavior remains unchanged for all other months.
+    """
+
+    if yyyymm == "10312" and town is None:
+        return fetch_historical_population(
+            yyyymm,
+            county=county,
+            open_url=_historical_open_url if open_url is None else open_url,
+        )
+    return fetch_population(
+        yyyymm,
+        county=county,
+        town=town,
+        open_url=urlopen if open_url is None else open_url,
+    )
 
 
 def _validate_yyyymm(yyyymm: str) -> None:

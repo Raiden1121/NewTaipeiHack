@@ -181,6 +181,73 @@ class TestBabysittingPlaceTransform(unittest.TestCase):
         self.assertEqual(public["care_type"], "public")
         self.assertIn("raw_record", public)
 
+    def test_applies_static_location_reference_without_mutating_raw_record(self):
+        raw = {
+            "no": "1",
+            "title": "私立測試托嬰中心",
+            "county": "新北市",
+            "area": "板橋區",
+            "areacode": "65000010",
+            "address": "測試路1號",
+            "person": "60",
+            "care_type": "private",
+            "source_dataset_id": "private-source",
+        }
+
+        result = transform_babysitting_places(
+            [raw],
+            resolver=self.resolver,
+            fetched_at="2026-09-09T00:00:00+00:00",
+            location_reference={
+                "babysitting_places:private:private-source:1": {
+                    "address": "新北市板橋區測試路1號",
+                    "x_3826": 296000.0,
+                    "y_3826": 2766000.0,
+                    "geocode_provider": "ntpc_address_points",
+                    "geocode_crs": "EPSG:3826",
+                    "geocode_source_period": "latest",
+                    "source_type": "official_manual_reference",
+                    "verified_at": "2026-09-12",
+                }
+            },
+        )
+
+        row = result.records[0]
+        self.assertEqual(row["geocode_status"], "matched")
+        self.assertEqual(row["address"], "新北市板橋區測試路1號")
+        self.assertEqual(row["x_3826"], 296000.0)
+        self.assertEqual(row["y_3826"], 2766000.0)
+        self.assertEqual(row["geocode_provider"], "ntpc_address_points")
+        self.assertIsNone(raw.get("x_3826"))
+        self.assertNotIn("x_3826", row["raw_record"])
+
+    def test_keeps_unmatched_address_and_excludes_it_from_spatial_calculation(self):
+        result = transform_babysitting_places(
+            [
+                {
+                    "no": "1",
+                    "title": "無座標托嬰中心",
+                    "county": "新北市",
+                    "area": "板橋區",
+                    "areacode": "65000010",
+                    "address": "查無此路1號",
+                    "person": "60",
+                    "care_type": "private",
+                    "source_dataset_id": "private-source",
+                }
+            ],
+            resolver=self.resolver,
+            fetched_at="2026-09-09T00:00:00+00:00",
+            location_reference={},
+        )
+
+        self.assertEqual(
+            result.records[0]["geocode_status"],
+            "excluded_no_verified_coordinate",
+        )
+        self.assertIsNone(result.records[0]["x_3826"])
+        self.assertEqual(result.quality["rows_rejected"], 0)
+
     def test_registers_canonical_dataset_and_snapshot_schedule(self):
         self.assertEqual(canonicalize_dataset("babysitting_place"), "babysitting_places")
         self.assertEqual(canonicalize_dataset("Babysitting_place"), "babysitting_places")

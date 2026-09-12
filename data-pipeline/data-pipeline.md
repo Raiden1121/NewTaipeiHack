@@ -131,9 +131,21 @@ PYTHONPATH=src .venv/bin/python src/run_pipeline.py \
   --strict
 ```
 
-`--refresh-profile` 是 refresh mode，依 refresh state 的到期判斷執行目前應更新的資料；`--datasets` 只能縮小指定 profile 的範圍，`--failed-only` 則只挑選該 profile 上一次狀態為 `error` 的 units。`no_data` 不是永久失敗，annual 資料會在下一個 monthly window 重新檢查。
+`--refresh-profile` 是 refresh mode，依 refresh state 的到期判斷執行目前應更新的資料；`--datasets` 可縮小指定 profile 的範圍，`--failed-only` 則只挑選該 profile 上一次狀態為 `error` 的 units。加上 `--force` 會忽略目前 unit 的到期狀態並重新執行。沒有 due unit 時會跳過 retention，不會為了清理而重新掃描全部大型 JSON。`no_data` 不是永久失敗，annual 資料會在下一個 monthly window 重新檢查。
 
-歷史 range mode 仍使用 `--start-period` 與 `--end-period`，依 `PeriodStrategy` 建立歷史月份、年度、snapshot 或 all-available units；它是補齊或重建指定期間，不等同於 daily、weekly、monthly 的 wall-clock refresh mode。`--period`、`--input`、`--resume` 與 `--force` 仍屬既有的單月或 raw replay／recovery 操作，不應與 `--refresh-profile` 混用。
+歷史 range mode 仍使用 `--start-period` 與 `--end-period`，依 `PeriodStrategy` 建立歷史月份、年度、snapshot 或 all-available units；它是補齊或重建指定期間，不等同於 daily、weekly、monthly 的 wall-clock refresh mode。歷史 range 也可用 `--datasets` 只選指定資料集；例如只重抓 `college_majors` 的 110～114 五個學年度：
+
+```bash
+PYTHONPATH=src .venv/bin/python src/run_pipeline.py \
+  --start-period 11001 \
+  --end-period 11412 \
+  --datasets college_majors \
+  --output-dir data \
+  --force \
+  --strict
+```
+
+`10901`～`11412` 是六個學年度（109、110、111、112、113、114），不是五年。`--period`、`--input` 與 `--resume` 仍屬既有的單月或 raw replay／recovery 操作；`--force` 可用於 historical range，也可用於 refresh mode。
 
 refresh CLI 本身不包含定時器。外部 cron、GitHub Actions 或 AWS EventBridge Scheduler 只負責在指定時間呼叫上述同一個 CLI；本次 pipeline 不新增 AWS credentials、Lambda、EventBridge、部署資源或其他 AWS infrastructure。若尚未部署外部 scheduler，可以先在本機手動執行並確認 state、report 與 dataset index，再由部署環境設定實際頻率。
 
@@ -195,3 +207,57 @@ Dataset 名稱會由固定白名單轉為 canonical 名稱，例如 `moving_in �
 ## Boundaries
 
 Data Pipeline 負責抓資料、清理、標準化與計算數字。Frontend 與 LLM 不應取代這一層；職缺與畢業生資料也不能直接相減解釋成精確缺工人數。
+
+## Youth Topic Word Cloud Data Flow
+
+青年議題文字雲的數字計算在 Data Pipeline 的 analytics，不在 Frontend 排版，也不在 Backend 臨時計算：
+
+```text
+join.gov / data.gov ─┐
+                     ├─ collectors → raw → transforms → analytics weight JSON
+青年局會議 PDF ──────┘                                      ↓
+                                                   Backend API → Frontend SVG
+```
+
+新增資料集：
+
+- `join_proposals`：全國提案資料，青年關注由機關／關鍵字 proxy 推定。
+- `youth_council_minutes`：新北市青年局會議 PDF，保存 PDF artifact、hash、逐頁文字與提案段落狀態。
+
+兩者都是 `all_available`，curated output 為 `curated/{dataset}/all.json`。analytics 只讀 `quality/dataset_index.json` 列出的 authoritative files，輸出：
+
+```text
+data/analytics/youth_topic_weight/all.json
+data/quality/analytics_youth_topic_weight.json
+```
+
+執行 analytics：
+
+```bash
+cd data-pipeline
+PYTHONPATH=src python3 src/run_analytics.py \
+  --metric youth_topic_weight \
+  --output-dir data \
+  --config-dir config
+```
+
+權重使用 22 個固定議題與同義詞，依年度計算 join 提案支持度、會議項目數、resolved、escalated，再量化為 1–5。會議訊號至少為 3，`escalated` 強制為 5；Frontend 目前只讀 `label` 與 `weight`，不產生 PNG/SVG。
+
+目前另提供不限制 22 個議題的動態關鍵字分析，使用 `jieba`（若未安裝則使用明確標記的 fallback tokenizer）、動態停用詞與青年政策詞典。政策詞典是排序加分來源，不是動態候選詞白名單；候選詞先依至少 2 份文件的出現證據篩選。詞典以外的三字以上複合詞若出現在議題／提案文字，或同時出現在 join 與會議來源且累計達 `min_dynamic_frequency`，也能進入候選；二字詞則需額外具備議題重複證據或跨來源政策錨點。局處、會議程序與一般行政詞會排除；單一會議內重複很多次但沒有議題或跨來源證據的內文詞不會只因頻率高就保留。完整政策複合詞會由 user dictionary 保護，不會因單字停用詞被拆掉。會議詞的 `resolved`／`escalated` 只依 `resolution_text` 中實際命中的詞計算。政策詞、政策錨點與議題文字證據會計入 `policy_relevance`，輸出仍可包含詞典以外的動態詞。輸出為：
+
+```text
+data/analytics/youth_keyword_frequency/all.json
+data/quality/analytics_youth_keyword_frequency.json
+```
+
+執行動態關鍵字 analytics：
+
+```bash
+cd data-pipeline
+PYTHONPATH=src .venv/bin/python src/run_analytics.py \
+  --metric youth_keyword_frequency \
+  --output-dir data \
+  --config-dir config
+```
+
+動態關鍵字的設定在 `config/youth_keyword_config.json`；`youth_keyword_stopwords.txt` 管理行政／流程用語，`youth_policy_terms.json` 管理政策加分詞與複合詞，`policy_anchors` 管理政策相關性加分的領域詞，`youth_keyword_userdict.txt` 控制中文複合詞切分。`top_n`、`min_document_frequency`、`min_dynamic_frequency` 與 `frequency_weight` 可調整，不會限制只能輸出預先定義的 22 個議題。`raw_score` 會納入對數化的 `term_frequency`，並保留 join、會議、resolved、escalated 等資料訊號；輸出另含 `ranking_score`、`policy_relevance`、`frequency_score` 與 `topic_mentions`，其中 `ranking_score` 用於政策相關性排序與量化 `weight`。

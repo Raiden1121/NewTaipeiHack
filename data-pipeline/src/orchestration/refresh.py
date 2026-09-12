@@ -22,6 +22,7 @@ PROFILE_NAMES: tuple[str, ...] = ("daily", "weekly", "monthly")
 
 SUPPORTED_DATASETS: tuple[str, ...] = (
     "population",
+    "population_villages",
     "movement",
     "births",
     "marriages",
@@ -36,6 +37,12 @@ SUPPORTED_DATASETS: tuple[str, ...] = (
     "training_numbers",
     "talent_demand",
     "youth_budgets",
+    "youth_grants",
+    "elections",
+    "youth_service_points",
+    "village_boundaries",
+    "join_proposals",
+    "youth_council_minutes",
     "babysitting_places",
     "bus_stops",
     "railway_stops",
@@ -140,6 +147,7 @@ def build_refresh_units(
     state: Mapping[str, Any] | None = None,
     selected: Sequence[str] | None = None,
     failed_only: bool = False,
+    force: bool = False,
     now: datetime | None = None,
     profiles: Mapping[str, Sequence[str]] | None = None,
 ) -> list[ExecutionUnit]:
@@ -162,7 +170,7 @@ def build_refresh_units(
         if unit.spec.dataset not in selected_datasets:
             continue
         entry = state_units.get(refresh_state_key(unit))
-        if is_refresh_due(
+        if force or is_refresh_due(
             entry,
             now=current,
             profile=profile,

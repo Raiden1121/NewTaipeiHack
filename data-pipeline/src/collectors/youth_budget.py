@@ -26,13 +26,19 @@ except ImportError:  # pragma: no cover - dependency is declared in requirements
 BUDGET_LIST_URL = (
     "https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=108"
 )
+SETTLEMENT_LIST_URL = (
+    "https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=109"
+)
 REQUEST_TIMEOUT_SECONDS = 120
 MAX_PDF_BYTES = 50 * 1024 * 1024
 TABLE_TITLE = "計畫及預算統計表"
 UNIT_LABEL = "新臺幣千元"
+SETTLEMENT_TABLE_TITLE = "歲出機關別決算表"
+SETTLEMENT_UNIT_LABEL = "新臺幣元"
 _TITLE_PATTERN = re.compile(
     r"新北市政府青年局主管(?P<year>\d{3})年度單位預算[（(](?P<status>[^）)]+)[）)]"
 )
+_SETTLEMENT_TITLE_PATTERN = re.compile(r"新北市政府青年局(?P<year>\d{3})年度單位決算")
 _DATE_PATTERN = re.compile(r"\d{3,4}[./-]\d{1,2}[./-]\d{1,2}")
 _ANCHOR_PATTERN = re.compile(
     r"<a\b(?P<attributes>[^>]*)>(?P<body>.*?)</a>", re.IGNORECASE | re.DOTALL
@@ -42,6 +48,34 @@ _HREF_PATTERN = re.compile(
 )
 _AMOUNT_RATIO_PATTERN = re.compile(
     r"(?P<amount>\d[\d,]*)\s+(?P<ratio>\d+(?:\.\d+)?)\s*$"
+)
+_SETTLEMENT_SOURCE_ROW_PATTERN = re.compile(
+    r"(?P<original>-?\d[\d,]*|-)\s+"
+    r"(?P<adjustment>-?\d[\d,]*|-)\s+"
+    r"(?P<budget>-?\d[\d,]*|-)\s*$"
+)
+_SETTLEMENT_RESULT_ROW_PATTERN = re.compile(
+    r"^(?P<realized>-?\d[\d,]*|-)\s+"
+    r"(?P<payable>-?\d[\d,]*|-)\s+"
+    r"(?P<reserved>-?\d[\d,]*|-)\s+"
+    r"(?P<settlement>-?\d[\d,]*|-)\s+"
+    r"(?P<difference>-?\d[\d,]*|-)\s+"
+    r"(?P<ratio>-|\d+(?:\.\d+)?)(?:%)?"
+)
+_SETTLEMENT_PLAN_NAMES = frozenset(
+    {
+        "合計",
+        "新北市政府青年局主管",
+        "新北市政府青年局",
+        "經常門合計",
+        "資本門合計",
+        "一般行政",
+        "青年發展業務",
+        "第一預備金",
+        "統籌支撥科目",
+        "公務人員退休及撫卹給付",
+        "公務人員各項補助及慰問金",
+    }
 )
 _CONCATENATED_PLANS = (
     "一般行政",
@@ -66,6 +100,7 @@ class BudgetDocument:
     pdf_url: str | None
     published_date: str | None
     updated_date: str | None
+    document_kind: str = "budget"
 
 
 def _create_ssl_context() -> ssl.SSLContext:
@@ -85,12 +120,35 @@ def fetch_youth_budgets(
     list_url: str = BUDGET_LIST_URL,
     open_url: OpenURL = _open_url,
     years: Sequence[str] | None = None,
+    settlement_list_url: str | None = None,
 ) -> CollectedPayload:
-    """Discover and parse every selected Youth Bureau budget document."""
+    """Discover and parse selected budget and final-settlement documents.
+
+    A custom ``list_url`` keeps the historical budget-only test/replay behavior.
+    The live default source additionally discovers the official settlement list.
+    """
 
     selected_years = _normalize_years(years)
-    listing_html = _request_text(list_url, open_url=open_url)
-    documents = _parse_listing_page(listing_html, page_url=list_url)
+    if settlement_list_url is None and list_url == BUDGET_LIST_URL:
+        settlement_list_url = SETTLEMENT_LIST_URL
+
+    listing_sources = [(list_url, "budget")]
+    if settlement_list_url:
+        listing_sources.append((settlement_list_url, "settlement"))
+    documents: list[BudgetDocument] = []
+    listing_failures: list[dict[str, str]] = []
+    for source_url, document_kind in listing_sources:
+        try:
+            listing_html = _request_text(source_url, open_url=open_url)
+            documents.extend(
+                _parse_listing_page(
+                    listing_html,
+                    page_url=source_url,
+                    document_kind=document_kind,
+                )
+            )
+        except BudgetCollectorError as exc:
+            listing_failures.append({"url": source_url, "reason": str(exc)})
     if selected_years is not None:
         documents = [
             document
@@ -99,7 +157,13 @@ def fetch_youth_budgets(
         ]
     if not documents:
         suffix = f" for years {sorted(selected_years)}" if selected_years else ""
-        raise BudgetCollectorError(f"budget listing has no matching documents{suffix}")
+        failure_text = "; ".join(
+            f"{failure['url']}: {failure['reason']}" for failure in listing_failures
+        )
+        raise BudgetCollectorError(
+            f"budget listing has no matching documents{suffix}"
+            f"{': ' + failure_text if failure_text else ''}"
+        )
 
     records: list[dict[str, Any]] = []
     document_metadata: list[dict[str, Any]] = []
@@ -134,7 +198,10 @@ def fetch_youth_budgets(
                 continue
             artifacts.append(artifact)
             pages = _extract_pdf_pages(pdf_bytes)
-            rows, page_number = _find_budget_table(pages, document=document)
+            if document.document_kind == "settlement":
+                rows, page_number = _extract_settlement_table(pages, document=document)
+            else:
+                rows, page_number = _find_budget_table(pages, document=document)
             document_id = (
                 f"youth_budgets:{document.budget_year_roc}:"
                 f"{document.document_status}:{artifact.sha256.removeprefix('sha256:')}"
@@ -164,6 +231,7 @@ def fetch_youth_budgets(
                     "artifact_filename": artifact.filename,
                     "source_page_number": page_number,
                     "row_count": len(rows),
+                    "document_kind": document.document_kind,
                 }
             )
         except BudgetCollectorError as exc:
@@ -183,6 +251,8 @@ def fetch_youth_budgets(
         records=records,
         metadata={
             "list_url": list_url,
+            "settlement_list_url": settlement_list_url,
+            "listing_failures": listing_failures,
             "documents": document_metadata,
             "document_failures": failures,
         },
@@ -190,7 +260,9 @@ def fetch_youth_budgets(
     )
 
 
-def _parse_listing_page(html: str, *, page_url: str) -> list[BudgetDocument]:
+def _parse_listing_page(
+    html: str, *, page_url: str, document_kind: str = "budget"
+) -> list[BudgetDocument]:
     if not isinstance(html, str):
         raise BudgetCollectorError("budget listing must be text")
     documents: list[BudgetDocument] = []
@@ -202,12 +274,20 @@ def _parse_listing_page(html: str, *, page_url: str) -> list[BudgetDocument]:
             continue
         title = _visible_text(match.group("body"))
         normalized_title = _compact_text(title)
-        title_match = _TITLE_PATTERN.search(normalized_title)
+        title_pattern = (
+            _SETTLEMENT_TITLE_PATTERN
+            if document_kind == "settlement"
+            else _TITLE_PATTERN
+        )
+        title_match = title_pattern.search(normalized_title)
         if title_match is None:
             previous_anchor_end = match.end()
             continue
         year = title_match.group("year")
-        status, status_label = _parse_document_status(title_match.group("status"))
+        if document_kind == "settlement":
+            status, status_label = "final_settlement", "單位決算"
+        else:
+            status, status_label = _parse_document_status(title_match.group("status"))
         detail_url = urljoin(page_url, unescape(href_match.group("href")).strip())
         key = (year, status, detail_url)
         if key in seen:
@@ -225,6 +305,7 @@ def _parse_listing_page(html: str, *, page_url: str) -> list[BudgetDocument]:
                 pdf_url=None,
                 published_date=dates[0] if dates else None,
                 updated_date=dates[1] if len(dates) > 1 else None,
+                document_kind=document_kind,
             )
         )
         seen.add(key)
@@ -361,6 +442,136 @@ def _find_budget_table(
     if saw_target and errors:
         raise BudgetCollectorError("; ".join(errors))
     raise BudgetCollectorError("target budget table was not found in PDF")
+
+
+def _extract_settlement_table(
+    pages: Sequence[str], *, document: BudgetDocument
+) -> tuple[list[dict[str, Any]], int]:
+    """Extract the paired source/result pages of the official settlement table."""
+
+    pairs: list[tuple[int, list[dict[str, str]], list[dict[str, str]]]] = []
+    for index, page_text in enumerate(pages):
+        normalized = _compact_text(page_text)
+        if "原預算數" not in normalized or "歲出機關" not in normalized:
+            continue
+        if index + 1 >= len(pages):
+            continue
+        source_rows = _parse_settlement_source_rows(page_text)
+        result_rows = _parse_settlement_result_rows(pages[index + 1])
+        if source_rows and result_rows:
+            pairs.append((index + 1, source_rows, result_rows))
+
+    if not pairs:
+        raise BudgetCollectorError("target settlement table was not found in PDF")
+
+    selected_rows: list[dict[str, Any]] = []
+    seen_plan_names: set[str] = set()
+    for page_number, source_rows, result_rows in pairs:
+        if len(source_rows) != len(result_rows):
+            raise BudgetCollectorError(
+                "settlement source/result row counts do not match "
+                f"on page {page_number}: {len(source_rows)} != {len(result_rows)}"
+            )
+        for source_row, result_row in zip(source_rows, result_rows, strict=True):
+            plan_name = _compact_text(source_row["plan_name"])
+            if plan_name not in _SETTLEMENT_PLAN_NAMES or plan_name in seen_plan_names:
+                continue
+            seen_plan_names.add(plan_name)
+            selected_rows.append(
+                {
+                    "budget_year_roc": document.budget_year_roc,
+                    "document_status": document.document_status,
+                    "document_status_label": document.document_status_label,
+                    "row_type": "total" if plan_name == "合計" else "detail",
+                    "business_plan": plan_name,
+                    "work_plan": None,
+                    "budget_amount": source_row["budget"],
+                    "original_budget_amount": source_row["original"],
+                    "budget_adjustment_amount": source_row["adjustment"],
+                    "realized_amount": result_row["realized"],
+                    "payable_amount": result_row["payable"],
+                    "reserved_amount": result_row["reserved"],
+                    "settlement_amount": result_row["settlement"],
+                    "surplus_amount": result_row["difference"],
+                    "source_execution_ratio_percent": result_row["ratio"],
+                    "unit_label": SETTLEMENT_UNIT_LABEL,
+                    "table_title": SETTLEMENT_TABLE_TITLE,
+                    "source_page_number": page_number,
+                    "source_document_url": document.detail_url,
+                    "source_row_text": source_row["source_row_text"],
+                    "source_result_row_text": result_row["source_row_text"],
+                }
+            )
+    if not selected_rows or selected_rows[0]["row_type"] != "total":
+        raise BudgetCollectorError("settlement table has no total row")
+    return selected_rows, selected_rows[0]["source_page_number"]
+
+
+def _parse_settlement_source_rows(page_text: str) -> list[dict[str, str]]:
+    lines = _normalized_lines(page_text)
+    rows: list[dict[str, str]] = []
+    pending_plan: str | None = None
+    for line in lines:
+        match = _SETTLEMENT_SOURCE_ROW_PATTERN.search(line)
+        if match is not None:
+            prefix = line[: match.start()].strip()
+            plan_name = prefix or pending_plan
+            pending_plan = None
+            if not plan_name:
+                continue
+            rows.append(
+                {
+                    "plan_name": plan_name,
+                    "original": match.group("original"),
+                    "adjustment": match.group("adjustment"),
+                    "budget": match.group("budget"),
+                    "source_row_text": line,
+                }
+            )
+            continue
+        normalized = _compact_text(line)
+        if (
+            _is_settlement_code_line(line)
+            or normalized in {"中華民國", "增減數", "合計(1)", "預算增減數"}
+            or "原預算數" in normalized
+            or "名稱及編號" in normalized
+            or normalized.isdigit()
+        ):
+            continue
+        pending_plan = line.strip()
+    return rows
+
+
+def _parse_settlement_result_rows(page_text: str) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for line in _normalized_lines(page_text):
+        match = _SETTLEMENT_RESULT_ROW_PATTERN.match(line)
+        if match is None:
+            continue
+        rows.append(
+            {
+                "realized": match.group("realized"),
+                "payable": match.group("payable"),
+                "reserved": match.group("reserved"),
+                "settlement": match.group("settlement"),
+                "difference": match.group("difference"),
+                "ratio": match.group("ratio"),
+                "source_row_text": line,
+            }
+        )
+    return rows
+
+
+def _normalized_lines(page_text: str) -> list[str]:
+    return [
+        re.sub(r"\s+", " ", unicodedata.normalize("NFKC", line)).strip()
+        for line in page_text.splitlines()
+        if line.strip()
+    ]
+
+
+def _is_settlement_code_line(line: str) -> bool:
+    return bool(re.fullmatch(r"\d{1,3}\s+\d[\da-zA-Z]+", line.strip()))
 
 
 def _extract_pdf_pages(pdf_bytes: bytes) -> list[str]:

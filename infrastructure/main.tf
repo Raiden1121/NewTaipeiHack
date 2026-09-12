@@ -9,6 +9,13 @@ module "frontend" {
   cloudfront_price_class = var.cloudfront_price_class
 }
 
+module "api" {
+  source = "./modules/api"
+
+  project_name = var.project_name
+  environment  = var.environment
+}
+
 # `terraform apply` always rebuilds and redeploys the frontend, so the
 # CloudFront-served site matches whatever is currently in frontend/src.
 

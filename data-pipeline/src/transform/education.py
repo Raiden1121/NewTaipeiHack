@@ -10,6 +10,7 @@ from typing import Any, Iterable, Mapping
 
 from .common import TransformValueError, build_common_metadata, build_source_record_id, clean_text, parse_int, parse_roc_year
 from .contracts import TransformResult
+from .geography import DistrictResolver
 from .quality import QualityCollector
 
 
@@ -20,10 +21,22 @@ def transform_college_majors(
     overview_records: Iterable[Mapping[str, Any]],
     detail_records: Iterable[Mapping[str, Any]] | None = None,
     *,
+    resolver: DistrictResolver | None = None,
+    school_locations: Iterable[Mapping[str, Any]] | None = None,
     fetched_at: str | None = None,
 ) -> TransformResult:
     overview_rows = [dict(record) for record in overview_records]
     detail_rows = [dict(record) for record in detail_records or []]
+    location_rows = (
+        None
+        if school_locations is None
+        else [dict(record) for record in school_locations]
+    )
+    locations_by_school = (
+        _index_school_locations(location_rows) if location_rows is not None else None
+    )
+    if locations_by_school is not None and resolver is None:
+        raise ValueError("resolver is required when school_locations are provided")
     quality = QualityCollector(rows_in=len(overview_rows) + len(detail_rows))
     details_by_key: dict[tuple[str, ...], list[tuple[int, dict[str, Any]]]] = defaultdict(list)
     seen_details: set[str] = set()
@@ -50,7 +63,15 @@ def transform_college_majors(
         details = [entry[1] for entry in detail_entries]
         flags = [] if details else ["unmatched_college_overview"]
         try:
-            curated = _college_record(overview, details, index=index, fetched_at=fetched_at, flags=flags)
+            curated = _college_record(
+                overview,
+                details,
+                index=index,
+                fetched_at=fetched_at,
+                flags=flags,
+                locations_by_school=locations_by_school,
+                resolver=resolver,
+            )
         except TransformValueError as exc:
             quality.record_numeric_error()
             quality.reject(index, overview, f"invalid_overview:{exc}")
@@ -68,7 +89,15 @@ def transform_college_majors(
         quality.warn("unmatched_student_detail")
         detail_index = detail_entries[0][0]
         details = [entry[1] for entry in detail_entries]
-        curated = _college_record(None, details, index=detail_index, fetched_at=fetched_at, flags=["unmatched_student_detail"])
+        curated = _college_record(
+            None,
+            details,
+            index=detail_index,
+            fetched_at=fetched_at,
+            flags=["unmatched_student_detail"],
+            locations_by_school=locations_by_school,
+            resolver=resolver,
+        )
         output.append(curated)
         quality.accept()
     return TransformResult(output, quality.finish(), quality.quarantine)
@@ -135,6 +164,8 @@ def _college_record(
     index: int,
     fetched_at: str | None,
     flags: list[str],
+    locations_by_school: dict[str, dict[str, Any]] | None,
+    resolver: DistrictResolver | None,
 ) -> dict[str, Any]:
     source = overview or (details[0] if details else {})
     year = parse_roc_year(source.get("學年度"), field="學年度")
@@ -147,13 +178,40 @@ def _college_record(
     male = detail_counts.get("男生計")
     female = detail_counts.get("女生計")
     county = _county_name(source.get("縣市名稱"))
+    school_code = clean_text(source.get("學校代碼"))
+    school_location = (
+        locations_by_school.get(_school_code_key(school_code))
+        if locations_by_school is not None and _school_code_key(school_code)
+        else None
+    )
+    geo_level = "county"
+    district_id = None
+    district_name = None
+    school_location_status = "not_requested"
+    if locations_by_school is not None:
+        geo_level = "district"
+        school_location_status = "unmatched_school"
+        if school_location is not None:
+            school_location_status = "unmapped_district"
+            district_match = (
+                resolver.resolve_name(school_location.get("district_name"))
+                if resolver is not None
+                else None
+            )
+            if district_match is not None:
+                district_id, district_name = district_match
+                school_location_status = "matched"
+            else:
+                flags.append("school_location_district_unmapped")
+        else:
+            flags.append("school_location_unmatched")
     curated = build_common_metadata(
         dataset="college_majors",
         source="moe_9621_9622",
         source_record_id=build_source_record_id("college_majors", index, source),
-        geo_level="county",
-        district_id=None,
-        district_name=None,
+        geo_level=geo_level,
+        district_id=district_id,
+        district_name=district_name,
         period_start=start,
         period_end=end,
         period_type="year",
@@ -171,7 +229,7 @@ def _college_record(
         {
             "county_name": county,
             "academic_year": clean_text(source.get("學年度")),
-            "school_code": clean_text(source.get("學校代碼")),
+            "school_code": school_code,
             "school_name": clean_text(source.get("學校名稱")),
             "department_code": clean_text(source.get("科系代碼")),
             "department_name": clean_text(source.get("科系名稱")),
@@ -185,17 +243,66 @@ def _college_record(
             "overview_raw_record": deepcopy(overview),
             "detail_raw_record": deepcopy(details[0]) if len(details) == 1 else None,
             "detail_raw_records": deepcopy(details),
+            "school_address": (
+                clean_text(school_location.get("school_address"))
+                if school_location is not None
+                else None
+            ),
+            "school_postal_code": (
+                clean_text(school_location.get("postal_code"))
+                if school_location is not None
+                else None
+            ),
+            "school_location_district": (
+                clean_text(school_location.get("district_name"))
+                if school_location is not None
+                else None
+            ),
+            "school_location_source": (
+                clean_text(school_location.get("source"))
+                if school_location is not None
+                else None
+            ),
+            "school_location_status": school_location_status,
+            "school_location_raw_record": (
+                deepcopy(school_location.get("raw_record"))
+                if school_location is not None
+                else None
+            ),
         }
     )
     return curated
+
+
+def _index_school_locations(
+    records: Iterable[Mapping[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    indexed: dict[str, dict[str, Any]] = {}
+    for record in records:
+        school_code = _school_code_key(record.get("school_code"))
+        if school_code is None:
+            continue
+        existing = indexed.get(school_code)
+        candidate = dict(record)
+        if existing is not None and existing != candidate:
+            raise ValueError(f"duplicate school location for school code: {school_code}")
+        indexed[school_code] = candidate
+    return indexed
+
+
+def _school_code_key(value: Any) -> str | None:
+    text = clean_text(value)
+    if text is None:
+        return None
+    return str(int(text)) if text.isdigit() else text
 
 
 def _college_key(record: Mapping[str, Any]) -> tuple[str, ...]:
     values: list[str] = []
     for field in _JOIN_FIELDS:
         text = clean_text(record.get(field)) or ""
-        if field in {"學校代碼", "科系代碼"} and text.isdigit():
-            text = str(int(text))
+        if field in {"學校代碼", "科系代碼"}:
+            text = _school_code_key(text) or ""
         values.append(text)
     return tuple(values)
 

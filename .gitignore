@@ -35,6 +35,7 @@ cdk.out/
 **/.terraform/
 *.tfstate
 *.tfstate.*
+**/modules/api/lambda.zip
 *.tfplan
 **/.terraform.tfstate.lock.info
 

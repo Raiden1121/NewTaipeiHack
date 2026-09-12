@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from orchestration.contracts import CollectorSpec, PeriodStrategy
+from orchestration.state import TRANSFORM_VERSION
 from run_pipeline import main, run_period_range, run_refresh
 
 
@@ -325,7 +326,7 @@ class RefreshRunnerTests(unittest.TestCase):
                     "path": "curated/job_vacancies/latest.json",
                     "period_strategy": "snapshot",
                     "source_period": "11509",
-                    "transform_version": "2026-09-02.1",
+                    "transform_version": TRANSFORM_VERSION,
                 }],
             )
 
@@ -344,6 +345,25 @@ class RefreshRunnerTests(unittest.TestCase):
 
         self.assertEqual(raised.exception.code, 2)
         execute.assert_not_called()
+
+    def test_cli_allows_dataset_selection_for_historical_range(self):
+        with patch("run_pipeline.run_period_range", return_value={"status": "ok"}) as execute:
+            self.assertEqual(
+                main([
+                    "--start-period",
+                    "11001",
+                    "--end-period",
+                    "11412",
+                    "--datasets",
+                    "college_majors",
+                ]),
+                0,
+            )
+
+        self.assertEqual(
+            execute.call_args.kwargs["datasets"],
+            ("college_majors",),
+        )
 
     def test_cli_rejects_empty_historical_values_in_refresh_mode(self):
         for option in ("--input", "--period", "--start-period", "--end-period"):
@@ -455,6 +475,44 @@ class RefreshRunnerTests(unittest.TestCase):
 
             self.assertEqual(report["retention"]["status"], "ok")
             self.assertFalse(old_path.exists())
+
+    def test_refresh_with_no_due_units_skips_retention(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            state_path = output_dir / "quality" / "refresh_state.json"
+            state_path.parent.mkdir(parents=True)
+            state_path.write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "units": {
+                        "population:11509": {
+                            "dataset": "population",
+                            "source_period": "11509",
+                            "output_key": "11509",
+                            "status": "ok",
+                            "last_checked_at": "2026-09-09T00:00:00+00:00",
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
+            specs = (
+                CollectorSpec("population", lambda period: [], PeriodStrategy.MONTHLY),
+            )
+            profiles = {"daily": (), "weekly": (), "monthly": ("population",)}
+            with patch("run_pipeline.prune_local_data") as prune:
+                report = run_refresh(
+                    "monthly",
+                    output_dir=output_dir,
+                    config_dir=output_dir,
+                    collector_specs=specs,
+                    refresh_profiles=profiles,
+                    now=datetime(2026, 9, 9, 1, 0, tzinfo=timezone.utc),
+                )
+
+        self.assertEqual(report["retention"]["status"], "skipped")
+        self.assertEqual(report["retention"]["reason"], "no_execution_units")
+        prune.assert_not_called()
 
 
 if __name__ == "__main__":

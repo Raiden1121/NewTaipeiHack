@@ -65,6 +65,7 @@ class TestExecutionSchedule(unittest.TestCase):
     def test_default_registry_assigns_each_dataset_its_source_strategy(self):
         expected_strategies = {
             "population": PeriodStrategy.MONTHLY,
+            "population_villages": PeriodStrategy.MONTHLY,
             "movement": PeriodStrategy.MONTHLY,
             "births": PeriodStrategy.ANNUAL,
             "marriages": PeriodStrategy.ANNUAL,
@@ -80,6 +81,12 @@ class TestExecutionSchedule(unittest.TestCase):
             "babysitting_places": PeriodStrategy.SNAPSHOT,
             "talent_demand": PeriodStrategy.ALL_AVAILABLE,
             "youth_budgets": PeriodStrategy.ALL_AVAILABLE,
+            "youth_grants": PeriodStrategy.ALL_AVAILABLE,
+            "elections": PeriodStrategy.ALL_AVAILABLE,
+            "youth_service_points": PeriodStrategy.SNAPSHOT,
+            "village_boundaries": PeriodStrategy.SNAPSHOT,
+            "join_proposals": PeriodStrategy.ALL_AVAILABLE,
+            "youth_council_minutes": PeriodStrategy.ALL_AVAILABLE,
         }
 
         self.assertEqual(
