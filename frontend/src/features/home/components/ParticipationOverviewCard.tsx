@@ -20,7 +20,7 @@ export default function ParticipationOverviewCard() {
             </p>
             <div className="mt-1 flex items-end gap-1.5">
               <span className="text-2xl font-bold text-primary">12.8%</span>
-              <span className="mb-1 inline-flex items-center gap-0.5 text-xs font-semibold text-accent-teal">
+              <span className="mb-1 inline-flex items-center gap-0.5 text-xs font-semibold text-risk-high">
                 <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
                 1.5%
               </span>

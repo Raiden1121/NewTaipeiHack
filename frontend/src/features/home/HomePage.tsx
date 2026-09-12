@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import ParticipationOverviewCard from "./components/ParticipationOverviewCard";
 import FertilityOverviewCard from "./components/FertilityOverviewCard";
 import PolicySupportPanel from "./components/PolicySupportPanel";
 import SectionErrorFallback from "@/components/shared/SectionErrorFallback";
+import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 
 interface SectionProps {
   eyebrow: string;
@@ -31,6 +33,12 @@ function Section({ eyebrow, title, children }: SectionProps) {
 
 export default function HomePage() {
   const { reset } = useQueryErrorResetBoundary();
+  const clearSelection = useSelectedDistrict((state) => state.clearSelection);
+
+  // 離開主頁時清除已選取的行政區，避免下次回到主頁時仍顯示上次的選取狀態。
+  useEffect(() => {
+    return () => clearSelection();
+  }, [clearSelection]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 px-4 py-6 md:px-6 md:py-8">

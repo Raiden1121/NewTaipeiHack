@@ -9,14 +9,15 @@ interface SidebarNavProps {
 
 function SidebarNav({ onNavigate }: SidebarNavProps) {
   return (
-    <div className="flex h-full flex-col gap-6 bg-primary px-4 py-6 text-white">
-      <div className="px-2">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/60">
-          New Taipei City
-        </p>
-        <p className="mt-1 text-base font-extrabold leading-snug">
-          青年局統計儀表板
-        </p>
+    <div className="flex h-full flex-col gap-6 bg-primary px-4 pb-20 pt-6 text-white">
+      <div className="flex items-center gap-3 px-2 text-left">
+        <img src="/favicon.svg" alt="" className="h-9 w-9 shrink-0" aria-hidden="true" />
+        <div>
+          <p className="text-xl font-extrabold leading-snug">留得青山在</p>
+          <p className="mt-1 text-base font-medium leading-snug">
+            青年統計儀表板
+          </p>
+        </div>
       </div>
 
       <nav className="flex-1">

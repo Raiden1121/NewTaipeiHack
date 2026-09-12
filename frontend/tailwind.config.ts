@@ -1,25 +1,26 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#005599",
-          foreground: "#ffffff",
+          DEFAULT: "hsl(var(--color-primary) / <alpha-value>)",
+          foreground: "hsl(var(--color-primary-foreground) / <alpha-value>)",
         },
-        background: "#f8f9ff",
-        surface: "#ffffff",
+        background: "hsl(var(--color-background) / <alpha-value>)",
+        surface: "hsl(var(--color-surface) / <alpha-value>)",
         accent: {
-          teal: "#0f9d8a",
-          warning: "#f2994a",
-          slate: "#5b7799",
+          teal: "hsl(var(--color-accent-teal) / <alpha-value>)",
+          warning: "hsl(var(--color-accent-warning) / <alpha-value>)",
+          slate: "hsl(var(--color-accent-slate) / <alpha-value>)",
         },
         risk: {
-          low: "#1f9d6c",
-          medium: "#f2994a",
-          high: "#d64545",
+          low: "hsl(var(--color-risk-low) / <alpha-value>)",
+          medium: "hsl(var(--color-risk-medium) / <alpha-value>)",
+          high: "hsl(var(--color-risk-high) / <alpha-value>)",
         },
       },
     },

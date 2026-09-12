@@ -3,6 +3,7 @@ import { geoMercator, geoPath } from "d3-geo";
 import { useDistrictSummary } from "../hooks/useDistrictSummary";
 import { useNewTaipeiTopology } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 import { opportunityFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -11,13 +12,10 @@ import type { RetentionRiskLevel } from "@/types/district";
 
 const MAP_WIDTH = 760;
 const MAP_HEIGHT = 560;
+// 讓投影範圍內縮，避免緊貼地圖邊界的行政區在選取（含上浮位移／陰影）時被 viewBox 裁切。
+const MAP_PADDING = 20;
 
-const LEGEND_STEPS = [
-  "bg-primary/15",
-  "bg-primary/40",
-  "bg-primary/65",
-  "bg-primary",
-];
+const LEGEND_STEPS = ["bg-primary/20", "bg-primary/55", "bg-primary"];
 
 const RISK_LABEL: Record<RetentionRiskLevel, string> = {
   low: "低風險",
@@ -59,7 +57,14 @@ export default function DistrictChoroplethMap() {
     [features],
   );
   const projection = useMemo(
-    () => geoMercator().fitSize([MAP_WIDTH, MAP_HEIGHT], collection as never),
+    () =>
+      geoMercator().fitExtent(
+        [
+          [MAP_PADDING, MAP_PADDING],
+          [MAP_WIDTH - MAP_PADDING, MAP_HEIGHT - MAP_PADDING],
+        ],
+        collection as never,
+      ),
     [collection],
   );
   const pathGenerator = useMemo(() => geoPath(projection), [projection]);
@@ -68,6 +73,7 @@ export default function DistrictChoroplethMap() {
     (state) => state.selectedDistrictId,
   );
   const selectDistrict = useSelectedDistrict((state) => state.selectDistrict);
+  const colorTheme = useSettingsStore((state) => state.colorTheme);
 
   const isLoading = topologyState === "loading" || isDistrictsLoading;
   const isError = topologyState === "error" || isDistrictsError;
@@ -181,7 +187,7 @@ export default function DistrictChoroplethMap() {
                   style={{
                     fill: isSelected
                       ? SELECTED_DISTRICT_FILL
-                      : opportunityFillColor(opportunityIndex),
+                      : opportunityFillColor(opportunityIndex, colorTheme),
                     transformBox: "fill-box",
                     transformOrigin: "center",
                     transform: isSelected ? "translateY(-8px)" : undefined,
