@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Bot, SendHorizontal, Sparkles } from "lucide-react";
+import { Bot, SendHorizontal, ShieldCheck, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -102,6 +102,38 @@ function TypingRow() {
   );
 }
 
+function TrustedSourceToggle({
+  enabled,
+  onToggle,
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+      <span>可信任來源</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label="僅引用可信任來源"
+        onClick={onToggle}
+        className={cn(
+          "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+          enabled ? "bg-primary" : "bg-slate-200",
+        )}
+      >
+        <span
+          className={cn(
+            "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+            enabled ? "translate-x-4" : "translate-x-0",
+          )}
+        />
+      </button>
+    </label>
+  );
+}
+
 function ExamplePrompts({
   onSelect,
 }: {
@@ -139,6 +171,7 @@ export default function PolicyDecisionAssistant() {
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [trustedSourcesOnly, setTrustedSourcesOnly] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const timeoutRef = useRef<number | null>(null);
@@ -199,10 +232,16 @@ export default function PolicyDecisionAssistant() {
             <p className="text-xs text-slate-400">由大語言模型驅動</p>
           </div>
         </div>
-        <span className="flex items-center gap-1.5 text-xs font-semibold text-accent-teal">
-          <span className="h-2 w-2 rounded-full bg-accent-teal" aria-hidden="true" />
-          在線
-        </span>
+        <div className="flex items-center gap-4">
+          <TrustedSourceToggle
+            enabled={trustedSourcesOnly}
+            onToggle={() => setTrustedSourcesOnly((prev) => !prev)}
+          />
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-accent-teal">
+            <span className="h-2 w-2 rounded-full bg-accent-teal" aria-hidden="true" />
+            在線
+          </span>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4 p-5">
@@ -220,6 +259,13 @@ export default function PolicyDecisionAssistant() {
             ) : null}
           </AnimatePresence>
         </div>
+
+        {trustedSourcesOnly ? (
+          <p className="flex items-center gap-1.5 text-[11px] font-medium text-accent-teal">
+            <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            已啟用：僅引用政府公開資料與可信任來源
+          </p>
+        ) : null}
 
         <form
           onSubmit={handleSubmit}
