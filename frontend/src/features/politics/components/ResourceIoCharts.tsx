@@ -1,26 +1,13 @@
-import { useState } from "react";
 import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { usePoliticsResourceIo } from "@/lib/api/queries";
+import type { BudgetTrendPoint } from "@/lib/api/types";
 
-// 佔位圖表數值皆為示意，待真實統計資料串接。
-
-interface DepartmentBudget {
-  label: string;
-  amount: number; // 千元
-  share: number; // %
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
-
-// 佔位：青年局各科別預算比例，待主計處資料串接。
-const DEPARTMENT_BUDGET: DepartmentBudget[] = [
-  { label: "綜合規劃", amount: 38960, share: 24.42 },
-  { label: "職涯發展", amount: 37730, share: 23.65 },
-  { label: "創業資源", amount: 70979, share: 44.49 },
-  { label: "資本門設備與投資", amount: 11852, share: 7.43 },
-];
-
-const SORTED_DEPARTMENT_BUDGET = [...DEPARTMENT_BUDGET].sort(
-  (a, b) => b.share - a.share,
-);
 
 // 長標籤（如「資本門設備與投資」）換行呈現，避免與相鄰長條的標籤重疊。
 function splitLabel(label: string, maxCharsPerLine = 5): string[] {
@@ -28,34 +15,14 @@ function splitLabel(label: string, maxCharsPerLine = 5): string[] {
   return [label.slice(0, maxCharsPerLine), label.slice(maxCharsPerLine)];
 }
 
-interface YearlyBudget {
-  year: number;
-  amount: number;
-}
-
-// 佔位：近五年（民國年）年度總預算。
-const YEARLY_BUDGET: YearlyBudget[] = [
-  { year: 110, amount: 52 },
-  { year: 111, amount: 60 },
-  { year: 112, amount: 68 },
-  { year: 113, amount: 82 },
-  { year: 114, amount: 96 },
-];
-
-const BUDGET_EXECUTION = 92;
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-// 三張圖共用同一 viewBox 比例（寬滿版、依比例縮放），確保滿版寬螢幕時文字等比放大，
-// 且三卡在等寬欄位下會自然等高，不需額外固定高度。
 const CHART_VB_W = 280;
 const CHART_VB_H = 190;
 
-function BarChart() {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-
+function DepartmentBarChart({
+  departments,
+}: {
+  departments: { label: string; amount_thousand: number; share_percent: number }[];
+}) {
   const vbW = CHART_VB_W;
   const vbH = CHART_VB_H;
   const labelH = 44;
@@ -63,13 +30,11 @@ function BarChart() {
   const barsBottom = vbH - labelH;
   const plotH = barsBottom - barsTop;
   const gap = 14;
-  const barWidth =
-    (vbW - gap * (SORTED_DEPARTMENT_BUDGET.length + 1)) /
-    SORTED_DEPARTMENT_BUDGET.length;
-  const max = Math.max(...SORTED_DEPARTMENT_BUDGET.map((item) => item.share));
+  const barWidth = (vbW - gap * (departments.length + 1)) / departments.length;
+  const max = Math.max(...departments.map((item) => item.share_percent));
 
-  const bars = SORTED_DEPARTMENT_BUDGET.map((item, index) => {
-    const height = (item.share / max) * plotH;
+  const bars = departments.map((item, index) => {
+    const height = (item.share_percent / max) * plotH;
     return {
       ...item,
       x: gap + index * (barWidth + gap),
@@ -80,22 +45,14 @@ function BarChart() {
     };
   });
 
-  const hovered = hoveredIndex !== null ? bars[hoveredIndex] : null;
-  const tooltipW = 88;
-  const tooltipH = 34;
-  const tooltipX = hovered
-    ? clamp(hovered.x + hovered.width / 2 - tooltipW / 2, 2, vbW - tooltipW - 2)
-    : 0;
-  const tooltipY = hovered ? Math.max(2, hovered.y - tooltipH - 6) : 0;
-
   return (
     <svg
       viewBox={`0 0 ${vbW} ${vbH}`}
       className="block h-auto w-full"
       role="img"
-      aria-label="青年局各科別預算比例長條圖佔位"
+      aria-label="青年局各科別預算比例長條圖"
     >
-      {bars.map((bar, index) => (
+      {bars.map((bar) => (
         <rect
           key={bar.label}
           x={bar.x}
@@ -103,11 +60,7 @@ function BarChart() {
           width={bar.width}
           height={bar.height}
           rx={3}
-          className={
-            index === hoveredIndex ? "fill-primary" : "fill-primary/30"
-          }
-          onMouseEnter={() => setHoveredIndex(index)}
-          onMouseLeave={() => setHoveredIndex(null)}
+          className="fill-primary/60"
         />
       ))}
       <line
@@ -120,60 +73,36 @@ function BarChart() {
       />
       {bars.map((bar) => (
         <text
+          key={`${bar.label}-value`}
+          x={bar.x + bar.width / 2}
+          y={bar.y - 4}
+          textAnchor="middle"
+          className="fill-slate-600"
+          fontSize={10}
+          fontWeight={700}
+        >
+          {bar.share_percent.toFixed(1)}%
+        </text>
+      ))}
+      {bars.map((bar) => (
+        <text
           key={`${bar.label}-label`}
           textAnchor="middle"
           className="fill-slate-400"
-          fontSize={11}
+          fontSize={10}
         >
           {bar.lines.map((line, lineIndex) => (
-            <tspan
-              key={line}
-              x={bar.x + bar.width / 2}
-              y={barsBottom + 16 + lineIndex * 13}
-            >
+            <tspan key={line} x={bar.x + bar.width / 2} y={barsBottom + 16 + lineIndex * 12}>
               {line}
             </tspan>
           ))}
         </text>
       ))}
-      {hovered && (
-        <g pointerEvents="none">
-          <rect
-            x={tooltipX}
-            y={tooltipY}
-            width={tooltipW}
-            height={tooltipH}
-            rx={6}
-            fill="#10233f"
-          />
-          <text
-            x={tooltipX + tooltipW / 2}
-            y={tooltipY + 14}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fill="#ffffff"
-            fontSize={12}
-            fontWeight={700}
-          >
-            {hovered.share}%
-          </text>
-          <text
-            x={tooltipX + tooltipW / 2}
-            y={tooltipY + 26}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fill="#cbd5e1"
-            fontSize={9.5}
-          >
-            {hovered.amount.toLocaleString("zh-Hant-TW")} 千元
-          </text>
-        </g>
-      )}
     </svg>
   );
 }
 
-function LineChart() {
+function LineChart({ trend }: { trend: BudgetTrendPoint[] }) {
   const vbW = CHART_VB_W;
   const vbH = CHART_VB_H;
   const labelH = 26;
@@ -182,19 +111,27 @@ function LineChart() {
   const plotH = bottom - top;
   const leftPad = 16;
   const rightPad = 10;
-  const amounts = YEARLY_BUDGET.map((item) => item.amount);
+  const stepX = (vbW - leftPad - rightPad) / (trend.length - 1 || 1);
+
+  const available = trend.filter(
+    (item): item is { year_roc: number; value_thousand: number } => item.value_thousand !== null,
+  );
+  const amounts = available.map((item) => item.value_thousand);
   const max = Math.max(...amounts);
   const min = Math.min(...amounts);
-  const stepX = (vbW - leftPad - rightPad) / (YEARLY_BUDGET.length - 1);
 
-  const points = YEARLY_BUDGET.map((item, index) => {
-    const x = leftPad + index * stepX;
-    const y = bottom - ((item.amount - min) / (max - min)) * plotH;
-    return { x, y, year: item.year };
-  });
+  const points = trend
+    .map((item, index) => ({ ...item, index }))
+    .filter((item): item is typeof item & { value_thousand: number } => item.value_thousand !== null)
+    .map((item) => {
+      const x = leftPad + item.index * stepX;
+      const y = bottom - ((item.value_thousand - min) / (max - min || 1)) * plotH;
+      return { x, y, year: item.year_roc };
+    });
+
   const polylinePoints = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`);
-  const firstX = points[0].x.toFixed(1);
-  const lastX = points[points.length - 1].x.toFixed(1);
+  const firstX = points[0]?.x.toFixed(1) ?? "0";
+  const lastX = points[points.length - 1]?.x.toFixed(1) ?? "0";
 
   const axisTopY = top - 6;
   const axisRightX = vbW - rightPad / 2;
@@ -206,7 +143,7 @@ function LineChart() {
       viewBox={`0 0 ${vbW} ${vbH}`}
       className="block h-auto w-full"
       role="img"
-      aria-label="年度總預算趨勢折線圖佔位，近五年"
+      aria-label="年度總預算趨勢折線圖，近五年"
     >
       <defs>
         <marker
@@ -249,45 +186,41 @@ function LineChart() {
       >
         億元
       </text>
-      <polyline
-        points={`${firstX},${bottom} ${polylinePoints.join(" ")} ${lastX},${bottom}`}
-        className="fill-primary/10 stroke-none"
-      />
-      <polyline
-        points={polylinePoints.join(" ")}
-        className="fill-none stroke-primary"
-        strokeWidth={2}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
+      {points.length > 1 && (
+        <>
+          <polyline
+            points={`${firstX},${bottom} ${polylinePoints.join(" ")} ${lastX},${bottom}`}
+            className="fill-primary/10 stroke-none"
+          />
+          <polyline
+            points={polylinePoints.join(" ")}
+            className="fill-none stroke-primary"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        </>
+      )}
       {points.map((point) => (
-        <circle
-          key={point.year}
-          cx={point.x}
-          cy={point.y}
-          r={2.5}
-          className="fill-primary"
-        />
+        <circle key={point.year} cx={point.x} cy={point.y} r={2.5} className="fill-primary" />
       ))}
-      {points.map((point) => (
+      {trend.map((item, index) => (
         <text
-          key={`${point.year}-label`}
-          x={point.x}
+          key={`${item.year_roc}-label`}
+          x={leftPad + index * stepX}
           y={bottom + 18}
           textAnchor="middle"
           className="fill-slate-400"
           fontSize={11}
         >
-          {point.year} 年
+          {item.year_roc} 年
         </text>
       ))}
     </svg>
   );
 }
 
-function DonutChart() {
-  // 沿用與長條／折線圖相同的 viewBox 比例，讓三張卡在同寬欄位下自然等高、
-  // 文字也隨欄寬等比放大（滿版寬螢幕時不再被固定高度侵限）。
+function DonutChart({ executionRate }: { executionRate: number }) {
   const vbW = CHART_VB_W;
   const vbH = CHART_VB_H;
   const cx = vbW / 2;
@@ -295,13 +228,13 @@ function DonutChart() {
   const stroke = 18;
   const radius = 68;
   const circumference = 2 * Math.PI * radius;
-  const dash = (BUDGET_EXECUTION / 100) * circumference;
+  const dash = (clamp(executionRate, 0, 100) / 100) * circumference;
   return (
     <svg
       viewBox={`0 0 ${vbW} ${vbH}`}
       className="block h-auto w-full"
       role="img"
-      aria-label={`青年局預算執行率 ${BUDGET_EXECUTION}% 環圈圖佔位`}
+      aria-label={`青年局預算執行率 ${executionRate}% 環圈圖`}
     >
       <circle
         cx={cx}
@@ -329,9 +262,18 @@ function DonutChart() {
         fontSize={30}
         fontWeight={700}
       >
-        {BUDGET_EXECUTION}%
+        {executionRate}%
       </text>
     </svg>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex h-[190px] flex-col items-center justify-center gap-1 text-center">
+      <p className="text-sm font-semibold text-slate-400">資料待補</p>
+      <p className="text-xs text-slate-400">{message}</p>
+    </div>
   );
 }
 
@@ -362,23 +304,59 @@ function ChartCard({ eyebrow, title, note, children }: ChartCardProps) {
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           {children}
         </div>
-        <p className="text-[11px] text-slate-400">佔位圖表，數值為示意。</p>
       </CardContent>
     </Card>
   );
 }
 
 export default function ResourceIoCharts() {
+  const { data: analysis, isLoading, isError, error, refetch } = usePoliticsResourceIo();
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-64 w-full rounded-2xl" />
+        ))}
+      </div>
+    );
+  }
+
+  if (isError || !analysis) {
+    return (
+      <section
+        role="alert"
+        className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-8 text-center"
+      >
+        <h2 className="text-lg font-bold text-red-700">資源投入與產出載入失敗</h2>
+        <p className="text-sm text-red-600">
+          {error instanceof Error ? error.message : "請稍後再試。"}
+        </p>
+        <Button variant="destructive" onClick={() => refetch()}>
+          重新載入
+        </Button>
+      </section>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <ChartCard eyebrow="By Department" title="青年局各科別預算比例">
-        <BarChart />
+        {analysis.budget_by_department && analysis.budget_by_department.length > 0 ? (
+          <DepartmentBarChart departments={analysis.budget_by_department} />
+        ) : (
+          <EmptyState message="青年局決算科別拆分尚未提供，見 api_contract.md §6.3" />
+        )}
       </ChartCard>
       <ChartCard eyebrow="Yearly Trend" title="年度總預算趨勢">
-        <LineChart />
+        <LineChart trend={analysis.budgetTrend} />
       </ChartCard>
       <ChartCard eyebrow="Budget" title="青年局預算執行率">
-        <DonutChart />
+        {analysis.executionRate === null ? (
+          <EmptyState message="決算尚未公告，暫無法計算執行率" />
+        ) : (
+          <DonutChart executionRate={analysis.executionRate} />
+        )}
       </ChartCard>
     </div>
   );

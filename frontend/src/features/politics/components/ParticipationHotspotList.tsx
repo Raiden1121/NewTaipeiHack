@@ -25,7 +25,7 @@ export default function ParticipationHotspotList() {
   const ranked = useMemo(
     () =>
       [...districts].sort(
-        (a, b) => b.youthParticipationIndex - a.youthParticipationIndex,
+        (a, b) => (b.youthCandidacyRatePer100k ?? 0) - (a.youthCandidacyRatePer100k ?? 0),
       ),
     [districts],
   );
@@ -91,12 +91,12 @@ export default function ParticipationHotspotList() {
               className="-mr-2 flex max-h-[460px] flex-col gap-0.5 overflow-y-auto pr-2"
             >
               {ranked.map((district, index) => {
-                const isSelected = district.id === selectedDistrictId;
+                const isSelected = district.district_id === selectedDistrictId;
                 return (
-                  <li key={district.id} data-district-id={district.id}>
+                  <li key={district.district_id} data-district-id={district.district_id}>
                     <button
                       type="button"
-                      onClick={() => selectDistrict(district.id)}
+                      onClick={() => selectDistrict(district.district_id)}
                       className={cn(
                         "flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
                         isSelected ? "bg-primary/10" : "hover:bg-slate-50",
@@ -119,11 +119,11 @@ export default function ParticipationHotspotList() {
                             isSelected ? "text-primary" : "text-slate-800",
                           )}
                         >
-                          {district.name}
+                          {district.district_name}
                         </span>
                       </span>
                       <span className="text-sm font-bold text-slate-900">
-                        {district.youthParticipationIndex}
+                        {district.youthCandidacyRatePer100k ?? "—"}
                       </span>
                     </button>
                   </li>
@@ -131,7 +131,7 @@ export default function ParticipationHotspotList() {
               })}
             </ol>
             <p className="shrink-0 pt-3 text-[11px] text-slate-400">
-              排名依青年參政指數（佔位資料，待 Backend API 提供）。
+              排名依青年里長候選人參選率（每十萬青年），僅民國 111 年屆為完整資料。
             </p>
           </>
         )}

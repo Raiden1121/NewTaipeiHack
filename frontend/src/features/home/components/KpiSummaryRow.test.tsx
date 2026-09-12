@@ -1,53 +1,31 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import KpiSummaryRow from "./KpiSummaryRow";
-import { useDistrictSummary } from "../hooks/useDistrictSummary";
+import { useDashboardOverview } from "@/lib/api/queries";
 
-vi.mock("../hooks/useDistrictSummary");
-const mockedUseDistrictSummary = vi.mocked(useDistrictSummary);
+vi.mock("@/lib/api/queries");
+const mockedUseDashboardOverview = vi.mocked(useDashboardOverview);
 
-const SAMPLE_DISTRICTS = [
-  {
-    id: "A",
-    name: "甲",
-    youthPopulation: 1000,
-    opportunityIndex: 80,
-    retentionRiskLevel: "low" as const,
-    youthParticipationIndex: 60,
-    fertilityRate: 40,
-    policySupportScore: 70,
+const SAMPLE_OVERVIEW = {
+  kpis: {
+    nationalYouthPopulation: 4820000,
+    nationalYouthPopulationQuality: "proxy" as const,
+    cityYouthPopulationShare: 20.914,
+    cityYouthPopulation: 845938,
+    cityYouthPopulationYoY: -1.969,
+    referenceYearRoc: 114,
   },
-  {
-    id: "B",
-    name: "乙",
-    youthPopulation: 2000,
-    opportunityIndex: 60,
-    retentionRiskLevel: "high" as const,
-    youthParticipationIndex: 50,
-    fertilityRate: 42,
-    policySupportScore: 55,
-  },
-  {
-    id: "C",
-    name: "丙",
-    youthPopulation: 1500,
-    opportunityIndex: 70,
-    retentionRiskLevel: "high" as const,
-    youthParticipationIndex: 55,
-    fertilityRate: 41,
-    policySupportScore: 60,
-  },
-];
+};
 
 describe("KpiSummaryRow", () => {
   it("renders skeleton placeholders while loading", () => {
-    mockedUseDistrictSummary.mockReturnValue({
+    mockedUseDashboardOverview.mockReturnValue({
       data: undefined,
       isLoading: true,
       isError: false,
       error: null,
       refetch: vi.fn(),
-    } as unknown as ReturnType<typeof useDistrictSummary>);
+    } as unknown as ReturnType<typeof useDashboardOverview>);
 
     render(<KpiSummaryRow />);
     expect(screen.getByTestId("kpi-skeleton")).toBeInTheDocument();
@@ -55,13 +33,13 @@ describe("KpiSummaryRow", () => {
 
   it("renders an inline error state with a working reload button", () => {
     const refetch = vi.fn();
-    mockedUseDistrictSummary.mockReturnValue({
+    mockedUseDashboardOverview.mockReturnValue({
       data: undefined,
       isLoading: false,
       isError: true,
       error: new Error("模擬 KPI 資料失敗"),
       refetch,
-    } as unknown as ReturnType<typeof useDistrictSummary>);
+    } as unknown as ReturnType<typeof useDashboardOverview>);
 
     render(<KpiSummaryRow />);
     expect(screen.getByText("模擬 KPI 資料失敗")).toBeInTheDocument();
@@ -69,16 +47,16 @@ describe("KpiSummaryRow", () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  it("renders aggregated KPI values from the district summaries", () => {
-    mockedUseDistrictSummary.mockReturnValue({
-      data: SAMPLE_DISTRICTS,
+  it("renders KPI values from the dashboard overview", () => {
+    mockedUseDashboardOverview.mockReturnValue({
+      data: SAMPLE_OVERVIEW,
       isLoading: false,
       isError: false,
       error: null,
       refetch: vi.fn(),
-    } as unknown as ReturnType<typeof useDistrictSummary>);
+    } as unknown as ReturnType<typeof useDashboardOverview>);
 
     render(<KpiSummaryRow />);
-    expect(screen.getByText("新北市青年人口 4,500 人")).toBeInTheDocument();
+    expect(screen.getByText("新北市青年人口 845,938 人")).toBeInTheDocument();
   });
 });

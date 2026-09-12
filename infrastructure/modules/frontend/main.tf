@@ -39,6 +39,25 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   signing_protocol                  = "sigv4"
 }
 
+# S3 (via OAC/REST API, not the S3 website endpoint) doesn't auto-resolve a
+# directory request to its index.html, so /slides or /slides/ would otherwise
+# 403 -> fall back to the React SPA's index.html instead of the slide deck.
+resource "aws_cloudfront_function" "slides_index" {
+  name    = "${var.project_name}-slides-index-rewrite"
+  runtime = "cloudfront-js-1.0"
+  comment = "Rewrite /slides and /slides/ to /slides/index.html"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+      var request = event.request;
+      if (request.uri === "/slides" || request.uri === "/slides/") {
+        request.uri = "/slides/index.html";
+      }
+      return request;
+    }
+  EOT
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   default_root_object = "index.html"
@@ -56,6 +75,11 @@ resource "aws_cloudfront_distribution" "frontend" {
     target_origin_id       = aws_s3_bucket.frontend.id
     viewer_protocol_policy = "redirect-to-https"
     cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized.id
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.slides_index.arn
+    }
   }
 
   # react-router uses client-side routing, so any path S3 can't find (403/404)

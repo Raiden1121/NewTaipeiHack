@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useDistrictSummary } from "../hooks/useDistrictSummary";
+import { useDashboardOverview } from "@/lib/api/queries";
 import {
   Card,
   CardContent,
@@ -9,24 +9,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const NATIONAL_YOUTH_POPULATION = 4_820_000;
-const NATIONAL_YOUTH_POPULATION_SHARE = 20.6;
-const CITY_YOUTH_POPULATION_SHARE = 28.4;
-const YOUTH_POPULATION_YOY = -1.2;
-
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("zh-Hant-TW").format(Math.round(value));
-}
+import { formatInt, formatSignedPercent } from "@/lib/format";
 
 export default function KpiSummaryRow() {
-  const {
-    data: districts = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useDistrictSummary();
+  const { data: overview, isLoading, isError, error, refetch } = useDashboardOverview();
 
   if (isLoading) {
     return (
@@ -41,7 +27,7 @@ export default function KpiSummaryRow() {
     );
   }
 
-  if (isError) {
+  if (isError || !overview) {
     const message =
       error instanceof Error ? error.message : "青年 KPI 資料載入失敗，請稍後再試。";
 
@@ -60,32 +46,29 @@ export default function KpiSummaryRow() {
     );
   }
 
-  const cityYouthPopulation = districts.reduce(
-    (total, district) => total + district.youthPopulation,
-    0,
-  );
+  const { kpis } = overview;
+  const yoy = kpis.cityYouthPopulationYoY;
 
-  const kpis = [
+  const kpisView = [
     {
       label: "全台 18–35 歲青年人口",
-      value: `${formatNumber(NATIONAL_YOUTH_POPULATION)} 人`,
-      detail: `全台佔比 ${NATIONAL_YOUTH_POPULATION_SHARE}%`,
+      value: `${formatInt(kpis.nationalYouthPopulation)} 人`,
+      detail:
+        kpis.nationalYouthPopulationQuality === "proxy"
+          ? "推估值（無全國官方統計 collector）"
+          : `基準年 民國 ${kpis.referenceYearRoc} 年`,
     },
     {
       label: "新北市青年佔總人口比例",
-      value: `${CITY_YOUTH_POPULATION_SHARE}%`,
-      detail: `新北市青年人口 ${formatNumber(cityYouthPopulation)} 人`,
+      value: `${kpis.cityYouthPopulationShare.toFixed(1)}%`,
+      detail: `新北市青年人口 ${formatInt(kpis.cityYouthPopulation)} 人`,
     },
     {
       label: "青年人口年增率 (YoY)",
-      value: `${YOUTH_POPULATION_YOY > 0 ? "+" : ""}${YOUTH_POPULATION_YOY}%`,
+      value: formatSignedPercent(yoy),
       detail: "較去年同期",
       valueClassName:
-        YOUTH_POPULATION_YOY > 0
-          ? "text-risk-high"
-          : YOUTH_POPULATION_YOY < 0
-            ? "text-risk-low"
-            : undefined,
+        yoy > 0 ? "text-risk-high" : yoy < 0 ? "text-risk-low" : undefined,
     },
   ];
 
@@ -94,7 +77,7 @@ export default function KpiSummaryRow() {
       className="grid grid-cols-1 gap-4 sm:grid-cols-3"
       data-testid="kpi-success"
     >
-      {kpis.map((kpi, index) => (
+      {kpisView.map((kpi, index) => (
         <motion.div
           key={kpi.label}
           initial={{ opacity: 0, y: 12 }}

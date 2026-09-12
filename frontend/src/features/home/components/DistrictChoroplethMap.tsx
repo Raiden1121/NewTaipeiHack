@@ -4,7 +4,8 @@ import { useDistrictSummary } from "../hooks/useDistrictSummary";
 import { useNewTaipeiTopology } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { opportunityFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
+import { tieredFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
+import { computeTercileThresholds } from "@/lib/quantile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,8 +50,13 @@ export default function DistrictChoroplethMap() {
   } = useDistrictSummary();
 
   const districtById = useMemo(() => {
-    return new Map(districts.map((district) => [district.id, district]));
+    return new Map(districts.map((district) => [district.district_id, district]));
   }, [districts]);
+
+  const opportunityThresholds = useMemo(
+    () => computeTercileThresholds(districts.map((district) => district.opportunityIndex)),
+    [districts],
+  );
 
   const collection = useMemo(
     () => ({ type: "FeatureCollection" as const, features }),
@@ -187,7 +193,7 @@ export default function DistrictChoroplethMap() {
                   style={{
                     fill: isSelected
                       ? SELECTED_DISTRICT_FILL
-                      : opportunityFillColor(opportunityIndex, colorTheme),
+                      : tieredFillColor(opportunityIndex, opportunityThresholds, colorTheme),
                     transformBox: "fill-box",
                     transformOrigin: "center",
                     transform: isSelected ? "translateY(-8px)" : undefined,

@@ -16,7 +16,8 @@ import {
 } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { fertilityFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
+import { tieredFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
+import { computeTercileThresholds } from "@/lib/quantile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -99,7 +100,12 @@ export default function FertilityDistributionMap() {
   const colorTheme = useSettingsStore((state) => state.colorTheme);
 
   const districtById = useMemo(
-    () => new Map(districts.map((district) => [district.id, district])),
+    () => new Map(districts.map((district) => [district.district_id, district])),
+    [districts],
+  );
+
+  const fertilityThresholds = useMemo(
+    () => computeTercileThresholds(districts.map((district) => district.fertilityRate)),
     [districts],
   );
 
@@ -370,7 +376,7 @@ export default function FertilityDistributionMap() {
                       style={{
                         fill: isSelected
                           ? SELECTED_DISTRICT_FILL
-                          : fertilityFillColor(fertilityRate, colorTheme),
+                          : tieredFillColor(fertilityRate, fertilityThresholds, colorTheme),
                         strokeWidth:
                           (isSelected || isHovered ? 3 : 1.5) / view.scale,
                       }}

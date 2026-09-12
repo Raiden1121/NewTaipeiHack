@@ -45,6 +45,29 @@ def _retention_risk(i):
     return "high"
 
 
+def _build_borough_chief_rows():
+    """3 屆（103/107/111）× 29 區里長選舉明細。僅民國 111 年屆的比例會被拿去併入
+    districts[].youthBoroughChiefRatioPercent，其餘兩屆只保留在 elections.borough_chief_v1
+    供未來歷年趨勢使用，不進 KPI 卡，見 api_contract.md §6.2。"""
+    rows = []
+    for i, (did, name) in enumerate(DISTRICTS):
+        frac = _frac(i)
+        elected_count = 20 + (i * 7) % 100
+        for yr in (103, 107, 111):
+            youth_elected = max(0, round(elected_count * (0.02 + 0.1 * frac)))
+            rows.append({
+                "district_id": did, "district_name": name, "year_roc": yr,
+                "elected_count": elected_count, "youth_elected_count": youth_elected,
+            })
+    return rows
+
+
+BOROUGH_CHIEF_ROWS = _build_borough_chief_rows()
+BOROUGH_CHIEF_LATEST_BY_DISTRICT = {
+    row["district_id"]: row for row in BOROUGH_CHIEF_ROWS if row["year_roc"] == 111
+}
+
+
 def _mock_district(i, district_id, district_name):
     frac = _frac(i)
     job = round(10 + frac * 76.29, 2)
@@ -56,6 +79,11 @@ def _mock_district(i, district_id, district_name):
         0.25 * job + 0.25 * salary + 0.05 * talent + 0.25 * housing + 0.20 * transport, 2
     )
     candidacy_rate = round((frac ** 2) * 64.68, 2)
+    borough_latest = BOROUGH_CHIEF_LATEST_BY_DISTRICT[district_id]
+    borough_chief_ratio = (
+        round(borough_latest["youth_elected_count"] / borough_latest["elected_count"] * 100, 2)
+        if borough_latest["elected_count"] else None
+    )
     return {
         "district_id": district_id,
         "district_name": district_name,
@@ -87,6 +115,7 @@ def _mock_district(i, district_id, district_name):
         "serviceCoverageStatus": "partial",
         "youthCandidacyRatePer100k": candidacy_rate,
         "youthParticipationIndex": candidacy_rate,
+        "youthBoroughChiefRatioPercent": borough_chief_ratio,
         "qualityStatus": "observed",
         "sourcePeriods": {},
     }
@@ -199,23 +228,29 @@ def _build_fertility_years():
     return out
 
 
+def _build_borough_chief_citywide():
+    latest = [row for row in BOROUGH_CHIEF_ROWS if row["year_roc"] == 111]
+    elected_count = sum(row["elected_count"] for row in latest)
+    youth_elected_count = sum(row["youth_elected_count"] for row in latest)
+    return {
+        "year_roc": 111,
+        "elected_count": elected_count,
+        "youth_elected_count": youth_elected_count,
+        "ratio_percent": round(youth_elected_count / elected_count * 100, 2) if elected_count else None,
+    }
+
+
 def _build_elections():
     citywide = [
         {"year_roc": 103, "youth_candidacy_rate": None, "quality_status": "unavailable"},
         {"year_roc": 107, "youth_candidacy_rate": None, "quality_status": "unavailable"},
         {"year_roc": 111, "youth_candidacy_rate": 1.674, "quality_status": "observed"},
     ]
-    borough = []
-    for i, (did, name) in enumerate(DISTRICTS):
-        frac = _frac(i)
-        elected_count = 20 + (i * 7) % 100
-        for yr in (103, 107, 111):
-            youth_elected = max(0, round(elected_count * (0.02 + 0.1 * frac)))
-            borough.append({
-                "district_id": did, "district_name": name, "year_roc": yr,
-                "elected_count": elected_count, "youth_elected_count": youth_elected,
-            })
-    return {"city_councilor_t1_citywide": citywide, "borough_chief_v1": borough}
+    return {
+        "city_councilor_t1_citywide": citywide,
+        "borough_chief_v1": BOROUGH_CHIEF_ROWS,
+        "borough_chief_v1_citywide": _build_borough_chief_citywide(),
+    }
 
 
 def _build_service_coverage():
@@ -313,41 +348,50 @@ def _analysis_employment_scatter(qs):
     }
 
 
+# 青年局各科別預算比例：organization/county 層級的決算科別拆分，不可分攤到 29 區，
+# 見 api_contract.md §6.3。科別名稱與比例待青年局提供真實決算後取代。
+DEPARTMENT_BUDGET = [
+    {"label": "綜合規劃", "amount_thousand": 68654, "share_percent": 35.0},
+    {"label": "職涯發展", "amount_thousand": 58846, "share_percent": 30.0},
+    {"label": "創業資源", "amount_thousand": 39231, "share_percent": 20.0},
+    {"label": "資本門設備與投資", "amount_thousand": 29423, "share_percent": 15.0},
+]
+
+
 def _analysis_politics_resource_io(qs):
     return {
         "analysis_id": "politics-resource-io",
-        "geo_level": "district",
-        "grants_by_district": [],
+        "geo_level": "county",
+        "budget_by_department": DEPARTMENT_BUDGET,
         "budgetTrend": _build_policy()["budgetTrend"],
         "executionRate": None,
     }
 
 
 TOPIC_LABELS = ["社會住宅", "青年就業", "青年創業", "托育資源", "交通建設"]
+# 見 api_contract.md §6.4（2026-09-12 決議）：UI 已拿掉年份選擇器，固定顯示最新一年。
+LATEST_TOPIC_YEAR_ROC = 114
 
 
 def _analysis_youth_topic_weight(qs):
-    years = []
-    for yr in (110, 111, 112, 113, 114):
-        topics = []
-        for idx, label in enumerate(TOPIC_LABELS):
-            weight = 1 + (idx + yr) % 5
-            topics.append({
-                "label": label, "weight": weight, "signal": "minutes",
-                "join_mentions": 0, "minutes_mentions": weight,
-                "resolved": weight >= 3, "escalated": False,
-                "join_support_score": 0.0, "raw_score": float(weight),
-            })
-        years.append({"year_roc": yr, "topics": topics})
-    requested_year = qs.get("year")
-    if requested_year:
-        years = [y for y in years if str(y["year_roc"]) == str(requested_year)]
+    """回傳攤平的單年形狀（analysis_id/year_roc/topics），不帶 years 包裝。
+
+    固定回傳 LATEST_TOPIC_YEAR_ROC；不接受 `year` query 參數 —— 前端也不會送，
+    query 若真的帶了會被忽略，避免呼叫端誤以為可以切換年份。
+    """
+    topics = []
+    for idx, label in enumerate(TOPIC_LABELS):
+        weight = 1 + (idx + LATEST_TOPIC_YEAR_ROC) % 5
+        topics.append({
+            "label": label, "weight": weight, "signal": "minutes",
+            "join_mentions": 0, "minutes_mentions": weight,
+            "resolved": weight >= 3, "escalated": False,
+            "join_support_score": 0.0, "raw_score": float(weight),
+        })
     return {
-        "metric_id": "youth_topic_weight",
-        "calculation_version": "mock",
-        "source_datasets": ["join_proposals", "youth_council_minutes"],
-        "normalization": "yearly_max",
-        "years": years,
+        "analysis_id": "youth-topic-weight",
+        "year_roc": LATEST_TOPIC_YEAR_ROC,
+        "topics": topics,
     }
 
 
@@ -400,6 +444,9 @@ def _analysis_policy_outcomes(qs):
         "populationTrend": population_trend,
         "currentWageGrowth": 2.8,
         "currentPopGrowth": -1.969,
+        # 語意固定、非資料：薪資成長「越高越好」、青年人口成長「下滑才是警訊」，
+        # 兩者期望方向皆為 up。見 api_contract.md §8.1。
+        "desiredDirection": {"wageGrowth": "up", "populationChange": "up"},
     }
 
 

@@ -16,7 +16,8 @@ import {
 } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { participationFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
+import { tieredFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
+import { computeTercileThresholds } from "@/lib/quantile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -98,7 +99,15 @@ export default function ParticipationHotspotMap() {
   const colorTheme = useSettingsStore((state) => state.colorTheme);
 
   const districtById = useMemo(
-    () => new Map(districts.map((district) => [district.id, district])),
+    () => new Map(districts.map((district) => [district.district_id, district])),
+    [districts],
+  );
+
+  const participationThresholds = useMemo(
+    () =>
+      computeTercileThresholds(
+        districts.map((district) => district.youthCandidacyRatePer100k ?? 0),
+      ),
     [districts],
   );
 
@@ -357,8 +366,8 @@ export default function ParticipationHotspotMap() {
                 {orderedFeatures.map((district) => {
                   const id = district.properties.id;
                   const name = district.properties.name ?? "未命名行政區";
-                  const participationIndex =
-                    districtById.get(id)?.youthParticipationIndex;
+                  const participationRate =
+                    districtById.get(id)?.youthCandidacyRatePer100k;
                   const isSelected = id === selectedDistrictId;
                   const isHovered = id === hoveredDistrictId;
 
@@ -379,7 +388,7 @@ export default function ParticipationHotspotMap() {
                       style={{
                         fill: isSelected
                           ? SELECTED_DISTRICT_FILL
-                          : participationFillColor(participationIndex, colorTheme),
+                          : tieredFillColor(participationRate, participationThresholds, colorTheme),
                         strokeWidth:
                           (isSelected || isHovered ? 3 : 1.5) / view.scale,
                       }}

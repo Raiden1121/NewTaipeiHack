@@ -12,39 +12,18 @@ const THEME_PALETTES: Record<ColorTheme, [string, string, string]> = {
   slate: ["#e6eaef", "#98a6b6", "#43566b"],
 };
 
-function tieredFillColor(
-  value: number | undefined,
+// 三階門檻寫死值曾與真實值域完全不符（見 api_contract.md §10 #2），已改由呼叫端
+// 用 computeTercileThresholds() 依當下資料動態算好再傳入。
+export function tieredFillColor(
+  value: number | null | undefined,
   thresholds: [number, number],
   colorTheme: ColorTheme,
 ): string {
   const palette = THEME_PALETTES[colorTheme];
-  if (value === undefined) return palette[0];
+  if (value === null || value === undefined) return palette[0];
   if (value >= thresholds[1]) return palette[2];
   if (value >= thresholds[0]) return palette[1];
   return palette[0];
-}
-
-export function opportunityFillColor(
-  opportunityIndex: number | undefined,
-  colorTheme: ColorTheme = "blue",
-): string {
-  return tieredFillColor(opportunityIndex, [60, 75], colorTheme);
-}
-
-// 青年參政指數 choropleth 著色。門檻比照 opportunityFillColor。
-export function participationFillColor(
-  participationIndex: number | undefined,
-  colorTheme: ColorTheme = "blue",
-): string {
-  return tieredFillColor(participationIndex, [52, 62], colorTheme);
-}
-
-// 青年生育率 choropleth 著色。CSV fertilityRate 約落在 35–54 區間。
-export function fertilityFillColor(
-  fertilityRate: number | undefined,
-  colorTheme: ColorTheme = "blue",
-): string {
-  return tieredFillColor(fertilityRate, [41, 46], colorTheme);
 }
 
 export const SELECTED_DISTRICT_FILL = "#ffad5a";
