@@ -37,25 +37,37 @@ export function defaultDataPipelineDataDir(): string {
 /**
  * 依環境變數決定 evidence 從哪裡來。
  *
- * 預設是 **curated ＋ analytics 兩個都讀**：
+ * 預設是 **只讀 analytics 快照**。
  *
- * - `CuratedFileEvidenceRepository` 給原始資料點（逐筆職缺、人口、預算與其網址）
- * - `AnalyticsSnapshotEvidenceRepository` 給彙總後的複合指標（機會指數、
- *   房價中位數、留才風險等級…）
+ * ## 為什麼預設不含 curated
  *
- * 兩個都預設開啟，是因為少了 analytics，AI 就沒有任何可引用的複合指標，
- * 而「哪一區的青年發展機會較好」這類核心問題**只能**用複合指標回答。
+ * 架構上正式路徑是
+ * `Deterministic Analytics → DynamoDB / AI Context → Backend API / AI Service`，
+ * 而**進 DynamoDB 的只有 analytics 算完的結果**。curated 是 pipeline 的中間產物，
+ * 留在 S3，線上不會有。
+ *
+ * 預設讀 curated 的話，本機驗過的東西跟線上不是同一批資料 —— 而且那種落差很難發現：
+ * 兩邊都「有資料、答得出來」，只是線上少了一半 evidence，於是同一個問題在 demo
+ * 機器上答得完整、在 AWS 上答得殘缺。本機預設就跟線上一致比較安全。
  *
  * `AI_EVIDENCE_SOURCE` 可以切換：
- * - `curated`：只讀 curated（analytics 快照還沒發布時用）
- * - `analytics`：只讀 analytics（想確認複合指標本身時用）
- * - 其他值或未設定：兩個都讀
+ * - `analytics`（預設）：只讀 analytics 快照
+ * - `curated`：只讀 curated（想檢查 pipeline 的原始輸出時用）
+ * - `composite`：兩個都讀（curated 在前）
  *
  * `AI_ANALYTICS_SNAPSHOT_ID` 可以指定讀哪個快照，省略時用 `published/current.json`。
- * `AI_DATA_DIR` 可覆寫資料目錄，測試與 Lambda 會用到。
+ * `AI_DATA_DIR` 可覆寫資料目錄，測試與批次腳本會用到。
  *
- * 架構上正式路徑仍然是 `Deterministic Analytics → DynamoDB / AI Context → AI Service`；
- * 等那張表存在時在這裡多一個 `DynamoEvidenceRepository` 分支即可，
+ * ## 只讀 analytics 的兩個已知代價
+ *
+ * 1. **沒有逐筆來源網址。** curated 的每一筆帶 `sourceUrl`（某份預算 PDF、
+ *    某個職缺頁面），analytics 快照沒有這個欄位，所以 `sources[].recordUrls`
+ *    會是空的，只剩 `SOURCE_REGISTRY` 的資料集層級網址。
+ * 2. **單位與青年適用性只能靠 `ANALYTICS_METRIC_META`。** 快照沒有 `unit` /
+ *    `youth_eligibility` / `age_scope` 欄位（實測 8 個 artifact 全部沒有），
+ *    所以那張手寫的表是唯一來源。用 `npm run dev:metric-audit` 稽核覆蓋率。
+ *
+ * 等 DynamoDB table 存在時在這裡多一個 `DynamoEvidenceRepository` 分支即可，
  * handler / prompt / Bedrock 那幾層不用動（`AiEvidence` 不變）。
  */
 export function createEvidenceRepositoryFromEnv(
@@ -68,15 +80,15 @@ export function createEvidenceRepositoryFromEnv(
   if (mode === 'curated') {
     return new CuratedFileEvidenceRepository(dataDir);
   }
-  if (mode === 'analytics') {
-    return new AnalyticsSnapshotEvidenceRepository(dataDir, snapshotId);
+  if (mode === 'composite') {
+    // curated 放前面：dedupe 與 notes 的順序都以第一個來源為主，而 curated 是
+    // 原始資料，讓它先出現比較符合「先事實、後推導指標」的閱讀順序。
+    return new CompositeEvidenceRepository([
+      new CuratedFileEvidenceRepository(dataDir),
+      new AnalyticsSnapshotEvidenceRepository(dataDir, snapshotId),
+    ]);
   }
-  // curated 放前面：dedupe 與 notes 的順序都以第一個來源為主，而 curated 是
-  // 原始資料，讓它先出現比較符合「先事實、後推導指標」的閱讀順序。
-  return new CompositeEvidenceRepository([
-    new CuratedFileEvidenceRepository(dataDir),
-    new AnalyticsSnapshotEvidenceRepository(dataDir, snapshotId),
-  ]);
+  return new AnalyticsSnapshotEvidenceRepository(dataDir, snapshotId);
 }
 
 export interface BuildAiContextOptions extends EvidenceQuery {

@@ -16,13 +16,7 @@
  *   npm run dev:precompute-check -- 八里區 employment
  */
 import type { BedrockClient } from '../bedrock/client.js';
-import {
-  AnalyticsSnapshotEvidenceRepository,
-  CompositeEvidenceRepository,
-  CuratedFileEvidenceRepository,
-  buildAiContext,
-  defaultDataPipelineDataDir,
-} from '../context/buildContext.js';
+import { buildAiContext, createEvidenceRepositoryFromEnv } from '../context/buildContext.js';
 import { dispatch } from '../handlers/lambda.js';
 import { contextFingerprint } from '../precompute/fingerprint.js';
 import { dispatchWithPrecompute, PRECOMPUTABLE_ACTIONS } from '../precompute/servePrecomputed.js';
@@ -53,11 +47,8 @@ const poisonClient: BedrockClient = {
   },
 };
 
-const dataDir = process.env.AI_DATA_DIR ?? defaultDataPipelineDataDir();
-const repository = new CompositeEvidenceRepository([
-  new CuratedFileEvidenceRepository(dataDir),
-  new AnalyticsSnapshotEvidenceRepository(dataDir, process.env.AI_ANALYTICS_SNAPSHOT_ID),
-]);
+// 跟批次腳本走同一個來源決定，否則指紋一定對不上（那正是這支要驗的事）。
+const repository = createEvidenceRepositoryFromEnv();
 
 const context = await buildAiContext(repository, { focusDistrict, focusArea });
 console.log(`快取        : ${store.description}`);

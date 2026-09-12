@@ -18,6 +18,7 @@
     "dev:qa-latency": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runQaLatency.ts",
     "precompute": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/precompute/runBatch.ts",
     "dev:precompute-check": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runPrecomputeCheck.ts",
+    "dev:metric-audit": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runMetricMetaAudit.ts",
     "dev:dump-prompt": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/dumpPrompt.ts"
   },
   "dependencies": {

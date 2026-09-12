@@ -22,10 +22,8 @@
  */
 import { createBedrockClientFromEnv, MockBedrockClient, type BedrockClient } from '../bedrock/client.js';
 import {
-  AnalyticsSnapshotEvidenceRepository,
-  CompositeEvidenceRepository,
-  CuratedFileEvidenceRepository,
   buildAiContext,
+  createEvidenceRepositoryFromEnv,
   defaultDataPipelineDataDir,
   readAnalyticsSnapshot,
 } from '../context/buildContext.js';
@@ -147,10 +145,11 @@ console.log(`模型        : ${client.description}`);
 console.log(`搜尋        : ${searchProvider.description}`);
 console.log('');
 
-const repository = new CompositeEvidenceRepository([
-  new CuratedFileEvidenceRepository(dataDir),
-  new AnalyticsSnapshotEvidenceRepository(dataDir, process.env.AI_ANALYTICS_SNAPSHOT_ID),
-]);
+// **一定要跟線上用同一個來源決定。** 快取鍵是輸入內容的指紋，來源不一樣 →
+// evidence 不一樣 → 指紋不一樣 → 線上每次都 miss，等於這整批白跑。
+// 所以這裡走 createEvidenceRepositoryFromEnv()（預設只讀 analytics），
+// 不自己組 Composite。
+const repository = createEvidenceRepositoryFromEnv();
 
 interface JobResult {
   job: Job;

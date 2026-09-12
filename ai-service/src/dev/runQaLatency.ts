@@ -21,13 +21,7 @@
  * 最前面那個數字直接消失，量到的數字無法回頭查證。
  */
 import { createBedrockClientFromEnv, MockBedrockClient, type BedrockClient } from '../bedrock/client.js';
-import {
-  AnalyticsSnapshotEvidenceRepository,
-  CompositeEvidenceRepository,
-  CuratedFileEvidenceRepository,
-  buildAiContext,
-  defaultDataPipelineDataDir,
-} from '../context/buildContext.js';
+import { buildAiContext, createEvidenceRepositoryFromEnv } from '../context/buildContext.js';
 import { dataQa } from '../handlers/dataQa.js';
 import { explainData } from '../handlers/explainData.js';
 import { policyCopilot } from '../handlers/policyCopilot.js';
@@ -55,11 +49,8 @@ const args = process.argv.slice(2);
 const only = args.find((arg) => arg.startsWith('--only='))?.split('=')[1];
 const noSearch = args.includes('--no-search');
 
-const dataDir = process.env.AI_DATA_DIR ?? defaultDataPipelineDataDir();
-const repository = new CompositeEvidenceRepository([
-  new CuratedFileEvidenceRepository(dataDir),
-  new AnalyticsSnapshotEvidenceRepository(dataDir, process.env.AI_ANALYTICS_SNAPSHOT_ID),
-]);
+// 量測要跟線上同一條路，包含 evidence 來源（預設只讀 analytics）。
+const repository = createEvidenceRepositoryFromEnv();
 
 const client: BedrockClient = createBedrockClientFromEnv();
 if (client instanceof MockBedrockClient) {

@@ -16,6 +16,7 @@ import {
   PRECOMPUTABLE_ACTIONS,
 } from '../src/precompute/servePrecomputed.js';
 import { QA_ANSWER_MAX_CHARS, buildDataQaPrompt } from '../src/prompts/dataQa.js';
+import { createEvidenceRepositoryFromEnv } from '../src/context/buildContext.js';
 import type { AiFeatureResult } from '../src/handlers/runFeature.js';
 import { makeEvidence, makeOutput, makeRequestContext } from './helpers.js';
 
@@ -163,6 +164,38 @@ describe('FilePrecomputedStore', () => {
     ).rejects.toThrow('十六進位');
 
     expect(await readdir(dir)).toEqual([]);
+  });
+});
+
+/**
+ * evidence 來源的預設值直接決定預先算能不能命中：批次腳本與線上請求走的來源不同時，
+ * evidence 不同 → 指紋不同 → 每次 miss → 即時算 50 秒 → 被 API Gateway 切斷。
+ * 所以把預設鎖在測試裡，改動時要有人明確決定。
+ */
+describe('createEvidenceRepositoryFromEnv：預設只讀 analytics', () => {
+  it('沒設 AI_EVIDENCE_SOURCE 時只讀 analytics 快照', () => {
+    const repo = createEvidenceRepositoryFromEnv({ AI_DATA_DIR: 'C:/tmp/data' });
+    expect(repo.description).toContain('analytics-snapshot');
+    // 進 DynamoDB 的只有 analytics 算完的結果，curated 留在 S3，線上不會有。
+    expect(repo.description).not.toContain('curated');
+  });
+
+  it('composite 要明確指定才會兩個都讀', () => {
+    const repo = createEvidenceRepositoryFromEnv({
+      AI_DATA_DIR: 'C:/tmp/data',
+      AI_EVIDENCE_SOURCE: 'composite',
+    });
+    expect(repo.description).toContain('curated');
+    expect(repo.description).toContain('analytics-snapshot');
+  });
+
+  it('curated 只讀 curated', () => {
+    const repo = createEvidenceRepositoryFromEnv({
+      AI_DATA_DIR: 'C:/tmp/data',
+      AI_EVIDENCE_SOURCE: 'curated',
+    });
+    expect(repo.description).toContain('curated');
+    expect(repo.description).not.toContain('analytics-snapshot');
   });
 });
 

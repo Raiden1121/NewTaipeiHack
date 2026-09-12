@@ -78,6 +78,37 @@ const BLOCKED_KEYS: ReadonlySet<string> = new Set([
   'source_record_ids',
   'standalone_artifacts',
   'coverage_scope_by_year',
+  // ---------------------------------------------------------------------------
+  // 以下是「資料完整度」與「演算法參數」，不是可引用的指標。
+  //
+  // `coverage` 容器：快照裡有 11 個（fertility、participation 的 6 個子分析、
+  // policy_support…），內容是 district_count=29、annual_row_count=133、
+  // wage_years_requested=6 這類**資料處理的統計**。實測全部 11 個容器裡
+  // 沒有任何一個含 NOTE_KEYS，所以擋掉不會弄丟任何品質說明。
+  //
+  // 為什麼一定要擋：這些數字進了 evidence 就是「可引用的事實」，模型會拿
+  // `coverage.district_count=29` 當發現寫進 basis。它是對的但毫無意義，
+  // 而且會佔掉 context 上限（250 筆）裡真正指標的位置。
+  'coverage',
+  // 演算法參數：半徑、據點數、村里邊界數。它們決定指標怎麼算出來，
+  // 本身不是量測值。radius_m=2500 被當成數據引用只會造成困惑。
+  'radius_m',
+  'verified_point_count',
+  'excluded_point_count',
+  'boundary_village_count',
+  'joined_village_count',
+  'population_coverage_ratio',
+  // 管線列數：輸入幾列、幾列對不到行政區。屬於 pipeline 的自我檢查。
+  'input_row_count',
+  'unresolved_district_row_count',
+  'district_count',
+  'expected_district_count',
+  'latest_v1_district_count',
+  'latest_district_count',
+  // 這兩個在 proposal_funnel 下同時出現在 coverage 裡與外面一層，
+  // 外面那份擋不到，要個別列出。內容是「去重後幾筆」「幾筆要人工複核」。
+  'deduplicated_item_count',
+  'manual_review_required_count',
 ]);
 
 /**
@@ -124,6 +155,11 @@ const METADATA_KEYS: ReadonlySet<string> = new Set([
   'election_type',
   'budget_unit',
   'execution_denominator_unit',
+  // 值是年份的欄位。跟上面的 year_roc 同一類 —— 它回答「哪一年」，
+  // 不是「多少」。不放這裡的話會產生一筆 metricId=budget_year_roc、
+  // value=116 的 evidence，模型可能把 116 當成某個數量。
+  'budget_year_roc',
+  'latest_v1_year_roc',
 ]);
 
 /**
@@ -572,6 +608,147 @@ export const ANALYTICS_METRIC_META: Readonly<Record<string, MetricMeta>> = {
   intercept: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
   r_squared: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
   sample_size: { unit: '筆', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+
+  // ===========================================================================
+  // 以下是用 `npm run dev:metric-audit` 對真實快照稽核後補的。
+  //
+  // 稽核方式是看**實際產生出來的 evidence**，不是數 JSON 葉欄位 ——
+  // 後者會高估問題（villages / normalizedInputs / points / time_policy 早就被
+  // BLOCKED_KEYS 擋掉）。補之前 215 種指標裡有 118 種沒有單位。
+  // ===========================================================================
+
+  // --- 年度人口（annual.population.*）---
+  people_total: { unit: '人', youthEligibility: 'context_only', ageScope: 'all_ages' },
+  youth_share_percent: { unit: '%', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+  yoy_percent: { unit: '%', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  youth_ratio: { unit: '%', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+  youth_yoy: { unit: '%', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+
+  // --- 資料完整度（保留但標明單位）---
+  // 這幾個不像 coverage 容器那樣純屬管線內部：availableMonths=9 的意思是
+  // 「這個年度值只用了 9 個月的資料」，使用者解讀年度數字時需要知道。
+  availableMonths: { unit: '月', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  available_months: { unit: '月', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  coverageRatio: { unit: '比例', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  coverage_ratio: { unit: '比例', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  qualityStatus: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  serviceCoverageStatus: {
+    unit: null,
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
+  daycareCoverageStatus: {
+    unit: null,
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
+
+  // --- 就業補充指標 ---
+  vacancies_per_km2: {
+    unit: '職缺/平方公里',
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
+  salary_sample_size: { unit: '筆', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  salarySampleSize: { unit: '筆', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  // shrunk 是做過收縮估計的中位數（小樣本往全市平均拉），跟原始中位數不同，
+  // 但單位一樣。兩者同時出現時模型要能看出是「兩個算法」而不是「兩期資料」。
+  salary_median_shrunk: {
+    unit: 'TWD/月',
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
+  salaryMedian: { unit: 'TWD/月', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  yoiRaw: { unit: '分(0-100)', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+
+  // --- 服務／托育涵蓋 ---
+  // `value` 是 service_coverage 與 daycareCoverage 共用的葉名，兩者都是百分比。
+  // 對照表的 key 是葉名，沒辦法分辨是哪一個，所以 youthEligibility 取保守的
+  // context_only —— service_coverage 其實是青年專屬，標保守只會讓分析謹慎，
+  // 反過來把托育涵蓋標成青年數據才是實質錯誤。
+  value: { unit: '%', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  target_population: { unit: '人', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  covered_population: {
+    unit: '人',
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
+  covered_youth: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+  youth_population: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+  village_count: { unit: '里', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  covered_village_count: {
+    unit: '里',
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
+
+  // --- 生育（年度）---
+  births_mother_age_18_35: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+  average_monthly_female_18_35: {
+    unit: '人',
+    youthEligibility: 'eligible',
+    ageScope: 'derived_18_35',
+  },
+  fertility_rate: { unit: '‰', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+
+  // --- 選舉／青年參政 ---
+  candidate_count: { unit: '人', youthEligibility: 'context_only', ageScope: 'all_ages' },
+  age_known_candidate_count: {
+    unit: '人',
+    youthEligibility: 'context_only',
+    ageScope: 'all_ages',
+  },
+  youth_candidate_count: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+  elected_count: { unit: '人', youthEligibility: 'context_only', ageScope: 'all_ages' },
+  youth_elected_count: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+  elected_seat_count: { unit: '席', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  // 實測值 0.8：125 席里 1 席是青年 → 1/125 = 0.008 → 0.8%。是百分比不是比例。
+  youth_borough_chief_ratio: {
+    unit: '%',
+    youthEligibility: 'eligible',
+    ageScope: 'derived_18_35',
+  },
+  population_total: { unit: '人', youthEligibility: 'context_only', ageScope: 'all_ages' },
+  youth_population_share: { unit: '%', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+  // yrr = youth representation ratio：青年當選比 ÷ 青年人口比。
+  // 實測 0.029102 ≈ 0.008 / 0.2749，所以是**比例**（1 代表席次與人口比相符）。
+  yrr: { unit: '比例', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
+  latest_v1_youth_elected_count: {
+    unit: '人',
+    youthEligibility: 'eligible',
+    ageScope: 'derived_18_35',
+  },
+  latest_v1_elected_seat_count: {
+    unit: '席',
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
+
+  // --- 預算 ---
+  // ⚠️ 單位不一致，這是實測踩過的坑（把 220,101 千元講成「2 億 2,010 萬千元」）。
+  // legal_budget_amount_for_execution 實測 149,029，而同一組的 realized_amount
+  // 是 138,627,956 —— 兩者相差三個位數，所以前者是**千元**、後者是**元**。
+  legal_budget_amount_for_execution: {
+    unit: 'TWD_thousand',
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
+  realized_amount: { unit: 'TWD', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  settlement_amount: { unit: 'TWD', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  payable_amount: { unit: 'TWD', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  reserved_amount: { unit: 'TWD', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  surplus_amount: { unit: 'TWD', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  amount: { unit: 'TWD', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  total_amount: { unit: 'TWD', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  share_percent: { unit: '%', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+
+  // --- 提案漏斗 ---
+  count: { unit: '件', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  escalated_to_council: {
+    unit: '件',
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
 };
 
 /**

@@ -26,13 +26,18 @@ function estimateTokens(text: string): number {
 const district = process.argv[2] ?? '板橋區';
 const repository = createEvidenceRepositoryFromEnv();
 
+// 刻意**不傳** `datasets`。
+//
+// 原本傳的是 4 個 curated dataset 名稱（population / movement / vt_courses /
+// youth_budgets）。evidence 來源預設改成只讀 analytics 之後那樣會拿到 0 筆 ——
+// analytics repository 的規則是「呼叫端只指名 curated dataset 時代表這次不想要
+// analytics」，於是回空集合，然後誠實地印出一份沒有任何 evidence 的 prompt。
+//
+// 這個坑對 backend 也成立：組 context 時要用 `focusArea` 而不是 curated 的
+// dataset 名稱去限制範圍。
 const context = await buildAiContext(repository, {
   focusDistrict: district,
   focusArea: 'population',
-  // 這 4 個是「long-form」dataset：curated record 本身就有 metric_id + value，
-  // 不需要任何彙總就有解讀價值。house_prices / rentals 是逐筆交易明細，
-  // 由 repository 預設排除（見 TRANSACTION_LEVEL_DATASETS）。
-  datasets: ['population', 'movement', 'vt_courses', 'youth_budgets'],
 });
 
 const prompt = buildDataExplanationPrompt({ ...context, evidence: context.evidence });

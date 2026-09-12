@@ -23,10 +23,8 @@
  */
 import { createBedrockClientFromEnv, MockBedrockClient, type BedrockClient } from '../bedrock/client.js';
 import {
-  AnalyticsSnapshotEvidenceRepository,
-  CompositeEvidenceRepository,
-  CuratedFileEvidenceRepository,
   buildAiContext,
+  createEvidenceRepositoryFromEnv,
   defaultDataPipelineDataDir,
   readAnalyticsSnapshot,
 } from '../context/buildContext.js';
@@ -61,12 +59,14 @@ console.log(`upstream        : ${snapshot.upstreamDatasets.join(', ') || '(無)'
 console.log(`warnings        : ${snapshot.warnings.join(', ') || '(無)'}`);
 console.log('');
 
-// 刻意用 Composite 而不是只用 analytics：這支腳本要驗的是「兩種來源併起來不會打架」，
-// 尤其是 metricSource 的區分，以及居住負擔那條限制有沒有被正確換掉。
-const repository = new CompositeEvidenceRepository([
-  new CuratedFileEvidenceRepository(dataDir),
-  new AnalyticsSnapshotEvidenceRepository(dataDir, process.env.AI_ANALYTICS_SNAPSHOT_ID),
-]);
+// 跟線上同一個來源決定（預設只讀 analytics —— 進 DynamoDB 的只有 analytics
+// 算完的結果，curated 留在 S3）。
+//
+// 這支腳本原本刻意寫死 Composite，用途是驗「curated 與 analytics 併起來不會打架」。
+// curated 不再是線上資料來源之後那個用途就沒了，而寫死 Composite 反而有害：
+// 本機驗過的 evidence 會比線上多一半，落差還很難發現（兩邊都答得出來，
+// 只是線上答得殘缺）。要看併起來的行為就設 AI_EVIDENCE_SOURCE=composite。
+const repository = createEvidenceRepositoryFromEnv();
 
 const context = await buildAiContext(repository, { focusDistrict, focusArea });
 
