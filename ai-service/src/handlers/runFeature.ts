@@ -146,7 +146,7 @@ async function resolveWebFindings(
     return { findings: request.webFindings, notes: [] };
   }
 
-  const query = request.question ?? buildFallbackQuery(request);
+  const query = buildSearchQuery(request);
   if (query.trim().length === 0) {
     return {
       findings: [],
@@ -179,11 +179,37 @@ async function resolveWebFindings(
   }
 }
 
-/** 沒有 question 時（例如 Data Explanation）用情境組一個搜尋主題。 */
-function buildFallbackQuery(request: AiRequestContext): string {
-  return ['新北市', request.focusDistrict, request.focusArea, '青年 政策']
+/**
+ * 組搜尋用的 query。
+ *
+ * ## 為什麼不能直接用使用者的問題原文
+ *
+ * 實測踩到的：使用者問「為何八里薪資第六高？」，直接拿這句去搜，Tavily 回來的是
+ * **雲林與台中**薪資比較的 Threads 討論 —— 因為那句話裡沒有任何地理脈絡，
+ * 「八里」單獨看也可能是別的地方。模型很誠實地標了「未經驗證」，
+ * 但拿一則講雲林的社群貼文當新北八里的背景，對青年局來說是沒有價值的來源。
+ *
+ * 對照組：同一批測試裡「為何坪林薪資是全新北最高？」因為問句本身含「全新北」，
+ * 搜到的是水利署的坪林專題報導 —— 差別只在 query 有沒有地理脈絡。
+ *
+ * 所以這裡把「新北市」與行政區名補上。已經出現在問題裡的就不重複加，
+ * 避免 query 變成「新北市 八里區 為何八里薪資…」這種權重被稀釋的字串。
+ */
+export function buildSearchQuery(request: AiRequestContext): string {
+  const question = request.question?.trim() ?? '';
+  if (question.length === 0) {
+    // 沒有 question 時（Data Explanation / Policy Copilot）用情境組一個主題。
+    return ['新北市', request.focusDistrict, request.focusArea, '青年 政策']
+      .filter((part): part is string => Boolean(part))
+      .join(' ');
+  }
+
+  const contextParts = ['新北市', request.focusDistrict]
     .filter((part): part is string => Boolean(part))
-    .join(' ');
+    // 「新北市」已經在問句裡（例如「全新北」）就不再加；行政區名同理。
+    .filter((part) => !question.includes(part) && !question.includes(part.replace(/[市區]$/, '')));
+
+  return [question, ...contextParts].join(' ');
 }
 
 /**

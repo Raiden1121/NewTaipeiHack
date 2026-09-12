@@ -1,10 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
-import { TavilyWebSearchProvider } from '../src/websearch/tavily.js';
+import {
+  TavilyWebSearchProvider,
+  filterByDomains,
+  resolveIncludeDomains,
+} from '../src/websearch/tavily.js';
 import { createWebSearchProviderFromEnv } from '../src/websearch/factory.js';
 import { DisabledWebSearchProvider } from '../src/websearch/provider.js';
-import { WebFindingSchema, type WebSearchSettings } from '../src/types/webFinding.js';
+import {
+  TRUSTED_SOURCE_DOMAINS,
+  WebFindingSchema,
+  type WebFinding,
+  type WebSearchSettings,
+} from '../src/types/webFinding.js';
 
-const settings: WebSearchSettings = { enabled: true, contextSize: 'low' };
+const settings: WebSearchSettings = { enabled: true, contextSize: 'low', scope: 'all' };
 
 /** 真實的 Tavily 回應形狀（欄位取自實際呼叫 keyless API 的結果）。 */
 const realShapedResponse = {
@@ -309,5 +318,272 @@ describe('createWebSearchProviderFromEnv', () => {
     expect(
       createWebSearchProviderFromEnv({ WEB_SEARCH_INCLUDE_DOMAINS: ' , ,' }),
     ).toBeInstanceOf(TavilyWebSearchProvider);
+  });
+});
+
+describe('搜尋範圍開關：全網 vs 只信任來源', () => {
+  function fakeFetch(captured: { body?: Record<string, unknown> }) {
+    return (async (_url: string, init?: RequestInit) => {
+      captured.body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({ results: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+  }
+
+  it('scope=all 時不限制網域', async () => {
+    const captured: { body?: Record<string, unknown> } = {};
+    const provider = new TavilyWebSearchProvider({ fetchImpl: fakeFetch(captured) });
+
+    await provider.search('八里 薪資', { enabled: true, contextSize: 'low', scope: 'all' });
+
+    expect(captured.body).not.toHaveProperty('include_domains');
+  });
+
+  it('scope=trusted 時限定在 gov.tw / edu.tw', async () => {
+    const captured: { body?: Record<string, unknown> } = {};
+    const provider = new TavilyWebSearchProvider({ fetchImpl: fakeFetch(captured) });
+
+    await provider.search('八里 薪資', { enabled: true, contextSize: 'low', scope: 'trusted' });
+
+    expect(captured.body?.include_domains).toEqual([...TRUSTED_SOURCE_DOMAINS]);
+    expect(TRUSTED_SOURCE_DOMAINS).toContain('gov.tw');
+  });
+
+  /**
+   * `trusted` 模式搜不到東西是**常態**（很多產業背景不在 gov.tw 上），
+   * 而「網路上沒有」跟「我限制了範圍所以沒找到」對使用者是完全不同的意思。
+   */
+  it('scope=trusted 時一定要在 notes 說明限制了範圍', async () => {
+    const captured: { body?: Record<string, unknown> } = {};
+    const provider = new TavilyWebSearchProvider({ fetchImpl: fakeFetch(captured) });
+
+    const result = await provider.search('八里 薪資', {
+      enabled: true,
+      contextSize: 'low',
+      scope: 'trusted',
+    });
+
+    // note 要講出實際限定的網域，而不是只說「限定了」——
+    // 使用者要能判斷「我想找的東西是不是本來就不在這些網域上」。
+    expect(result.notes.join('')).toContain('限定在下列網域');
+    expect(result.notes.join('')).toContain('gov.tw');
+    expect(result.notes.join('')).toContain('edu.tw');
+  });
+
+  it('scope=all 時不加那條 note（沒有限制就不用解釋）', async () => {
+    const captured: { body?: Record<string, unknown> } = {};
+    const provider = new TavilyWebSearchProvider({ fetchImpl: fakeFetch(captured) });
+
+    const result = await provider.search('八里 薪資', {
+      enabled: true,
+      contextSize: 'low',
+      scope: 'all',
+    });
+
+    expect(result.notes).toEqual([]);
+  });
+});
+
+describe('resolveIncludeDomains：使用者選擇與營運者硬限制的關係', () => {
+  it('scope=all 且沒設硬限制 → 不限制', () => {
+    expect(resolveIncludeDomains('all', [])).toEqual([]);
+  });
+
+  it('scope=all 但營運者設了硬限制 → 仍然套用硬限制', () => {
+    // 使用者不該能用「全網」把營運者的政策繞掉。
+    expect(resolveIncludeDomains('all', ['gov.tw', 'ntpc.gov.tw'])).toEqual([
+      'gov.tw',
+      'ntpc.gov.tw',
+    ]);
+  });
+
+  it('scope=trusted 且沒設硬限制 → 用可信清單', () => {
+    expect(resolveIncludeDomains('trusted', [])).toEqual([...TRUSTED_SOURCE_DOMAINS]);
+  });
+
+  it('兩者都有時取交集（以較嚴格的為準）', () => {
+    const resolved = resolveIncludeDomains('trusted', ['gov.tw']);
+
+    expect(resolved).toContain('gov.tw');
+    // edu.tw 不在營運者的白名單裡，所以不該出現
+    expect(resolved).not.toContain('edu.tw');
+  });
+
+  it('交集為空時以營運者的硬限制為準，不可退回「不限制」', () => {
+    // 營運者只允許 example.com，跟可信清單完全沒有重疊。
+    // 回空陣列會變成「全網搜尋」—— 那是最糟的結果。
+    const resolved = resolveIncludeDomains('trusted', ['example.com']);
+
+    expect(resolved).toEqual(['example.com']);
+    expect(resolved.length).toBeGreaterThan(0);
+  });
+});
+
+describe('filterByDomains：不相信 Tavily 的 include_domains', () => {
+  /**
+   * 實測（真 API key、include_domains: ['gov.tw','edu.tw']）Tavily 回來的五筆
+   * 全部不在白名單內（blog.salary.tw、news.ttv.com.tw、bo6s.com.tw…）。
+   * 所以 include_domains 至少對裸網域後綴不是硬過濾。
+   *
+   * 「只接受可信來源」是使用者的政策選擇，不能外包給外部 API 的行為細節。
+   */
+  const finding = (url: string): WebFinding => ({
+    findingId: 'web:1',
+    title: 't',
+    url,
+    snippet: 's',
+    publishedDate: null,
+    retrievedAt: '2026-09-12T00:00:00.000Z',
+  });
+
+  it('沒有網域限制時原封不動回傳', () => {
+    const findings = [finding('https://blog.salary.tw/a'), finding('https://www.ris.gov.tw/b')];
+    expect(filterByDomains(findings, [])).toHaveLength(2);
+  });
+
+  it('留下符合後綴的，濾掉不符合的', () => {
+    const findings = [
+      finding('https://www.ris.gov.tw/b'),
+      finding('https://blog.salary.tw/a'),
+      finding('https://news.ttv.com.tw/c'),
+      finding('https://www.bali.ntpc.gov.tw/d'),
+    ];
+
+    const kept = filterByDomains(findings, ['gov.tw']);
+
+    expect(kept.map((f) => new URL(f.url).hostname)).toEqual([
+      'www.ris.gov.tw',
+      'www.bali.ntpc.gov.tw',
+    ]);
+  });
+
+  it('比對 hostname 而不是整個 URL（擋掉把網域塞在 query string 的網址）', () => {
+    const spoofed = [finding('https://evil.example.com/?ref=gov.tw')];
+
+    expect(filterByDomains(spoofed, ['gov.tw'])).toHaveLength(0);
+  });
+
+  it('後綴要對齊到點的邊界（notgov.tw 不算 gov.tw）', () => {
+    expect(filterByDomains([finding('https://notgov.tw/a')], ['gov.tw'])).toHaveLength(0);
+    expect(filterByDomains([finding('https://gov.tw/a')], ['gov.tw'])).toHaveLength(1);
+  });
+
+  it('解析不出 hostname 的一律排除', () => {
+    expect(filterByDomains([finding('not-a-url')], ['gov.tw'])).toHaveLength(0);
+  });
+});
+
+describe('trusted 模式在真實回應形狀下會濾掉不合格的來源', () => {
+  it('Tavily 回非白名單網域時，findings 為空並在 notes 說明', async () => {
+    // 這就是實測到的情況：include_domains 送了，Tavily 還是回 blog.salary.tw 等等。
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({
+          results: [
+            { url: 'https://blog.salary.tw/a', title: 'A', content: 'x' },
+            { url: 'https://news.ttv.com.tw/b', title: 'B', content: 'y' },
+          ],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )) as unknown as typeof fetch;
+
+    const provider = new TavilyWebSearchProvider({ fetchImpl });
+    const result = await provider.search('八里 薪資', {
+      enabled: true,
+      contextSize: 'low',
+      scope: 'trusted',
+    });
+
+    expect(result.findings).toHaveLength(0);
+    expect(result.notes.join('')).toContain('2 筆');
+    expect(result.notes.join('')).toContain('全網搜尋');
+  });
+
+  it('白名單內的來源會留下', async () => {
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({
+          results: [
+            { url: 'https://www.bali.ntpc.gov.tw/report.pdf', title: '八里區社會救助分析', content: 'x' },
+            { url: 'https://blog.salary.tw/a', title: 'A', content: 'y' },
+          ],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )) as unknown as typeof fetch;
+
+    const provider = new TavilyWebSearchProvider({ fetchImpl });
+    const result = await provider.search('八里 薪資', {
+      enabled: true,
+      contextSize: 'low',
+      scope: 'trusted',
+    });
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]?.url).toContain('bali.ntpc.gov.tw');
+  });
+});
+
+describe('有網域限制時多抓再過濾', () => {
+  /**
+   * 只要 5 筆再自己濾，實測結果是 **0 筆**（「為何八里薪資第六高？ 新北市」
+   * 限定 gov.tw 時 5 筆全被濾掉）。而同一個查詢不限制時，第 4 名就是
+   * `www.bali.ntpc.gov.tw` —— 官方來源找得到，只是被前幾名擠掉。
+   */
+  it('限定網域時向 Tavily 要更多筆（4 倍）', async () => {
+    const captured: { body?: Record<string, unknown> } = {};
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      captured.body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({ results: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+
+    const provider = new TavilyWebSearchProvider({ fetchImpl });
+    await provider.search('八里 薪資', { enabled: true, contextSize: 'low', scope: 'trusted' });
+
+    // low 是 5 筆，限定網域時要 20 筆
+    expect(captured.body?.max_results).toBe(20);
+  });
+
+  it('沒有網域限制時就要原本的筆數', async () => {
+    const captured: { body?: Record<string, unknown> } = {};
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      captured.body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({ results: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+
+    const provider = new TavilyWebSearchProvider({ fetchImpl });
+    await provider.search('八里 薪資', { enabled: true, contextSize: 'low', scope: 'all' });
+
+    expect(captured.body?.max_results).toBe(5);
+  });
+
+  it('多抓之後仍然只回呼叫端要的筆數（不要讓 prompt 吃到 4 倍內容）', async () => {
+    const results = Array.from({ length: 20 }, (_, index) => ({
+      url: `https://unit${index}.gov.tw/a`,
+      title: `T${index}`,
+      content: 'x',
+    }));
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ results }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })) as unknown as typeof fetch;
+
+    const provider = new TavilyWebSearchProvider({ fetchImpl });
+    const result = await provider.search('八里 薪資', {
+      enabled: true,
+      contextSize: 'low',
+      scope: 'trusted',
+    });
+
+    // 20 筆全部符合白名單，但 low 只要 5 筆
+    expect(result.findings).toHaveLength(5);
   });
 });

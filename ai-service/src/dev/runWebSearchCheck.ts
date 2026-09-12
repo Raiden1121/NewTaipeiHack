@@ -28,7 +28,7 @@ function contextWith(enabled: boolean): AiRequestContext {
     evidence: [],
     knownLimitations: [],
     webFindings: [],
-    webSearch: { enabled, contextSize: 'low' },
+    webSearch: { enabled, contextSize: 'low', scope: 'all' },
   };
 }
 

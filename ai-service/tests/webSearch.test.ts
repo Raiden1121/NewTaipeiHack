@@ -24,7 +24,17 @@ function stubClient(output: StructuredOutput): BedrockClient {
 
 describe('開關預設關閉', () => {
   it('WebSearchSettingsSchema 預設 enabled=false', () => {
-    expect(WebSearchSettingsSchema.parse({})).toEqual({ enabled: false, contextSize: 'low' });
+    // scope 預設 all（全網）：Q&A 的定位是數據解釋，而解釋一個數字需要的產業與
+    // 地理背景大多不在政府網站上，預設 trusted 會讓多數「為什麼」問題搜不到東西。
+    expect(WebSearchSettingsSchema.parse({})).toEqual({
+      enabled: false,
+      contextSize: 'low',
+      scope: 'all',
+    });
+  });
+
+  it('WebSearchSettingsSchema 接受 scope=trusted', () => {
+    expect(WebSearchSettingsSchema.parse({ scope: 'trusted' }).scope).toBe('trusted');
   });
 
   it('沒開時完全不呼叫搜尋服務', async () => {
@@ -70,7 +80,13 @@ describe('開啟後的行為', () => {
     makeWebFinding({ findingId: 'web:2', url: 'https://data.ntpc.gov.tw/x' }),
   ]);
 
-  it('用使用者的問題當搜尋 query', async () => {
+  /**
+   * query 是「使用者問題 ＋ 補上的地理脈絡」，不是問題原文。
+   *
+   * 原本是原文，實測踩到：「為何八里薪資第六高？」搜回來的是雲林與台中薪資比較的
+   * Threads 討論，因為那句話沒有任何地理脈絡。詳見 `buildSearchQuery()`。
+   */
+  it('用使用者的問題當搜尋 query，並補上地理脈絡', async () => {
     const spy = vi.spyOn(provider, 'search');
     await dataQa(
       new MockBedrockClient(),
@@ -78,7 +94,12 @@ describe('開啟後的行為', () => {
       provider,
     );
 
-    expect(spy).toHaveBeenCalledWith('青年創業基地有哪些？', { enabled: true, contextSize: 'low' });
+    const [query, settings] = spy.mock.calls.at(-1) ?? [];
+    expect(query).toContain('青年創業基地有哪些？');
+    expect(query).toContain('新北市');
+    // makeRequestContext 的 focusDistrict 是板橋區
+    expect(query).toContain('板橋區');
+    expect(settings).toEqual({ enabled: true, contextSize: 'low', scope: 'all' });
   });
 
   it('沒有 question 時用情境組出搜尋主題', async () => {

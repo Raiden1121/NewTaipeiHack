@@ -100,7 +100,7 @@ export function makeRequestContext(
     evidence: [makeEvidence()],
     knownLimitations: [],
     webFindings: [],
-    webSearch: { enabled: false, contextSize: 'low' },
+    webSearch: { enabled: false, contextSize: 'low', scope: 'all' },
     ...overrides,
   };
 }
