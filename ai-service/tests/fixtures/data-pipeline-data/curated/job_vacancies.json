@@ -1,0 +1,438 @@
+{
+  "dataset": "job_vacancies",
+  "generated_at": "2026-09-12T02:08:46.397243+00:00",
+  "records": [
+    {
+      "dataset": "job_vacancies",
+      "source": "taiwanjobs",
+      "source_record_id": "job_vacancies:4102505ef81ae963",
+      "geo_level": "district",
+      "district_id": "65000010",
+      "district_name": "板橋區",
+      "period_start": "2026-09-12",
+      "period_end": "2026-09-12",
+      "period_type": "snapshot",
+      "metric_id": null,
+      "value": null,
+      "unit": null,
+      "age_scope": "not_age_specific",
+      "age_min": null,
+      "age_max": null,
+      "youth_eligibility": "context_only",
+      "fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "quality_flags": [
+        "query_district_mismatch_filtered"
+      ],
+      "position_count": 5,
+      "position_count_unit": "positions",
+      "closing_date": null,
+      "salary_type": "月薪",
+      "salary_lower": 29500,
+      "salary_upper": null,
+      "salary_midpoint": null,
+      "salary_unit": "TWD_per_month",
+      "salary_estimate_type": "lower_bound",
+      "snapshot_fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "query_truncated": false,
+      "raw_record": {
+        "OCCU_DESC（職務名稱）": "健身教練",
+        "WK_TYPE（職務性質）": "全職",
+        "CJOB1_COUNT（職務大類別代碼）": "16",
+        "CJOB_NAME1（職務大類別名稱）": "旅遊／餐飲／休閒",
+        "CJOB2_COUNT（職務小類別代碼）": "160301",
+        "CJOB_NAME2（職務小類別名稱）": "運動教練",
+        "JOB_PERSON（雇用人數）": "5",
+        "STOP_DATE（應徵截止日期）": "20261027",
+        "JOB_DETAIL（工作內容）": "1. 提供專業健身諮詢服務 2. 規劃專屬於會員的１對１個人化訓練課程，幫助會員達到理想的訓練目標 3. 透過定期專業培訓課程，將最新健身資訊帶給會員  績效、業績獎金或留用獎金另計!",
+        "CITYNAME（工作地點）": "新北市板橋區",
+        "EXPERIENCE（工作經驗）": "無",
+        "WKTIME（工作時間）": "日班、輪班二班制、中班",
+        "SALARYCD（核薪方式）": "月薪",
+        "NT_L（薪資範圍下限）": "29500",
+        "NT_U（薪資範圍上限）": "-",
+        "EDGRDESC（最低學歷要求）": "高中",
+        "URL_QUERY（職缺資料URL）": "https://job.taiwanjobs.gov.tw/Internet/jobwanted/JobDetail.aspx?EMPLOYER_ID=2564769&HIRE_ID=14629079",
+        "COMPNAME（公司名稱）": "香港商世界健身事業有限公司板橋重慶分公司",
+        "TRANDATE（職缺更新日期）": "20260827",
+        "query_zipno": "220",
+        "district": "板橋區",
+        "geo_scope": "district",
+        "query_truncated": false,
+        "query_filtered_row_count": 1,
+        "query_warnings": [
+          "query_district_mismatch_filtered"
+        ],
+        "query_observations": [
+          {
+            "query_zipno": "220",
+            "query_filtered_row_count": 1,
+            "query_warnings": [
+              "query_district_mismatch_filtered"
+            ],
+            "query_truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "job_vacancies",
+      "source": "taiwanjobs",
+      "source_record_id": "job_vacancies:82d33d59e5374209",
+      "geo_level": "district",
+      "district_id": "65000010",
+      "district_name": "板橋區",
+      "period_start": "2026-09-12",
+      "period_end": "2026-09-12",
+      "period_type": "snapshot",
+      "metric_id": null,
+      "value": null,
+      "unit": null,
+      "age_scope": "not_age_specific",
+      "age_min": null,
+      "age_max": null,
+      "youth_eligibility": "context_only",
+      "fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "quality_flags": [
+        "query_district_mismatch_filtered"
+      ],
+      "position_count": 2,
+      "position_count_unit": "positions",
+      "closing_date": null,
+      "salary_type": "月薪",
+      "salary_lower": 29500,
+      "salary_upper": 29500,
+      "salary_midpoint": 29500,
+      "salary_unit": "TWD_per_month",
+      "salary_estimate_type": "range_midpoint",
+      "snapshot_fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "query_truncated": false,
+      "raw_record": {
+        "OCCU_DESC（職務名稱）": "★★★廟務助理(總務)",
+        "WK_TYPE（職務性質）": "全職",
+        "CJOB1_COUNT（職務大類別代碼）": "01",
+        "CJOB_NAME1（職務大類別名稱）": "經營／行政／總務",
+        "CJOB2_COUNT（職務小類別代碼）": "010302",
+        "CJOB_NAME2（職務小類別名稱）": "行政總務人員",
+        "JOB_PERSON（雇用人數）": "2",
+        "STOP_DATE（應徵截止日期）": "20261107",
+        "JOB_DETAIL（工作內容）": "◎#21 處理廟裡庶務事物，收銀...等 需自備機車、須具備電腦基本、基礎會計 中文打字一分鐘20~30字   ",
+        "CITYNAME（工作地點）": "新北市板橋區",
+        "EXPERIENCE（工作經驗）": "無",
+        "WKTIME（工作時間）": "日班",
+        "SALARYCD（核薪方式）": "月薪",
+        "NT_L（薪資範圍下限）": "29500",
+        "NT_U（薪資範圍上限）": "29500",
+        "EDGRDESC（最低學歷要求）": "不拘",
+        "URL_QUERY（職缺資料URL）": "https://job.taiwanjobs.gov.tw/Internet/jobwanted/JobDetail.aspx?EMPLOYER_ID=2238035&HIRE_ID=14652443",
+        "COMPNAME（公司名稱）": "板橋江子翠潮和宮",
+        "TRANDATE（職缺更新日期）": "20260907",
+        "query_zipno": "220",
+        "district": "板橋區",
+        "geo_scope": "district",
+        "query_truncated": false,
+        "query_filtered_row_count": 1,
+        "query_warnings": [
+          "query_district_mismatch_filtered"
+        ],
+        "query_observations": [
+          {
+            "query_zipno": "220",
+            "query_filtered_row_count": 1,
+            "query_warnings": [
+              "query_district_mismatch_filtered"
+            ],
+            "query_truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "job_vacancies",
+      "source": "taiwanjobs",
+      "source_record_id": "job_vacancies:725f382620617049",
+      "geo_level": "district",
+      "district_id": "65000010",
+      "district_name": "板橋區",
+      "period_start": "2026-09-12",
+      "period_end": "2026-09-12",
+      "period_type": "snapshot",
+      "metric_id": null,
+      "value": null,
+      "unit": null,
+      "age_scope": "not_age_specific",
+      "age_min": null,
+      "age_max": null,
+      "youth_eligibility": "context_only",
+      "fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "quality_flags": [
+        "query_district_mismatch_filtered"
+      ],
+      "position_count": 5,
+      "position_count_unit": "positions",
+      "closing_date": null,
+      "salary_type": "時薪",
+      "salary_lower": 196,
+      "salary_upper": 196,
+      "salary_midpoint": 196,
+      "salary_unit": null,
+      "salary_estimate_type": "range_midpoint",
+      "snapshot_fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "query_truncated": false,
+      "raw_record": {
+        "OCCU_DESC（職務名稱）": "【GODIVA】專櫃長期工讀 (板橋大遠百)",
+        "WK_TYPE（職務性質）": "全職",
+        "CJOB1_COUNT（職務大類別代碼）": "22",
+        "CJOB_NAME1（職務大類別名稱）": "其他職類",
+        "CJOB2_COUNT（職務小類別代碼）": "220101",
+        "CJOB_NAME2（職務小類別名稱）": "兼職人員",
+        "JOB_PERSON（雇用人數）": "5",
+        "STOP_DATE（應徵截止日期）": "20261020",
+        "JOB_DETAIL（工作內容）": "工作內容】 ◆ 商品銷售(巧克力、禮盒)與餐點製作(霜淇淋、飲品、可芙) ◆ 顧客服務/店面環境維護 ◆ 協助商品進貨入庫 ◆ 協助霜淇淋機定期清潔 【徵才條件】 ◆ 具餐飲或銷售經驗尤佳 ◆ 喜歡巧克力相關產品，喜歡接觸人群、充滿服務熱忱 ◆ 需能配合百貨營業時間早晚輪班 主旨請詳細寫出 1.您的大名 2.應徵項目 3.日期 如：王小明 想要應徵 檢驗員   ",
+        "CITYNAME（工作地點）": "新北市板橋區",
+        "EXPERIENCE（工作經驗）": "無",
+        "WKTIME（工作時間）": "日班、夜班、輪班二班制",
+        "SALARYCD（核薪方式）": "時薪",
+        "NT_L（薪資範圍下限）": "196",
+        "NT_U（薪資範圍上限）": "196",
+        "EDGRDESC（最低學歷要求）": "專科",
+        "URL_QUERY（職缺資料URL）": "https://job.taiwanjobs.gov.tw/Internet/jobwanted/JobDetail.aspx?EMPLOYER_ID=2386341&HIRE_ID=14612715",
+        "COMPNAME（公司名稱）": "香港商歌帝梵亞洲有限公司",
+        "TRANDATE（職缺更新日期）": "20260820",
+        "query_zipno": "220",
+        "district": "板橋區",
+        "geo_scope": "district",
+        "query_truncated": false,
+        "query_filtered_row_count": 1,
+        "query_warnings": [
+          "query_district_mismatch_filtered"
+        ],
+        "query_observations": [
+          {
+            "query_zipno": "220",
+            "query_filtered_row_count": 1,
+            "query_warnings": [
+              "query_district_mismatch_filtered"
+            ],
+            "query_truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "job_vacancies",
+      "source": "taiwanjobs",
+      "source_record_id": "job_vacancies:99cf84c68cf36c03",
+      "geo_level": "district",
+      "district_id": "65000010",
+      "district_name": "板橋區",
+      "period_start": "2026-09-12",
+      "period_end": "2026-09-12",
+      "period_type": "snapshot",
+      "metric_id": null,
+      "value": null,
+      "unit": null,
+      "age_scope": "not_age_specific",
+      "age_min": null,
+      "age_max": null,
+      "youth_eligibility": "context_only",
+      "fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "quality_flags": [
+        "query_district_mismatch_filtered"
+      ],
+      "position_count": 5,
+      "position_count_unit": "positions",
+      "closing_date": null,
+      "salary_type": "月薪",
+      "salary_lower": 29500,
+      "salary_upper": null,
+      "salary_midpoint": null,
+      "salary_unit": "TWD_per_month",
+      "salary_estimate_type": "lower_bound",
+      "snapshot_fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "query_truncated": false,
+      "raw_record": {
+        "OCCU_DESC（職務名稱）": "國貿人員",
+        "WK_TYPE（職務性質）": "全職",
+        "CJOB1_COUNT（職務大類別代碼）": "02",
+        "CJOB_NAME1（職務大類別名稱）": "業務／貿易／銷售",
+        "CJOB2_COUNT（職務小類別代碼）": "020201",
+        "CJOB_NAME2（職務小類別名稱）": "國貿人員",
+        "JOB_PERSON（雇用人數）": "5",
+        "STOP_DATE（應徵截止日期）": "20260930",
+        "JOB_DETAIL（工作內容）": "#01◎ 1.開拓海外新市場客戶. 2.回覆客戶詢價需求及樣品問題(推廣公司產品及應用). 3.處理訂單並回覆客戶. 4.定期提供客戶動態資料及產品預估 ",
+        "CITYNAME（工作地點）": "新北市板橋區",
+        "EXPERIENCE（工作經驗）": "2年以上",
+        "WKTIME（工作時間）": "日班",
+        "SALARYCD（核薪方式）": "月薪",
+        "NT_L（薪資範圍下限）": "29500",
+        "NT_U（薪資範圍上限）": "-",
+        "EDGRDESC（最低學歷要求）": "專科",
+        "URL_QUERY（職缺資料URL）": "https://job.taiwanjobs.gov.tw/Internet/jobwanted/JobDetail.aspx?EMPLOYER_ID=2359813&HIRE_ID=14561983",
+        "COMPNAME（公司名稱）": "創異物聯股份有限公司",
+        "TRANDATE（職缺更新日期）": "20260731",
+        "query_zipno": "220",
+        "district": "板橋區",
+        "geo_scope": "district",
+        "query_truncated": false,
+        "query_filtered_row_count": 1,
+        "query_warnings": [
+          "query_district_mismatch_filtered"
+        ],
+        "query_observations": [
+          {
+            "query_zipno": "220",
+            "query_filtered_row_count": 1,
+            "query_warnings": [
+              "query_district_mismatch_filtered"
+            ],
+            "query_truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "job_vacancies",
+      "source": "taiwanjobs",
+      "source_record_id": "job_vacancies:380fcc52ea60b1f6",
+      "geo_level": "district",
+      "district_id": "65000010",
+      "district_name": "板橋區",
+      "period_start": "2026-09-12",
+      "period_end": "2026-09-12",
+      "period_type": "snapshot",
+      "metric_id": null,
+      "value": null,
+      "unit": null,
+      "age_scope": "not_age_specific",
+      "age_min": null,
+      "age_max": null,
+      "youth_eligibility": "context_only",
+      "fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "quality_flags": [
+        "query_district_mismatch_filtered"
+      ],
+      "position_count": 2,
+      "position_count_unit": "positions",
+      "closing_date": null,
+      "salary_type": "月薪",
+      "salary_lower": 45000,
+      "salary_upper": 47000,
+      "salary_midpoint": 46000,
+      "salary_unit": "TWD_per_month",
+      "salary_estimate_type": "range_midpoint",
+      "snapshot_fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "query_truncated": false,
+      "raw_record": {
+        "OCCU_DESC（職務名稱）": "【綜管六處】板橋區 夜班豪宅禮賓人員",
+        "WK_TYPE（職務性質）": "全職",
+        "CJOB1_COUNT（職務大類別代碼）": "18",
+        "CJOB_NAME1（職務大類別名稱）": "保全／軍警消",
+        "CJOB2_COUNT（職務小類別代碼）": "180101",
+        "CJOB_NAME2（職務小類別名稱）": "保全人員",
+        "JOB_PERSON（雇用人數）": "2",
+        "STOP_DATE（應徵截止日期）": "額滿為止",
+        "JOB_DETAIL（工作內容）": "1. 訪客廠商過濾及登記換證作業  2. 裝潢施工車輛人員管制  3. 委託事項服務、尋物、指引、諮詢等臨時事項處理  4. 緊急事件優先回報與現場緊急處置程序  5. 大樓安全與安寧、燈火管制、防火、防竊等巡查與處置  6. 每日紀錄簿登記，以備查考",
+        "CITYNAME（工作地點）": "新北市板橋區",
+        "EXPERIENCE（工作經驗）": "無",
+        "WKTIME（工作時間）": "夜班",
+        "SALARYCD（核薪方式）": "月薪",
+        "NT_L（薪資範圍下限）": "45000",
+        "NT_U（薪資範圍上限）": "47000",
+        "EDGRDESC（最低學歷要求）": "不拘",
+        "URL_QUERY（職缺資料URL）": "https://job.taiwanjobs.gov.tw/Internet/jobwanted/JobDetail.aspx?EMPLOYER_ID=33582&HIRE_ID=14610955",
+        "COMPNAME（公司名稱）": "良福保全股份有限公司",
+        "TRANDATE（職缺更新日期）": "20260819",
+        "query_zipno": "220",
+        "district": "板橋區",
+        "geo_scope": "district",
+        "query_truncated": false,
+        "query_filtered_row_count": 1,
+        "query_warnings": [
+          "query_district_mismatch_filtered"
+        ],
+        "query_observations": [
+          {
+            "query_zipno": "220",
+            "query_filtered_row_count": 1,
+            "query_warnings": [
+              "query_district_mismatch_filtered"
+            ],
+            "query_truncated": false
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "job_vacancies",
+      "source": "taiwanjobs",
+      "source_record_id": "job_vacancies:ef1841b5fdcee06e",
+      "geo_level": "district",
+      "district_id": "65000010",
+      "district_name": "板橋區",
+      "period_start": "2026-09-12",
+      "period_end": "2026-09-12",
+      "period_type": "snapshot",
+      "metric_id": null,
+      "value": null,
+      "unit": null,
+      "age_scope": "not_age_specific",
+      "age_min": null,
+      "age_max": null,
+      "youth_eligibility": "context_only",
+      "fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "quality_flags": [
+        "query_district_mismatch_filtered"
+      ],
+      "position_count": 1,
+      "position_count_unit": "positions",
+      "closing_date": null,
+      "salary_type": "依學經歷、證照核薪(每月經常性薪資達4萬元以上)",
+      "salary_lower": null,
+      "salary_upper": null,
+      "salary_midpoint": null,
+      "salary_unit": null,
+      "salary_estimate_type": "missing",
+      "snapshot_fetched_at": "2026-09-12T02:08:07.167136+00:00",
+      "query_truncated": false,
+      "raw_record": {
+        "OCCU_DESC（職務名稱）": "資訊安全管理顧問",
+        "WK_TYPE（職務性質）": "全職",
+        "CJOB1_COUNT（職務大類別代碼）": "22",
+        "CJOB_NAME1（職務大類別名稱）": "其他職類",
+        "CJOB2_COUNT（職務小類別代碼）": "220106",
+        "CJOB_NAME2（職務小類別名稱）": "顧問",
+        "JOB_PERSON（雇用人數）": "1",
+        "STOP_DATE（應徵截止日期）": "20261231",
+        "JOB_DETAIL（工作內容）": "1. 主要協助客戶建立資訊安全、個人資料保護等相關管理制度，以符合相關標準要求。 2. 負責資訊安全與個資保護相關稽核或遵循性確認。 3. 協助資訊安全與個資保護教育訓練。包含：課程規劃、活動場地與講師安排、講義準備、課程講授等。",
+        "CITYNAME（工作地點）": "新北市板橋區",
+        "EXPERIENCE（工作經驗）": "無",
+        "WKTIME（工作時間）": "日班",
+        "SALARYCD（核薪方式）": "依學經歷、證照核薪(每月經常性薪資達4萬元以上)",
+        "NT_L（薪資範圍下限）": "-",
+        "NT_U（薪資範圍上限）": "-",
+        "EDGRDESC（最低學歷要求）": "大學",
+        "URL_QUERY（職缺資料URL）": "https://job.taiwanjobs.gov.tw/Internet/jobwanted/JobDetail.aspx?EMPLOYER_ID=2465065&HIRE_ID=12846677",
+        "COMPNAME（公司名稱）": "策略數位服務有限公司",
+        "TRANDATE（職缺更新日期）": "20260908",
+        "query_zipno": "220",
+        "district": "板橋區",
+        "geo_scope": "district",
+        "query_truncated": false,
+        "query_filtered_row_count": 1,
+        "query_warnings": [
+          "query_district_mismatch_filtered"
+        ],
+        "query_observations": [
+          {
+            "query_zipno": "220",
+            "query_filtered_row_count": 1,
+            "query_warnings": [
+              "query_district_mismatch_filtered"
+            ],
+            "query_truncated": false
+          }
+        ]
+      }
+    }
+  ]
+}

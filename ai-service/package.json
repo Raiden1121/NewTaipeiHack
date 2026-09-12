@@ -2,5 +2,29 @@
   "name": "@newtaipei-youth/ai-service",
   "version": "0.0.0",
   "private": true,
-  "description": "Amazon Bedrock, AI response, and RAG service boundary"
+  "description": "Amazon Bedrock, AI response, and RAG service boundary",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev:explain": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runExplainDemo.ts",
+    "dev:analytics": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runAnalyticsDemo.ts",
+    "dev:bedrock-smoke": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runRealBedrockSmokeTest.ts",
+    "dev:reasoning-check": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runReasoningCheck.ts",
+    "dev:websearch-check": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runWebSearchCheck.ts",
+    "dev:latency": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runLatencyBenchmark.ts",
+    "dev:dump-prompt": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/dumpPrompt.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.700.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.7"
+  }
 }
