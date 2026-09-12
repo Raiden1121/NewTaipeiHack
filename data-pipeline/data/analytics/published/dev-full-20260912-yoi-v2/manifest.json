@@ -1,0 +1,666 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "dev-full-20260912-yoi-v2",
+  "generated_at": "2026-09-12T12:19:43.224220+00:00",
+  "as_of": null,
+  "artifacts": {
+    "dashboard_overview": "dashboard_overview.json",
+    "district_details": "district_details.json",
+    "analyses": {
+      "employment": "analyses/employment.json",
+      "fertility": "analyses/fertility.json",
+      "participation": "analyses/participation.json",
+      "policy_support": "analyses/policy_support.json",
+      "topic_weight": "analyses/topic_weight.json",
+      "keyword_frequency": "analyses/keyword_frequency.json"
+    }
+  },
+  "datasets": [
+    {
+      "dataset": "homepage",
+      "path": "dashboard_overview.json",
+      "period_strategy": "mixed",
+      "source_period": {
+        "population": [
+          "10312",
+          "10712",
+          "11001",
+          "11002",
+          "11003",
+          "11004",
+          "11005",
+          "11006",
+          "11007",
+          "11008",
+          "11009",
+          "11010",
+          "11011",
+          "11012",
+          "11101",
+          "11102",
+          "11103",
+          "11104",
+          "11105",
+          "11106",
+          "11107",
+          "11108",
+          "11109",
+          "11110",
+          "11111",
+          "11112",
+          "11201",
+          "11202",
+          "11203",
+          "11204",
+          "11205",
+          "11206",
+          "11207",
+          "11208",
+          "11209",
+          "11210",
+          "11211",
+          "11212",
+          "11301",
+          "11302",
+          "11303",
+          "11304",
+          "11305",
+          "11306",
+          "11307",
+          "11309",
+          "11310",
+          "11311",
+          "11312",
+          "11401",
+          "11402",
+          "11403",
+          "11404",
+          "11405",
+          "11406",
+          "11407",
+          "11408",
+          "11409",
+          "11410",
+          "11411",
+          "11412"
+        ],
+        "births": [
+          "110",
+          "111",
+          "112",
+          "113",
+          "114"
+        ],
+        "wages": [
+          "110",
+          "111",
+          "112",
+          "113"
+        ],
+        "college_majors": [
+          "114"
+        ],
+        "youth_budgets": [
+          "all"
+        ],
+        "elections": [
+          "all"
+        ],
+        "job_vacancies": [
+          "11509"
+        ],
+        "job_vacancy_salaries": [
+          "11509"
+        ],
+        "rentals": [
+          "11509"
+        ],
+        "house_prices": [
+          "11509"
+        ],
+        "bus_stops": [
+          "11509"
+        ],
+        "railway_stops": [
+          "11509"
+        ],
+        "bike_stops": [
+          "11509"
+        ],
+        "vt_courses": [
+          "11509"
+        ],
+        "training_numbers": [
+          "11509"
+        ],
+        "talent_demand": [
+          "all"
+        ],
+        "population_villages": [
+          "11507"
+        ],
+        "village_boundaries": [
+          "11509"
+        ],
+        "youth_service_points": [
+          "11509"
+        ]
+      },
+      "geo_level": "district",
+      "coverage": {
+        "district_count": 29,
+        "expected_district_count": 29,
+        "annual_years_roc": [
+          110,
+          111,
+          112,
+          113,
+          114
+        ]
+      },
+      "quality_flags": [],
+      "sources": [
+        "cec_election_candidate_roster",
+        "dgbas_table_6",
+        "moe_9621_9622",
+        "moi_household_registration",
+        "mol_talent_demand",
+        "mol_training_numbers",
+        "mol_vocational_courses",
+        "new_taipei_real_estate_open_data",
+        "nlsc_village_boundaries",
+        "ntpc_youth_bureau_budget",
+        "ntpc_youth_bureau_startup_base",
+        "taiwanjobs",
+        "tdx"
+      ]
+    },
+    {
+      "dataset": "employment",
+      "path": "analyses/employment.json",
+      "period_strategy": "latest_snapshot",
+      "source_period": {
+        "job_vacancies": [
+          "11509"
+        ],
+        "house_prices": [
+          "11509"
+        ]
+      },
+      "geo_level": "district",
+      "coverage": {
+        "district_count": 29,
+        "plot1_point_count": 29,
+        "plot1_regression_sample_size": 29,
+        "plot2_point_count": 29,
+        "plot2_regression_sample_size": 29
+      },
+      "quality_flags": [],
+      "sources": [
+        "new_taipei_real_estate_open_data",
+        "taiwanjobs"
+      ]
+    },
+    {
+      "dataset": "fertility",
+      "path": "analyses/fertility.json",
+      "period_strategy": "latest_snapshot",
+      "source_period": {
+        "population": [
+          "10312",
+          "10712",
+          "11001",
+          "11002",
+          "11003",
+          "11004",
+          "11005",
+          "11006",
+          "11007",
+          "11008",
+          "11009",
+          "11010",
+          "11011",
+          "11012",
+          "11101",
+          "11102",
+          "11103",
+          "11104",
+          "11105",
+          "11106",
+          "11107",
+          "11108",
+          "11109",
+          "11110",
+          "11111",
+          "11112",
+          "11201",
+          "11202",
+          "11203",
+          "11204",
+          "11205",
+          "11206",
+          "11207",
+          "11208",
+          "11209",
+          "11210",
+          "11211",
+          "11212",
+          "11301",
+          "11302",
+          "11303",
+          "11304",
+          "11305",
+          "11306",
+          "11307",
+          "11309",
+          "11310",
+          "11311",
+          "11312",
+          "11401",
+          "11402",
+          "11403",
+          "11404",
+          "11405",
+          "11406",
+          "11407",
+          "11408",
+          "11409",
+          "11410",
+          "11411",
+          "11412"
+        ],
+        "births": [
+          "110",
+          "111",
+          "112",
+          "113",
+          "114"
+        ],
+        "population_villages": [
+          "11507"
+        ],
+        "village_boundaries": [
+          "11509"
+        ],
+        "babysitting_places": [
+          "11509"
+        ],
+        "wages": [
+          "110",
+          "111",
+          "112",
+          "113"
+        ],
+        "college_majors": [
+          "114"
+        ],
+        "youth_budgets": [
+          "all"
+        ],
+        "elections": [
+          "all"
+        ],
+        "job_vacancies": [
+          "11509"
+        ],
+        "job_vacancy_salaries": [
+          "11509"
+        ],
+        "rentals": [
+          "11509"
+        ],
+        "house_prices": [
+          "11509"
+        ],
+        "bus_stops": [
+          "11509"
+        ],
+        "railway_stops": [
+          "11509"
+        ],
+        "bike_stops": [
+          "11509"
+        ],
+        "vt_courses": [
+          "11509"
+        ],
+        "training_numbers": [
+          "11509"
+        ],
+        "talent_demand": [
+          "all"
+        ],
+        "youth_service_points": [
+          "11509"
+        ]
+      },
+      "geo_level": "district",
+      "coverage": {
+        "district_count": 29,
+        "expected_district_count": 29,
+        "daycare_verified_point_count": 220,
+        "daycare_excluded_point_count": 171,
+        "daycare_joined_village_count": 1039,
+        "daycare_boundary_village_count": 1039,
+        "scatter_point_count": 29,
+        "scatter_regression_sample_size": 29
+      },
+      "quality_flags": [],
+      "sources": [
+        "cec_election_candidate_roster",
+        "dgbas_table_6",
+        "moe_9621_9622",
+        "moi_household_registration",
+        "mol_talent_demand",
+        "mol_training_numbers",
+        "mol_vocational_courses",
+        "new_taipei_real_estate_open_data",
+        "nlsc_village_boundaries",
+        "ntpc_social_affairs_babysitting",
+        "ntpc_youth_bureau_budget",
+        "ntpc_youth_bureau_startup_base",
+        "taiwanjobs",
+        "tdx"
+      ]
+    },
+    {
+      "dataset": "participation",
+      "path": "analyses/participation.json",
+      "period_strategy": "latest_snapshot",
+      "source_period": {
+        "population": [
+          "10312",
+          "10712",
+          "11001",
+          "11002",
+          "11003",
+          "11004",
+          "11005",
+          "11006",
+          "11007",
+          "11008",
+          "11009",
+          "11010",
+          "11011",
+          "11012",
+          "11101",
+          "11102",
+          "11103",
+          "11104",
+          "11105",
+          "11106",
+          "11107",
+          "11108",
+          "11109",
+          "11110",
+          "11111",
+          "11112",
+          "11201",
+          "11202",
+          "11203",
+          "11204",
+          "11205",
+          "11206",
+          "11207",
+          "11208",
+          "11209",
+          "11210",
+          "11211",
+          "11212",
+          "11301",
+          "11302",
+          "11303",
+          "11304",
+          "11305",
+          "11306",
+          "11307",
+          "11309",
+          "11310",
+          "11311",
+          "11312",
+          "11401",
+          "11402",
+          "11403",
+          "11404",
+          "11405",
+          "11406",
+          "11407",
+          "11408",
+          "11409",
+          "11410",
+          "11411",
+          "11412"
+        ],
+        "elections": [
+          "all"
+        ],
+        "youth_council_minutes": [
+          "all"
+        ],
+        "join_proposals": [
+          "all"
+        ],
+        "youth_grants": [
+          "all"
+        ],
+        "youth_budgets": [
+          "all"
+        ],
+        "youth_service_points": [
+          "11509"
+        ],
+        "village_boundaries": [
+          "11509"
+        ],
+        "population_villages": [
+          "11507"
+        ]
+      },
+      "geo_level": "district",
+      "coverage": {
+        "expected_district_count": 29,
+        "v1_year_count": 3,
+        "v1_latest_district_count": 29,
+        "t1_election_district_row_count": 31,
+        "service_verified_point_count": 9,
+        "service_excluded_point_count": 0
+      },
+      "quality_flags": [
+        "budget_execution_rate_missing_without_final_settlement",
+        "grant_coverage_scope_mixed",
+        "grant_district_unresolved",
+        "youth_proposal_tracker_unavailable"
+      ],
+      "sources": [
+        "cec_election_candidate_roster",
+        "join_gov_public_policy_platform",
+        "moi_household_registration",
+        "nlsc_village_boundaries",
+        "ntpc_youth_bureau_budget",
+        "ntpc_youth_bureau_grant_detail",
+        "ntpc_youth_bureau_meeting_minutes",
+        "ntpc_youth_bureau_startup_base"
+      ]
+    },
+    {
+      "dataset": "policy_support",
+      "path": "analyses/policy_support.json",
+      "period_strategy": "latest_snapshot",
+      "source_period": {
+        "wages": [
+          "108",
+          "109",
+          "110",
+          "111",
+          "112",
+          "113"
+        ],
+        "population": [
+          "11107",
+          "11207",
+          "11307",
+          "11407",
+          "11507"
+        ]
+      },
+      "geo_level": "district",
+      "coverage": {
+        "wage_years_requested": 6,
+        "wage_years_available": 6,
+        "wage_years_with_value": 6,
+        "population_years_requested": 5,
+        "population_month": 7,
+        "population_years_available": 5,
+        "population_years_with_value": 5,
+        "population_expected_district_count": 29,
+        "population_district_counts": {
+          "111": 29,
+          "112": 29,
+          "113": 29,
+          "114": 29,
+          "115": 29
+        }
+      },
+      "quality_flags": [],
+      "sources": [
+        "dgbas_table_6",
+        "moi_household_registration"
+      ]
+    },
+    {
+      "dataset": "topic_weight",
+      "path": "analyses/topic_weight.json",
+      "period_strategy": "latest_snapshot",
+      "source_period": {},
+      "geo_level": "district",
+      "coverage": {
+        "district_count": 0
+      },
+      "quality_flags": [],
+      "sources": []
+    },
+    {
+      "dataset": "keyword_frequency",
+      "path": "analyses/keyword_frequency.json",
+      "period_strategy": "latest_snapshot",
+      "source_period": {},
+      "geo_level": "district",
+      "coverage": {
+        "district_count": 0
+      },
+      "quality_flags": [],
+      "sources": []
+    }
+  ],
+  "sources": [
+    {
+      "source": "cec_election_candidate_roster",
+      "sourceName": "中央選舉委員會",
+      "sourceUrl": "https://data.cec.gov.tw/選舉資料庫/votedata.zip",
+      "urlType": "resource"
+    },
+    {
+      "source": "dgbas_table_6",
+      "sourceName": "行政院主計總處",
+      "sourceUrl": "https://www.stat.gov.tw/News_Content.aspx?n=4580&s=232642",
+      "urlType": "listing"
+    },
+    {
+      "source": "join_gov_public_policy_platform",
+      "sourceName": "公共政策網路參與平台",
+      "sourceUrl": "https://join.gov.tw/idea/",
+      "urlType": "dataset"
+    },
+    {
+      "source": "moe_9620",
+      "sourceName": "教育部統計處",
+      "sourceUrl": "https://stats.moe.gov.tw/files/opendata/graduatesc.json",
+      "urlType": "resource"
+    },
+    {
+      "source": "moe_9621_9622",
+      "sourceName": "教育部統計處",
+      "sourceUrl": "https://stats.moe.gov.tw/files/opendata/sdata.json",
+      "urlType": "resource"
+    },
+    {
+      "source": "moi_household_registration",
+      "sourceName": "內政部戶政司",
+      "sourceUrl": "https://www.ris.gov.tw/rs-opendata/",
+      "urlType": "dataset"
+    },
+    {
+      "source": "mol_talent_demand",
+      "sourceName": "勞動部",
+      "sourceUrl": "https://apiservice.mol.gov.tw/OdService/rest/datastore/A17000000J-030281-nQF",
+      "urlType": "api"
+    },
+    {
+      "source": "mol_training_numbers",
+      "sourceName": "勞動部",
+      "sourceUrl": "https://apiservice.mol.gov.tw/OdService/rest/datastore/A17000000J-030190-lfV",
+      "urlType": "api"
+    },
+    {
+      "source": "mol_vocational_courses",
+      "sourceName": "勞動部",
+      "sourceUrl": "https://apiservice.mol.gov.tw/OdService/rest/datastore/A17000000J-000007-Hv9",
+      "urlType": "api"
+    },
+    {
+      "source": "new_taipei_real_estate_open_data",
+      "sourceName": "新北市政府資料開放平台",
+      "sourceUrl": "https://data.ntpc.gov.tw/",
+      "urlType": "dataset"
+    },
+    {
+      "source": "nlsc_village_boundaries",
+      "sourceName": "內政部國土測繪中心",
+      "sourceUrl": "https://maps.nlsc.gov.tw/download/村(里)界(TWD97_121分帶).zip",
+      "urlType": "resource"
+    },
+    {
+      "source": "ntpc_social_affairs_babysitting",
+      "sourceName": "新北市政府社會局",
+      "sourceUrl": "https://data.ntpc.gov.tw/",
+      "urlType": "dataset"
+    },
+    {
+      "source": "ntpc_youth_bureau_budget",
+      "sourceName": "新北市政府青年局",
+      "sourceUrl": "https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=108",
+      "urlType": "listing"
+    },
+    {
+      "source": "ntpc_youth_bureau_grant_detail",
+      "sourceName": "新北市政府青年局",
+      "sourceUrl": "https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?id=112&module=youth0008",
+      "urlType": "listing"
+    },
+    {
+      "source": "ntpc_youth_bureau_meeting_minutes",
+      "sourceName": "新北市政府青年局",
+      "sourceUrl": "https://www.youth.ntpc.gov.tw/youth/ch/app/artwebsite/view?id=200&module=artwebsite&serno=2e4f0428-1fc7-41dd-92a8-6555183229be",
+      "urlType": "listing"
+    },
+    {
+      "source": "ntpc_youth_bureau_startup_base",
+      "sourceName": "新北市政府青年局",
+      "sourceUrl": "https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0001&id=145",
+      "urlType": "listing"
+    },
+    {
+      "source": "taiwanjobs",
+      "sourceName": "台灣就業通",
+      "sourceUrl": "https://free.taiwanjobs.gov.tw/webservice_taipei/webservice.ashx",
+      "urlType": "api"
+    },
+    {
+      "source": "tdx",
+      "sourceName": "交通部 TDX 運輸資料流通服務",
+      "sourceUrl": "https://tdx.transportdata.tw/",
+      "urlType": "dataset"
+    }
+  ],
+  "warnings": []
+}

@@ -2,7 +2,7 @@
 
 > 本文件依據最新的前端 React 元件架構（`features/employment`），嚴格對齊 Notion MD 公式定義，並完整對應 `data_description.md` 中實際可用的 18 個資料集。
 > 所有計算皆由 Backend 完成後才拋給 Frontend 顯示。
-> YOI 核心公式與五面向子指數**直接沿用 `homepage_analysis.md` v8** 的定義，本文件僅列重點摘要與前端呈現差異。
+> YOI 核心公式與五面向子指數**直接沿用 `homepage_analysis.md` v9** 的定義，本文件僅列重點摘要與前端呈現差異。
 
 目前 data pipeline 已依本文件產出 `data/analytics/employment/all.json` 與
 `data/quality/analytics_employment.json`；Backend／Frontend 只需讀取產物，
@@ -32,14 +32,14 @@
 > ⚠️ **前端改動備註**：右側面板新增**雷達圖**，顯示選中行政區的五面向子指數評分。
 > - 雷達圖共 4 圈，每圈代表 25 分，滿分 100（最外圈）
 > - 前端目前尚未配置五個頂點對應到哪五個面向，**待前端修改後對接**
-> - 建議頂點順序（順時針）：工作機會 → 薪資水準 → 人才資源 → 居住友善度 → 交通可及
+> - 建議頂點順序（順時針）：工作機會 → 薪資水準 → 青年活力與發展 → 居住友善度 → 交通可及
 
 | UI 顯示項目 | 對應欄位 | 資料源 | 計算邏輯 |
 |------------|---------|-------|---------|
 | 綜合分數 | `opportunityIndex` | 衍生（同地圖） | YOI 加權合成分數，範圍 0–100 |
 | 工作機會 | `score_job` | **C1.1** `job_vacancies` | S_job 子指數，0–100（詳見第二節） |
-| 薪資水準 | `score_salary` | **C2.1** `wages` + **C2.2** `job_vacancy_salaries` + **C4.2** `house_prices` | S_salary 子指數，0–100 |
-| 人才資源 | `score_talent` | **C3.1** `college_majors` + **C3.3** `vt_courses` + **C3.4** `training_numbers` | S_talent 子指數，0–100 |
+| 薪資水準 | `score_salary` | **C2.2** `job_vacancy_salaries` + **C1.1** `job_vacancies` | S_salary 子指數，0–100 |
+| 青年活力與發展 | `score_talent` | **A1** `population` + **C3.1** `college_majors` | S_talent 子指數，0–100 |
 | 居住友善度 | `score_housing` | **C4.1** `rentals` + **C4.2** `house_prices` | S_housing 子指數，0–100 |
 | 交通可及 | `score_transport` | **C5.1** `bus_stops` + **C5.2** `railway_stops` + **C5.3** `bike_stops` | S_transport 子指數，0–100 |
 
@@ -66,7 +66,7 @@
 | 軸 | 顯示說明 | 對應欄位 | 資料源 | 計算邏輯 |
 |----|---------|---------|-------|---------|
 | **X 軸** | 知識型職缺比例（%） | `knowledge_job_ratio` | **C1.1** `job_vacancies` | 各區「要求大專以上學歷的職缺數」÷ 各區總職缺數 × 100%（詳見第三節） |
-| **Y 軸** | 估算起薪（萬元／年） | `estimated_wage` | **C2.1** `wages` + **C4.2** `house_prices` | 以房價代理估算的各區調整後青年薪資（詳見 homepage_analysis.md S_salary 推算邏輯） |
+| **Y 軸** | 估算起薪（萬元／年） | `estimated_wage` | **C2.1** `wages` + **C4.2** `house_prices` | 仍為散點圖的輔助房價代理欄位，不再參與 YOI 的 S_salary |
 | **每個點** | 行政區名稱 | `district_name` | — | 共 29 個點 |
 | **回歸線** | OLS 直線 | `regression_slope`, `regression_intercept` | 衍生 | `y = regression_intercept + regression_slope × x` |
 
@@ -81,30 +81,31 @@
 
 ---
 
-## 二、核心指數公式（引用 homepage_analysis.md v8）
+## 二、核心指數公式（引用 homepage_analysis.md v9）
 
 > 下列公式與 `homepage_analysis.md` 第二節完全相同。**後端實作以 homepage_analysis.md 為準文件**，本節僅供對照摘要。
 
 ### YOI 加權合成
 
 ```text
-YOI = 0.25·S_job + 0.25·S_salary + 0.05·S_talent + 0.25·S_housing + 0.20·S_transport
+YOI_raw = 0.25·S_job + 0.25·S_salary + 0.15·S_talent + 0.20·S_housing + 0.15·S_transport
+YOI     = norm(YOI_raw)
 ```
 
 ### 各面向對應前端欄位
 
 | homepage_analysis.md 代號 | 本頁前端欄位名稱 | 前端標籤 | 說明 |
 |---------------------------|----------------|---------|------|
-| S_job | `score_job` | 工作機會 | 每萬職缺數、Shannon 多樣性、人才需求 YoY |
-| S_salary | `score_salary` | 薪資水準 | 職缺薪資中位數、高薪職缺比、房價代理估算薪資 |
-| S_talent | `score_talent` | 人才資源 | 大學生密度、職訓課程數、訓練人次 |
+| S_job | `score_job` | 工作機會 | 職缺密度（每平方公里）、Shannon 多樣性 |
+| S_salary | `score_salary` | 薪資水準 | 職缺刊登薪資中位數、高薪職缺比；不含房價代理薪資 |
+| S_talent | `score_talent` | 青年活力與發展 | 青年人口佔比、青年人口 YoY、大專學生密度（ROC 114） |
 | S_housing | `score_housing` | **居住友善度** | norm_inv（租金、房價、租金薪資比）；分數越高代表居住越友善 |
 | S_transport | `score_transport` | 交通可及 | 公車/軌道/自行車密度 |
 
-### 標準化函數（Min-Max，截斷 P5/P95）
+### 標準化函數（純 Min-Max，不截斷 P5/P95）
 
 ```text
-norm(x)     = (clip(x, P5, P95) - min) / (max - min) × 100
+norm(x)     = (x - min) / (max - min) × 100
 norm_inv(x) = 100 - norm(x)    ← 居住友善度（S_housing）使用此公式
 ```
 
@@ -272,5 +273,5 @@ def generate_employment_data(snapshot_date, year):
 | ⚠️ 職缺快照唯一性 | `job_vacancies` 目前使用最新 `11509` 快照，`knowledge_job_ratio` 及 `score_job` 均為單點估計 | Scatter 1、S_job |
 | ✅ 職缺學歷欄位 | transform 保留 raw `EDGRDESC（最低學歷要求）`；analytics 以大學／專科／學士／碩士／博士關鍵字計算比例 | `knowledge_job_ratio` |
 | ⚠️ 平溪房價缺住宅用資料 | 平溪無住宅用記，使用所有類型 fallback；前端建議加 `*` 標記 | Scatter 2 Y 軸 |
-| ⚠️ 雷達圖頂點待對應 | 前端尚未配置五個頂點與面向的對應，建議順序（順時針）：工作機會→薪資水準→人才資源→居住友善度→交通可及 | 前端雷達圖 |
-| ⚠️ S_talent 集中問題 | `college_majors` 為學校所在地，淡水/新莊等學區 `score_talent` 虛高；權重已降至 0.05 | `score_talent` 雷達圖 |
+| ⚠️ 薪資快照與覆蓋率 | 薪資採完整上下界的職缺區間中點；小樣本區與單邊薪資會使中位數及高薪比例不穩定，詳細排除數寫入 quality artifact | `score_salary` |
+| ⚠️ 大專學生密度 proxy | `college_majors` 依學校所在地映射行政區，淡水／新莊等學區可能偏高；青年人口欄位補足區級變異，但不代表學生戶籍或人才品質 | `score_talent` 雷達圖 |

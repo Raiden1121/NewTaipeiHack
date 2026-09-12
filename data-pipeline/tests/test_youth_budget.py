@@ -29,6 +29,40 @@ PAGE_TEXT_115 = """
 PAGE_TEXT_116 = PAGE_TEXT_115.replace("213,022", "220,101").replace(
     "56,819", "60,280"
 ).replace("26.67", "27.39").replace("155,903", "159,521").replace("73.19", "72.47")
+ALLOCATION_PAGE_TEXTS_116 = [
+    """
+歲出計畫說明提要與各項費用明細表
+單位：新臺幣元
+經常門
+青年發展業務
+01綜合規劃業務 38,960,000市庫負擔38,960,000元
+2000 業務費 30,000,000
+""",
+    """
+歲出計畫說明提要與各項費用明細表
+單位：新臺幣元
+經常門
+青年發展業務
+02職涯發展業務 37,730,000市庫負擔37,730,000元
+2000 業務費 28,000,000
+""",
+    """
+歲出計畫說明提要與各項費用明細表
+單位：新臺幣元
+經常門
+青年發展業務
+03創業資源業務 70,979,000市庫負擔70,979,000元
+2000 業務費 50,000,000
+""",
+    """
+歲出計畫說明提要與各項費用明細表
+單位：新臺幣元
+資本門
+青年發展業務
+04青年業務設施 11,852,000市庫負擔11,852,000元
+3000 設備及投資 11,852,000
+""",
+]
 LISTING_HTML = """
 <html><body>
   <div class="item">公告日期：114/09/30 更新日期：115/02/09
@@ -228,6 +262,44 @@ class TestYouthBudgetCollector(unittest.TestCase):
             "sha256:" + hashlib.sha256(PDF_115).hexdigest(),
         )
         self.assertTrue(all(record["document_id"] for record in payload.records))
+
+    def test_fetch_extracts_roc_116_budget_allocations_from_detail_pages(self):
+        with patch.object(
+            youth_budget,
+            "_extract_pdf_pages",
+            return_value=[PAGE_TEXT_116, *ALLOCATION_PAGE_TEXTS_116],
+        ):
+            payload = youth_budget.fetch_youth_budgets(
+                list_url=LIST_URL,
+                open_url=_fake_open_url,
+                years=("116",),
+            )
+
+        allocations = [
+            row for row in payload.records if row.get("row_type") == "allocation"
+        ]
+        self.assertEqual(len(allocations), 4)
+        self.assertEqual(
+            [row["allocation_code"] for row in allocations], ["01", "02", "03", "04"]
+        )
+        self.assertEqual(
+            [row["budget_amount"] for row in allocations],
+            ["38,960,000", "37,730,000", "70,979,000", "11,852,000"],
+        )
+        self.assertEqual({row["unit_label"] for row in allocations}, {"新臺幣元"})
+        self.assertEqual(
+            [row["source_page_number"] for row in allocations], [2, 3, 4, 5]
+        )
+        self.assertEqual(
+            sum(int(row["budget_amount"].replace(",", "")) for row in allocations),
+            159_521_000,
+        )
+        self.assertEqual(
+            payload.metadata["documents"][0]["allocation_row_count"], 4
+        )
+        self.assertFalse(
+            any(row["allocation_code"] not in {"01", "02", "03", "04"} for row in allocations)
+        )
 
     def test_fetch_includes_final_settlement_listing_when_requested(self):
         with patch.object(

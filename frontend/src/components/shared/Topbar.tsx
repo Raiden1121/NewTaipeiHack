@@ -13,7 +13,7 @@ export default function Topbar({ onOpenMenu }: TopbarProps) {
   const TitleIcon = navIconForPath(pathname);
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 md:px-6">
+    <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 sm:gap-4 md:px-6">
       <button
         type="button"
         onClick={onOpenMenu}

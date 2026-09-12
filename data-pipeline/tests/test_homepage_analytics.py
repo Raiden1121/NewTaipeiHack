@@ -12,8 +12,13 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from analytics.config import load_homepage_analytics_config  # noqa: E402
-from analytics.homepage import generate_homepage_data, write_homepage_data  # noqa: E402
+from analytics.homepage import (  # noqa: E402
+    _shrink_to_city,
+    generate_homepage_data,
+    write_homepage_data,
+)
 from analytics.io import CuratedSlice  # noqa: E402
+from analytics.homepage_math import normalize_minmax  # noqa: E402
 
 
 class FakeHomepageResolver:
@@ -255,6 +260,8 @@ class RecordingHomepageResolver(FakeHomepageResolver):
     def __init__(self, unavailable_years=()):
         super().__init__()
         self.requested_population_periods = []
+        self.requested_village_population_periods = []
+        self.requested_college_periods = []
         self._unavailable_years = {f"{year:03d}" for year in unavailable_years}
 
     def available_periods(self, dataset, periods):
@@ -265,6 +272,10 @@ class RecordingHomepageResolver(FakeHomepageResolver):
             ]
             if not periods:
                 raise ValueError("dataset 'population' has no available requested periods")
+        if dataset == "population_villages":
+            self.requested_village_population_periods.extend(periods)
+        if dataset == "college_majors":
+            self.requested_college_periods.extend(periods)
         return super().available_periods(dataset, periods)
 
     def _all_records(self, dataset):
@@ -288,6 +299,132 @@ class RecordingHomepageResolver(FakeHomepageResolver):
 
 
 class TestHomepageAnalytics(unittest.TestCase):
+    def test_uses_refactored_yoi_weights(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+
+        config = load_homepage_analytics_config(config_path)
+
+        self.assertEqual(
+            config.yoi_weights,
+            {
+                "job": 0.25,
+                "salary": 0.25,
+                "talent": 0.15,
+                "housing": 0.20,
+                "transport": 0.15,
+            },
+        )
+        self.assertEqual(config.salary_shrinkage_k, 30.0)
+
+    def test_salary_median_uses_city_prior_for_small_samples_and_zero_rows(self):
+        self.assertAlmostEqual(
+            _shrink_to_city(
+                district_value=38000,
+                sample_size=4,
+                city_value=35000,
+                strength=30,
+            ),
+            (4 * 38000 + 30 * 35000) / 34,
+        )
+        self.assertEqual(
+            _shrink_to_city(
+                district_value=None,
+                sample_size=0,
+                city_value=35000,
+                strength=30,
+            ),
+            35000,
+        )
+
+    def test_refactored_yoi_uses_area_salary_and_population_components(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+        resolver = RecordingHomepageResolver()
+
+        result = generate_homepage_data(resolver=resolver, config=config)
+        first = result["current_yoi"]["districts"][0]
+        normalized = first["normalizedInputs"]
+
+        self.assertEqual(resolver.requested_college_periods, ["114"])
+        self.assertIn("vacancies_per_km2", normalized)
+        self.assertIn("youth_ratio", normalized)
+        self.assertIn("youth_yoy", normalized)
+        self.assertEqual(result["time_policy"]["yoi_normalization"], "min_max")
+        self.assertEqual(result["time_policy"]["salary_shrinkage_k"], 30.0)
+
+        expected_job = (
+            0.60 * normalized["vacancies_per_km2"]
+            + 0.40 * normalized["occupation_shannon_index"]
+        )
+        expected_salary = (
+            0.60 * normalized["salary_median_shrunk"]
+            + 0.40 * normalized["high_salary_ratio"]
+        )
+        expected_talent = (
+            0.40 * normalized["youth_ratio"]
+            + 0.40 * normalized["youth_yoy"]
+            + 0.20 * normalized["college_student_density"]
+        )
+        self.assertAlmostEqual(first["yoiComponents"]["job"], expected_job)
+        self.assertAlmostEqual(first["yoiComponents"]["salary"], expected_salary)
+        self.assertAlmostEqual(first["yoiComponents"]["talent"], expected_talent)
+
+        self.assertEqual(first["salary_sample_size"], 1)
+        self.assertAlmostEqual(first["salary_median"], 100000)
+        expected_smoothed = (1 * 100000 + 30 * 40016) / 31
+        self.assertAlmostEqual(first["salary_median_shrunk"], expected_smoothed)
+
+        salary_values = {
+            row["district_id"]: row["salary_median_shrunk"]
+            for row in result["current_yoi"]["districts"]
+        }
+        expected_salary_norm = normalize_minmax(salary_values)
+        for row in result["current_yoi"]["districts"]:
+            self.assertAlmostEqual(
+                row["normalizedInputs"]["salary_median_shrunk"],
+                expected_salary_norm[row["district_id"]],
+            )
+
+    def test_opportunity_index_is_normalized_from_yoi_raw(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+
+        result = generate_homepage_data(resolver=FakeHomepageResolver(), config=config)
+        rows = result["current_yoi"]["districts"]
+        self.assertTrue(all("yoiRaw" in row for row in rows))
+        first = rows[0]
+        components = first["yoiComponents"]
+        expected_raw = (
+            0.25 * components["job"]
+            + 0.25 * components["salary"]
+            + 0.15 * components["talent"]
+            + 0.20 * components["housing"]
+            + 0.15 * components["transport"]
+        )
+        self.assertAlmostEqual(first["yoiRaw"], expected_raw)
+
+        self.assertAlmostEqual(
+            min(row["opportunityIndex"] for row in rows),
+            0.0,
+            places=6,
+        )
+        self.assertAlmostEqual(
+            max(row["opportunityIndex"] for row in rows),
+            100.0,
+            places=6,
+        )
+
+    def test_uses_explicit_village_population_reference_period(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+        resolver = RecordingHomepageResolver()
+
+        generate_homepage_data(resolver=resolver, config=config)
+
+        self.assertEqual(resolver.requested_village_population_periods, ["11507"])
+        self.assertIn("11401", resolver.requested_population_periods)
+        self.assertEqual(config.population_reference_year_roc, 114)
+
     def test_loads_population_for_election_years_outside_the_annual_window(self):
         config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
         config = load_homepage_analytics_config(config_path)

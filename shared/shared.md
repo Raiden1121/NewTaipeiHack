@@ -8,15 +8,22 @@ Shared 用來保存 Frontend、Backend 與 AI Service 共用的 TypeScript data 
 
 | 檔案 | 狀態 | 內容 |
 |---|---|---|
+| `src/metrics.ts` | **已建立** | metric contract：`MetricValue`、`MetricStatus`、`YouthEligibility`、`PeriodType` |
 | `src/aiContract.ts` | **提案** | AI Service 的 request / response contract：`AiEvidence`、`StructuredOutput`、`SourceAttribution` |
 | `src/aiContextTable.ts` | **提案** | DynamoDB「AI Context」表的 key schema 與 item 形狀 |
 
-兩份都是 **ai-service 主動提出的提案，還沒定案**。由 ai-service 先寫是因為那邊進度最快，
-等其他模組定案只會變成回頭改。有意見直接改檔案並通知 ai-service，
-不要各自在自己的模組裡另立一套欄位名。
+其餘跨模組 DTO 仍依各 feature plan 擴充。
+
+`aiContract.ts` 與 `aiContextTable.ts` 是 **ai-service 主動提出的提案，還沒定案**。
+由 ai-service 先寫是因為那邊進度最快，等其他模組定案只會變成回頭改。
+有意見直接改檔案並通知 ai-service，不要各自在自己的模組裡另立一套欄位名。
 
 `aiContract.ts` 的權威實作在 `ai-service/src/types/`（那邊是 zod schema，會實際驗證）。
 這裡是純 TypeScript 型別，刻意不依賴任何套件。兩邊不一致時以 ai-service 的 zod schema 為準。
+
+`PeriodType` 與 `YouthEligibility` 的**單一定義在 `metrics.ts`**，`aiContract.ts` 從那裡
+import。原本兩邊各自宣告了一份（值相同，因為都是照 pipeline 欄位 1:1 對過來的），
+兩份併存會讓改其中一邊時另一邊靜默不動 —— 理由見 `src/index.ts` 的註解。
 
 ### 需要 data-pipeline 隊友注意的兩件事
 
@@ -48,6 +55,8 @@ snake_case ↔ camelCase 的轉換只發生在 `ai-service/src/context/` 一層�
 - `OpportunityIndex` 與 `RetentionRisk`。
 - `YouthResource`、API Request / Response。
 - `PolicyAdvice` 與 `AI Evidence`。
+
+Metric source 欄位統一為 `source`、`sourceName`、`sourceUrl` 與 `sourceRefs`。單一來源使用前三個欄位；多來源衍生指標使用 `source: null`、`sourceUrl: null` 與 `sourceRefs`，不由 Frontend 自行查表。
 
 共用格式應讓各模組對同一個欄位有一致理解，例如不要讓 Frontend 使用 `opportunityIndex`，Backend 卻回傳 `opportunity_score`。
 

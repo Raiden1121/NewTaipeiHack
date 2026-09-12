@@ -1,0 +1,141 @@
+{
+  "metric_id": "policy_support",
+  "calculation_version": "1",
+  "generated_at": "2026-09-12T12:21:26.340789+00:00",
+  "status": "observed",
+  "source_period": {
+    "wages": [
+      "108",
+      "109",
+      "110",
+      "111",
+      "112",
+      "113"
+    ],
+    "population": [
+      "11107",
+      "11207",
+      "11307",
+      "11407",
+      "11507"
+    ]
+  },
+  "coverage": {
+    "wage_years_requested": 6,
+    "wage_years_available": 6,
+    "wage_years_with_value": 6,
+    "population_years_requested": 5,
+    "population_month": 7,
+    "population_years_available": 5,
+    "population_years_with_value": 5,
+    "population_expected_district_count": 29,
+    "population_district_counts": {
+      "111": 29,
+      "112": 29,
+      "113": 29,
+      "114": 29,
+      "115": 29
+    }
+  },
+  "proxy_usage": [
+    {
+      "metric": "wageTrend",
+      "reason": "官方資料提供 25-29 歲年齡組，作為青年薪資 proxy，並非精確 18-35 歲薪資",
+      "source_field": "official_age_group"
+    }
+  ],
+  "blocking_reasons": [],
+  "time_policy": {
+    "wage_years_roc": [
+      108,
+      109,
+      110,
+      111,
+      112,
+      113
+    ],
+    "population_years_roc": [
+      111,
+      112,
+      113,
+      114,
+      115
+    ],
+    "population_month": 7,
+    "population_metric": "youth_18_35_total"
+  },
+  "policyOutcomes": {
+    "wageTrend": [
+      {
+        "year": 2019,
+        "year_roc": 108,
+        "wage": 51.8,
+        "yoy": null
+      },
+      {
+        "year": 2020,
+        "year_roc": 109,
+        "wage": 52.4,
+        "yoy": 1.16
+      },
+      {
+        "year": 2021,
+        "year_roc": 110,
+        "wage": 53.4,
+        "yoy": 1.91
+      },
+      {
+        "year": 2022,
+        "year_roc": 111,
+        "wage": 55.3,
+        "yoy": 3.56
+      },
+      {
+        "year": 2023,
+        "year_roc": 112,
+        "wage": 57.3,
+        "yoy": 3.62
+      },
+      {
+        "year": 2024,
+        "year_roc": 113,
+        "wage": 59.9,
+        "yoy": 4.54
+      }
+    ],
+    "populationTrend": [
+      {
+        "year": 2022,
+        "year_roc": 111,
+        "population": 897892,
+        "yoy": null
+      },
+      {
+        "year": 2023,
+        "year_roc": 112,
+        "population": 891833,
+        "yoy": -0.67
+      },
+      {
+        "year": 2024,
+        "year_roc": 113,
+        "population": 873702,
+        "yoy": -2.03
+      },
+      {
+        "year": 2025,
+        "year_roc": 114,
+        "population": 853969,
+        "yoy": -2.26
+      },
+      {
+        "year": 2026,
+        "year_roc": 115,
+        "population": 832214,
+        "yoy": -2.55
+      }
+    ],
+    "currentWageGrowth": 4.54,
+    "currentPopGrowth": -2.55
+  }
+}

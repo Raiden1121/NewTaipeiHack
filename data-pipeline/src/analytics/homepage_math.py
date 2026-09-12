@@ -33,6 +33,34 @@ def normalize_p5_p95(
     return output
 
 
+def normalize_minmax(
+    values: Mapping[str, float | int | None],
+    *,
+    inverse: bool = False,
+    constant_value: float = 50,
+) -> dict[str, float | None]:
+    """Normalize finite values to 0–100 with an unclipped Min-Max scale."""
+
+    valid = [float(value) for value in values.values() if _finite(value)]
+    if not valid:
+        return {key: None for key in values}
+    lower = min(valid)
+    upper = max(valid)
+    if math.isclose(lower, upper):
+        return {
+            key: (None if not _finite(value) else float(constant_value))
+            for key, value in values.items()
+        }
+    output: dict[str, float | None] = {}
+    for key, value in values.items():
+        if not _finite(value):
+            output[key] = None
+            continue
+        normalized = (float(value) - lower) / (upper - lower) * 100.0
+        output[key] = 100.0 - normalized if inverse else normalized
+    return output
+
+
 def shannon_entropy(category_counts: Mapping[Any, float | int | None] | Iterable[float | int | None]) -> float:
     """Return Shannon entropy in bits for non-negative category counts."""
 
@@ -154,6 +182,7 @@ def _percentile(values: list[float], fraction: float) -> float:
 __all__ = [
     "calculate_ols_regression",
     "calculate_quartile_risk",
+    "normalize_minmax",
     "normalize_p5_p95",
     "shannon_entropy",
     "weighted_score",

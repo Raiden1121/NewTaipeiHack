@@ -3,12 +3,15 @@ import { geoMercator, geoPath } from "d3-geo";
 import { useDistrictSummary } from "../hooks/useDistrictSummary";
 import { useNewTaipeiTopology } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
-import { useSettingsStore } from "@/stores/useSettingsStore";
-import { opportunityFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
+import { useEffectiveColorTheme } from "@/hooks/useEffectiveColorTheme";
+import { tieredFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
+import { computeTercileThresholds } from "@/lib/quantile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { RetentionRiskLevel } from "@/types/district";
+import MetricInfoTooltip from "@/components/shared/MetricInfoTooltip";
+import { OPPORTUNITY_INDEX_FORMULA } from "@/lib/metricFormulas";
 
 const MAP_WIDTH = 760;
 const MAP_HEIGHT = 560;
@@ -49,8 +52,13 @@ export default function DistrictChoroplethMap() {
   } = useDistrictSummary();
 
   const districtById = useMemo(() => {
-    return new Map(districts.map((district) => [district.id, district]));
+    return new Map(districts.map((district) => [district.district_id, district]));
   }, [districts]);
+
+  const opportunityThresholds = useMemo(
+    () => computeTercileThresholds(districts.map((district) => district.opportunityIndex)),
+    [districts],
+  );
 
   const collection = useMemo(
     () => ({ type: "FeatureCollection" as const, features }),
@@ -73,7 +81,7 @@ export default function DistrictChoroplethMap() {
     (state) => state.selectedDistrictId,
   );
   const selectDistrict = useSelectedDistrict((state) => state.selectDistrict);
-  const colorTheme = useSettingsStore((state) => state.colorTheme);
+  const colorTheme = useEffectiveColorTheme();
 
   const isLoading = topologyState === "loading" || isDistrictsLoading;
   const isError = topologyState === "error" || isDistrictsError;
@@ -131,10 +139,47 @@ export default function DistrictChoroplethMap() {
       ]
     : features;
 
+  // 面板內容抽出共用：手機（<sm）改為疊在地圖下方的區塊，桌面則維持浮貼在地圖右上角。
+  const panelContent = activeFeature ? (
+    <>
+      <p className="text-sm font-bold text-slate-900">
+        {activeFeature.properties.name}
+      </p>
+      <dl className="mt-2 space-y-1.5 text-xs">
+        <div className="flex items-center justify-between">
+          <dt className="flex items-center gap-1 text-accent-slate">
+            機會指數
+            <MetricInfoTooltip formula={OPPORTUNITY_INDEX_FORMULA} />
+          </dt>
+          <dd className="font-bold text-slate-900">
+            {activeSummary ? activeSummary.opportunityIndex : "—"}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between">
+          <dt className="text-accent-slate">留才風險</dt>
+          <dd
+            className={cn(
+              "font-bold",
+              activeSummary
+                ? RISK_TEXT_CLASS[activeSummary.retentionRiskLevel]
+                : "text-slate-400",
+            )}
+          >
+            {activeSummary ? RISK_LABEL[activeSummary.retentionRiskLevel] : "—"}
+          </dd>
+        </div>
+      </dl>
+    </>
+  ) : (
+    <p className="text-xs leading-relaxed text-slate-400">
+      將游標移至地圖，或點選行政區查看各區指數
+    </p>
+  );
+
   return (
     <section
       aria-labelledby="map-title"
-      className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"
+      className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"
     >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -158,7 +203,7 @@ export default function DistrictChoroplethMap() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+      <div className="relative flex min-h-[420px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
         <svg
           viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
           role="img"
@@ -187,7 +232,7 @@ export default function DistrictChoroplethMap() {
                   style={{
                     fill: isSelected
                       ? SELECTED_DISTRICT_FILL
-                      : opportunityFillColor(opportunityIndex, colorTheme),
+                      : tieredFillColor(opportunityIndex, opportunityThresholds, colorTheme),
                     transformBox: "fill-box",
                     transformOrigin: "center",
                     transform: isSelected ? "translateY(-8px)" : undefined,
@@ -206,42 +251,13 @@ export default function DistrictChoroplethMap() {
           </g>
         </svg>
 
-        <div className="pointer-events-none absolute right-3 top-3 w-44 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
-          {activeFeature ? (
-            <>
-              <p className="text-sm font-bold text-slate-900">
-                {activeFeature.properties.name}
-              </p>
-              <dl className="mt-2 space-y-1.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <dt className="text-accent-slate">機會指數</dt>
-                  <dd className="font-bold text-slate-900">
-                    {activeSummary ? activeSummary.opportunityIndex : "—"}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-accent-slate">留才風險</dt>
-                  <dd
-                    className={cn(
-                      "font-bold",
-                      activeSummary
-                        ? RISK_TEXT_CLASS[activeSummary.retentionRiskLevel]
-                        : "text-slate-400",
-                    )}
-                  >
-                    {activeSummary
-                      ? RISK_LABEL[activeSummary.retentionRiskLevel]
-                      : "—"}
-                  </dd>
-                </div>
-              </dl>
-            </>
-          ) : (
-            <p className="text-xs leading-relaxed text-slate-400">
-              將游標移至地圖，或點選行政區查看各區指數
-            </p>
-          )}
+        <div className="pointer-events-none absolute right-3 top-3 hidden w-44 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:block">
+          {panelContent}
         </div>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:hidden">
+        {panelContent}
       </div>
     </section>
   );

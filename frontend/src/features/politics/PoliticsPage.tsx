@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
@@ -43,6 +43,21 @@ export default function PoliticsPage() {
     return () => clearSelection();
   }, [clearSelection]);
 
+  // 量測地圖卡片實際渲染高度，讓右側排名卡對齊同一高度（地圖高度隨容器寬度與長寬比變動，
+  // 無法用固定數值假設）。
+  const mapWrapperRef = useRef<HTMLDivElement>(null);
+  const [mapHeight, setMapHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const element = mapWrapperRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setMapHeight(entry.contentRect.height);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 px-4 py-6 md:px-6 md:py-8">
       <Section
@@ -51,13 +66,13 @@ export default function PoliticsPage() {
         description="新北市 29 個行政區之青年參政熱點，點選行政區切換下方三大指標"
       >
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2" ref={mapWrapperRef}>
             <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
               <ParticipationHotspotMap />
             </ErrorBoundary>
           </div>
           <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
-            <ParticipationHotspotList />
+            <ParticipationHotspotList maxHeight={mapHeight ?? undefined} />
           </ErrorBoundary>
         </div>
         <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>

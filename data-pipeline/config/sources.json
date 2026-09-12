@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "sources": {
+    "cec_election_candidate_roster": {
+      "name_zh": "中央選舉委員會",
+      "source_url": "https://data.cec.gov.tw/選舉資料庫/votedata.zip",
+      "url_type": "resource"
+    },
+    "dgbas_table_6": {
+      "name_zh": "行政院主計總處",
+      "source_url": "https://www.stat.gov.tw/News_Content.aspx?n=4580&s=232642",
+      "url_type": "listing"
+    },
+    "join_gov_public_policy_platform": {
+      "name_zh": "公共政策網路參與平台",
+      "source_url": "https://join.gov.tw/idea/",
+      "url_type": "dataset"
+    },
+    "moe_9620": {
+      "name_zh": "教育部統計處",
+      "source_url": "https://stats.moe.gov.tw/files/opendata/graduatesc.json",
+      "url_type": "resource"
+    },
+    "moe_9621_9622": {
+      "name_zh": "教育部統計處",
+      "source_url": "https://stats.moe.gov.tw/files/opendata/sdata.json",
+      "url_type": "resource"
+    },
+    "moi_household_registration": {
+      "name_zh": "內政部戶政司",
+      "source_url": "https://www.ris.gov.tw/rs-opendata/",
+      "url_type": "dataset"
+    },
+    "mol_talent_demand": {
+      "name_zh": "勞動部",
+      "source_url": "https://apiservice.mol.gov.tw/OdService/rest/datastore/A17000000J-030281-nQF",
+      "url_type": "api"
+    },
+    "mol_training_numbers": {
+      "name_zh": "勞動部",
+      "source_url": "https://apiservice.mol.gov.tw/OdService/rest/datastore/A17000000J-030190-lfV",
+      "url_type": "api"
+    },
+    "mol_vocational_courses": {
+      "name_zh": "勞動部",
+      "source_url": "https://apiservice.mol.gov.tw/OdService/rest/datastore/A17000000J-000007-Hv9",
+      "url_type": "api"
+    },
+    "new_taipei_real_estate_open_data": {
+      "name_zh": "新北市政府資料開放平台",
+      "source_url": "https://data.ntpc.gov.tw/",
+      "url_type": "dataset"
+    },
+    "nlsc_village_boundaries": {
+      "name_zh": "內政部國土測繪中心",
+      "source_url": "https://maps.nlsc.gov.tw/download/村(里)界(TWD97_121分帶).zip",
+      "url_type": "resource"
+    },
+    "ntpc_social_affairs_babysitting": {
+      "name_zh": "新北市政府社會局",
+      "source_url": "https://data.ntpc.gov.tw/",
+      "url_type": "dataset"
+    },
+    "ntpc_youth_bureau_budget": {
+      "name_zh": "新北市政府青年局",
+      "source_url": "https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0008&id=108",
+      "url_type": "listing"
+    },
+    "ntpc_youth_bureau_grant_detail": {
+      "name_zh": "新北市政府青年局",
+      "source_url": "https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?id=112&module=youth0008",
+      "url_type": "listing"
+    },
+    "ntpc_youth_bureau_meeting_minutes": {
+      "name_zh": "新北市政府青年局",
+      "source_url": "https://www.youth.ntpc.gov.tw/youth/ch/app/artwebsite/view?id=200&module=artwebsite&serno=2e4f0428-1fc7-41dd-92a8-6555183229be",
+      "url_type": "listing"
+    },
+    "ntpc_youth_bureau_startup_base": {
+      "name_zh": "新北市政府青年局",
+      "source_url": "https://www.youth.ntpc.gov.tw/youth/ch/app/data/list?module=youth0001&id=145",
+      "url_type": "listing"
+    },
+    "taiwanjobs": {
+      "name_zh": "台灣就業通",
+      "source_url": "https://free.taiwanjobs.gov.tw/webservice_taipei/webservice.ashx",
+      "url_type": "api"
+    },
+    "tdx": {
+      "name_zh": "交通部 TDX 運輸資料流通服務",
+      "source_url": "https://tdx.transportdata.tw/",
+      "url_type": "dataset"
+    }
+  },
+  "dataset_defaults": {
+    "population": "moi_household_registration",
+    "population_villages": "moi_household_registration",
+    "movement": "moi_household_registration",
+    "births": "moi_household_registration",
+    "marriages": "moi_household_registration",
+    "house_prices": "new_taipei_real_estate_open_data",
+    "rentals": "new_taipei_real_estate_open_data",
+    "job_vacancies": "taiwanjobs",
+    "job_vacancy_salaries": "taiwanjobs",
+    "wages": "dgbas_table_6",
+    "college_majors": "moe_9621_9622",
+    "graduate_majors": "moe_9620",
+    "vt_courses": "mol_vocational_courses",
+    "training_numbers": "mol_training_numbers",
+    "babysitting_places": "ntpc_social_affairs_babysitting",
+    "talent_demand": "mol_talent_demand",
+    "youth_budgets": "ntpc_youth_bureau_budget",
+    "youth_grants": "ntpc_youth_bureau_grant_detail",
+    "elections": "cec_election_candidate_roster",
+    "youth_service_points": "ntpc_youth_bureau_startup_base",
+    "village_boundaries": "nlsc_village_boundaries",
+    "join_proposals": "join_gov_public_policy_platform",
+    "youth_council_minutes": "ntpc_youth_bureau_meeting_minutes",
+    "bus_stops": "tdx",
+    "railway_stops": "tdx",
+    "bike_stops": "tdx"
+  }
+}

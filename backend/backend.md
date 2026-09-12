@@ -35,6 +35,8 @@ DynamoDB
 
 輸入為前端查詢參數；輸出為穩定且可供 Frontend 與 shared types 使用的 API response。
 
+Metric 的來源欄位由 pipeline 的 published snapshot／DynamoDB projection 提供：`source` 是穩定來源 ID，`sourceName` 是中文顯示名稱，`sourceUrl` 是可點擊查證的官方網址，`sourceRefs` 用於多來源衍生指標。Backend 只轉送與驗證這些欄位，不讀取 `sources.json`、Raw 或外部政府 API，也不在 request 時補來源。
+
 ## Boundaries
 
 Backend 不負責 ETL、政府資料抓取、核心指標計算或 AI Prompt。若未來需要 authentication，應在 API 邊界處理，不改變資料管線與 AI Service 的責任。

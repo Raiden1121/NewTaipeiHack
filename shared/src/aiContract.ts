@@ -13,15 +13,16 @@
  * snake_case ↔ camelCase 的轉換只發生在 ai-service 的 `src/context/` 一層。
  */
 
+// `PeriodType` / `YouthEligibility` 的單一定義在 `metrics.ts`。這裡原本各自
+// 宣告了一份（值相同），兩份併存會讓改其中一邊時另一邊靜默不動 —— 見 `index.ts`。
+import type { PeriodType, YouthEligibility } from './metrics.js';
+
 // ---------------------------------------------------------------------------
 // Evidence：AI 可以引用的單一資料點
 // ---------------------------------------------------------------------------
 
 /** 對應 data-pipeline `transform/common.py` 的 GEO_LEVELS。 */
 export type GeoLevel = 'district' | 'county' | 'national' | 'organization';
-
-/** 對應 PERIOD_TYPES。真實資料裡可能是 null。 */
-export type PeriodType = 'day' | 'month' | 'year' | 'snapshot';
 
 /** 對應 AGE_SCOPES。 */
 export type AgeScope =
@@ -30,17 +31,6 @@ export type AgeScope =
   | 'official_age_group_proxy'
   | 'all_ages'
   | 'not_age_specific';
-
-/**
- * 對應 YOUTH_ELIGIBILITY，且與 `ageScope` 是強制對應關係：
- * - `exact_18_35` / `derived_18_35` → `eligible`：可證明涵蓋 18–35 歲，可當青年核心資料
- * - `official_age_group_proxy` → `proxy_only`：官方年齡組，非精確 18–35，解讀要保留
- * - `all_ages` / `not_age_specific` → `context_only`：**不可**當青年專屬數據解讀
- *
- * 前端呈現時建議把 `proxy_only` 與 `context_only` 明確標示出來，
- * 不要讓使用者以為所有數字都是青年專屬統計。
- */
-export type YouthEligibility = 'eligible' | 'proxy_only' | 'context_only';
 
 /**
  * 這個數字是從哪個欄位讀出來的：
@@ -84,6 +74,15 @@ export interface AiEvidence {
   value: number | string | null;
   unit: string | null;
   ageScope: AgeScope | null;
+  /**
+   * 對應 YOUTH_ELIGIBILITY，且與 `ageScope` 是強制對應關係：
+   * - `exact_18_35` / `derived_18_35` → `eligible`：可證明涵蓋 18–35 歲，可當青年核心資料
+   * - `official_age_group_proxy` → `proxy_only`：官方年齡組，非精確 18–35，解讀要保留
+   * - `all_ages` / `not_age_specific` → `context_only`：**不可**當青年專屬數據解讀
+   *
+   * 前端呈現時建議把 `proxy_only` 與 `context_only` 明確標示出來，
+   * 不要讓使用者以為所有數字都是青年專屬統計。
+   */
   youthEligibility: YouthEligibility | null;
   /** 來源端的資料品質旗標，例如 `query_district_mismatch_filtered`。 */
   qualityFlags: string[];

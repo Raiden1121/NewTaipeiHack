@@ -1,8 +1,9 @@
 # One Lambda serves all 5 read endpoints from api_contract.md (health,
 # catalog, dashboard/overview, districts/{id}, analyses/{id}) — routing is
 # done inside handler.py, so API Gateway just proxies everything to it.
-# Returns mock data for now; swap the builders in handler.py for DynamoDB
-# reads once data-pipeline publishes analytics there.
+# handler.py reads pre-computed analytics from the DynamoDB table below;
+# whatever loads data-pipeline's published snapshot into that table is a
+# separate program, not part of this Lambda.
 
 data "archive_file" "lambda" {
   type        = "zip"
@@ -33,6 +34,22 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Read-only — handler.py doesn't call DynamoDB yet, this just means no infra
+# change is needed when it does. See infrastructure/dynamodb_schema.md.
+resource "aws_iam_role_policy" "dynamodb_read" {
+  name = "${var.project_name}-api-dynamodb-read"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:Query"]
+      Resource = var.dynamodb_table_arn
+    }]
+  })
+}
+
 resource "aws_lambda_function" "api" {
   function_name    = "${var.project_name}-api"
   role             = aws_iam_role.lambda_exec.arn
@@ -41,6 +58,12 @@ resource "aws_lambda_function" "api" {
   timeout          = 10
   filename         = data.archive_file.lambda.output_path
   source_code_hash = data.archive_file.lambda.output_base64sha256
+
+  environment {
+    variables = {
+      ANALYTICS_TABLE_NAME = var.dynamodb_table_name
+    }
+  }
 
   tags = {
     Project     = var.project_name

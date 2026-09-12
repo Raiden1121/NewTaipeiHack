@@ -1,18 +1,38 @@
 {
-  "version": "1",
-  "annual_years_roc": [110, 111, 112, 113, 114],
+  "version": "2",
+  "annual_years_roc": [
+    110,
+    111,
+    112,
+    113,
+    114
+  ],
   "population_reference_year_roc": 114,
-  "election_years_roc": [103, 107, 111],
+  "village_population_reference_period": "11507",
+  "budget_allocation_reference_year_roc": 116,
+  "election_years_roc": [
+    103,
+    107,
+    111
+  ],
   "service_radius_m": 2500,
   "normalization": {
-    "method": "p5_p95",
+    "method": "min_max",
     "constant_value": 50
   },
   "yoi_weights": {
     "job": 0.25,
     "salary": 0.25,
-    "talent": 0.05,
-    "housing": 0.25,
-    "transport": 0.20
+    "talent": 0.15,
+    "housing": 0.2,
+    "transport": 0.15
+  },
+  "fafi": {
+    "salary_shrinkage_k": 30,
+    "weights": {
+      "daycare_coverage": 45,
+      "housing": 45,
+      "salary": 10
+    }
   }
 }

@@ -16,7 +16,7 @@ from .annual_metrics import calculate_annual_fertility, calculate_annual_populat
 from .config import HomepageAnalyticsConfig
 from .data_gaps import explain_reason_codes
 from .elections import calculate_youth_candidacy
-from .homepage_math import calculate_quartile_risk, normalize_p5_p95, shannon_entropy, weighted_score
+from .homepage_math import calculate_quartile_risk, normalize_minmax, shannon_entropy, weighted_score
 from .input_resolver import HomepageInputResolver
 from .io import CuratedSlice, atomic_json_write
 from .service_coverage import calculate_service_coverage
@@ -27,9 +27,10 @@ def generate_homepage_data(
 ) -> dict[str, Any]:
     """Read curated inputs and generate the complete homepage payload."""
 
+    calculation_version = config.version
     quality: dict[str, Any] = {
         "metric_id": "homepage",
-        "calculation_version": "1",
+        "calculation_version": calculation_version,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "inputs": {},
         "warnings": [],
@@ -77,7 +78,11 @@ def generate_homepage_data(
     # Election events fall outside the annual window, so their denominators must
     # be requested explicitly; available_periods() skips the years the source
     # never published instead of failing the whole run.
-    population_years = set(annual_years) | {min(annual_years) - 1} | set(config.election_years_roc)
+    population_years = (
+        set(annual_years)
+        | {min(annual_years) - 1, config.population_reference_year_roc - 1}
+        | set(config.election_years_roc)
+    )
     population_periods = [
         f"{year:03d}{month:02d}"
         for year in sorted(population_years)
@@ -87,8 +92,10 @@ def generate_homepage_data(
     births_records = load_periods("births", [f"{year:03d}" for year in annual_years])
     wage_records: list[dict[str, Any]] = []
     college_records: list[dict[str, Any]] = []
-    for dataset, target in (("wages", wage_records), ("college_majors", college_records)):
-        target.extend(load_periods(dataset, [f"{year:03d}" for year in annual_years]))
+    wage_records.extend(load_periods("wages", [f"{year:03d}" for year in annual_years]))
+    college_records.extend(
+        load_periods("college_majors", [f"{config.population_reference_year_roc:03d}"])
+    )
     budget_records = load_all("youth_budgets")
     election_records = load_all("elections")
     snapshot_datasets = (
@@ -125,9 +132,7 @@ def generate_homepage_data(
     )
 
     # Village inputs are separate from the existing district population contract.
-    village_population_periods = [
-        f"{config.population_reference_year_roc:03d}{month:02d}" for month in range(1, 13)
-    ]
+    village_population_periods = [config.village_population_reference_period]
     village_population = load_periods("population_villages", village_population_periods)
     boundaries = load_latest("village_boundaries")
     service_points = load_latest("youth_service_points")
@@ -178,12 +183,15 @@ def generate_homepage_data(
 
     result = {
         "metric_id": "homepage",
-        "calculation_version": "1",
+        "calculation_version": calculation_version,
         "generated_at": quality["generated_at"],
         "time_policy": {
             "annual_years_roc": annual_years,
             "current_yoi": "latest_available_snapshot",
+            "college_reference_year_roc": config.population_reference_year_roc,
             "election_years_roc": list(config.election_years_roc),
+            "yoi_normalization": "min_max",
+            "salary_shrinkage_k": config.salary_shrinkage_k,
         },
         "current_yoi": {
             "population_reference_year_roc": config.population_reference_year_roc,
@@ -353,6 +361,7 @@ def _calculate_current_yoi(
     district_ids = [str(row["district_id"]) for row in districts]
     names = {str(row["district_id"]): row["district_name"] for row in districts}
     population = _population_anchor(population_records, population_reference_year_roc)
+    previous_population = _population_anchor(population_records, population_reference_year_roc - 1)
     youth_city = sum(
         value.get("youth_18_35_total", 0) or 0 for value in population.values()
     )
@@ -369,8 +378,29 @@ def _calculate_current_yoi(
     latest_wage, wage_quality = _latest_youth_wage(wages, config.annual_years_roc)
     if wage_quality != "observed":
         quality["proxy_usage"].append({"metric": "adjusted_youth_wage", "reason": wage_quality})
-    city_house_values = [_number(row.get("price_per_ping")) for row in houses]
+    # Residential only on both sides of the ratio below: rural districts trade
+    # mostly farmland (貢寮 is 136 land deals out of 154), whose price per ping
+    # is two orders of magnitude under a home's and would otherwise sink the
+    # district's ratio.
+    city_house_values = [
+        _number(row.get("price_per_ping")) for row in houses if _is_residential_house(row)
+    ]
     city_house_median = _median(city_house_values)
+    district_house_medians = [
+        median
+        for median in (
+            _median(
+                [
+                    _number(row.get("price_per_ping"))
+                    for row in houses
+                    if str(row.get("district_id")) == candidate_id and _is_residential_house(row)
+                ]
+            )
+            for candidate_id in district_ids
+        )
+        if median is not None
+    ]
+    cheapest_district_house_median = _minimum(district_house_medians)
     salary_values = [
         _salary_midpoint(row)
         for row in salary_rows
@@ -423,7 +453,11 @@ def _calculate_current_yoi(
     training_per_10k = None if youth_city <= 0 else train_people / youth_city * 10000
     raw: dict[str, dict[str, Any]] = {}
     for district_id in district_ids:
-        youth = _number(population.get(district_id, {}).get("youth_18_35_total"))
+        district_population = population.get(district_id, {})
+        previous_district_population = previous_population.get(district_id, {})
+        youth = _number(district_population.get("youth_18_35_total"))
+        total_population = _number(district_population.get("people_total"))
+        previous_youth = _number(previous_district_population.get("youth_18_35_total"))
         district_vacancies = [row for row in vacancies if str(row.get("district_id")) == district_id and row.get("geo_level") == "district"]
         vacancy_positions = sum(_number(row.get("position_count")) or 0 for row in district_vacancies)
         occupation_counts: dict[str, float] = defaultdict(float)
@@ -437,15 +471,11 @@ def _calculate_current_yoi(
             for row in district_salaries
             if _salary_midpoint(row) is not None and high_salary_threshold is not None and _salary_midpoint(row) > high_salary_threshold
         )
-        district_house_all = [_number(row.get("price_per_ping")) for row in houses if str(row.get("district_id")) == district_id]
         district_house_residential = [
             _number(row.get("price_per_ping"))
             for row in houses
             if str(row.get("district_id")) == district_id and _is_residential_house(row)
         ]
-        if not district_house_residential and names[district_id] == "平溪區":
-            district_house_residential = district_house_all[:]
-            _append_proxy(quality, "house_price", district_id, "pingxi_all_types")
         district_rents = [_number(row.get("rent_total")) for row in rentals if str(row.get("district_id")) == district_id]
         rent_values = [value for value in district_rents if value is not None]
         house_values = [value for value in district_house_residential if value is not None]
@@ -457,15 +487,21 @@ def _calculate_current_yoi(
             if rent_median is not None:
                 _append_proxy(quality, "rent", district_id, "observed_minimum")
         if house_median is None:
-            house_median = _minimum(
-                [_number(row.get("price_per_ping")) for row in houses if _is_residential_house(row)]
-            )
+            # 平溪 records no residential sale at all. Standing in the single
+            # cheapest transaction city-wide would hand it a 2,426/坪 outlier,
+            # so use the cheapest district's typical price instead.
+            house_median = cheapest_district_house_median
             if house_median is not None:
-                _append_proxy(quality, "house_price", district_id, "residential_observed_minimum")
-        price_ratio = None
-        if city_house_median and district_house_all:
-            district_all_median = _median(district_house_all)
-            price_ratio = None if district_all_median is None else district_all_median / city_house_median
+                _append_proxy(
+                    quality, "house_price", district_id, "cheapest_district_residential_median"
+                )
+        price_ratio = (
+            None
+            if not city_house_median or house_median is None
+            # house_median already carries the city-wide residential fallback
+            # for districts with no residential transaction at all (平溪).
+            else house_median / city_house_median
+        )
         adjusted_wage = None if latest_wage is None or price_ratio is None else latest_wage * price_ratio
         vt_value = vt_by_district.get(district_id)
         vt_quality = "observed"
@@ -478,18 +514,38 @@ def _calculate_current_yoi(
             "district_id": district_id,
             "district_name": names[district_id],
             "youth_18_35_total": youth,
+            "youth_ratio": (
+                None
+                if youth is None or total_population in (None, 0)
+                else youth / total_population * 100
+            ),
+            "youth_yoy": _yoy(youth, previous_youth),
             "vacancies_per_10k_youth": None if not youth else vacancy_positions / youth * 10000,
+            "vacancies_per_km2": None if not area else vacancy_positions / area,
             "occupation_shannon_index": shannon_entropy(occupation_counts),
             "talent_demand_yoy": talent_yoy,
             "salary_median": _median(valid_salaries),
+            "salary_sample_size": len(valid_salaries),
+            "salary_median_shrunk": _shrink_to_city(
+                _median(valid_salaries),
+                len(valid_salaries),
+                city_salary_median,
+                config.salary_shrinkage_k,
+            ),
             "high_salary_ratio": None if vacancy_positions <= 0 else high_count / vacancy_positions,
             "adjusted_youth_wage": adjusted_wage,
-            "college_student_density": None if area is None else college_by_district.get(district_id, 0.0) / area,
+            "college_student_density": (
+                None if not area else college_by_district.get(district_id, 0.0) / area
+            ),
             "vt_course_count": vt_value,
             "training_people_per_10k_youth": training_per_10k,
             "rent_median": rent_median,
             "house_price_median": house_median,
-            "rent_wage_ratio": None if rent_median is None or _median(valid_salaries) in (None, 0) else rent_median / _median(valid_salaries),
+            "rent_wage_ratio": (
+                None
+                if rent_median is None or _median(valid_salaries) in (None, 0)
+                else rent_median / _median(valid_salaries)
+            ),
             "bus_stops_per_10k_youth": None if not youth else sum(str(row.get("district_id")) == district_id for row in buses) / youth * 10000,
             "railway_stop_density": None if area is None else sum(str(row.get("district_id")) == district_id for row in rails) / area,
             "bike_stop_density": None if area is None else sum(str(row.get("district_id")) == district_id for row in bikes) / area,
@@ -497,10 +553,14 @@ def _calculate_current_yoi(
         }
     normalized: dict[str, dict[str, float | None]] = {}
     columns = (
+        ("youth_ratio", False),
+        ("youth_yoy", False),
         ("vacancies_per_10k_youth", False),
+        ("vacancies_per_km2", False),
         ("occupation_shannon_index", False),
         ("talent_demand_yoy", False),
         ("salary_median", False),
+        ("salary_median_shrunk", False),
         ("high_salary_ratio", False),
         ("adjusted_youth_wage", False),
         ("college_student_density", False),
@@ -515,31 +575,31 @@ def _calculate_current_yoi(
     )
     for column, inverse in columns:
         values = {district_id: raw[district_id].get(column) for district_id in district_ids}
-        normalized[column] = normalize_p5_p95(
+        normalized[column] = normalize_minmax(
             values,
             inverse=inverse,
             constant_value=float(config.normalization.get("constant_value", 50)),
         )
-    scores: dict[str, float | None] = {}
+    raw_yoi_scores: dict[str, float | None] = {}
+    component_scores: dict[str, dict[str, float | None]] = {}
     output: list[dict[str, Any]] = []
     for district_id in district_ids:
         norm = {column: normalized[column].get(district_id) for column, _ in columns}
         components = {
             "job": weighted_score(
                 {
-                    "vacancies_per_10k_youth": norm["vacancies_per_10k_youth"],
+                    "vacancies_per_km2": norm["vacancies_per_km2"],
                     "occupation_shannon_index": norm["occupation_shannon_index"],
-                    "talent_demand_yoy": norm["talent_demand_yoy"],
                 },
-                {"vacancies_per_10k_youth": 0.5, "occupation_shannon_index": 0.3, "talent_demand_yoy": 0.2},
+                {"vacancies_per_km2": 0.6, "occupation_shannon_index": 0.4},
             ),
             "salary": weighted_score(
-                {"salary_median": norm["salary_median"], "high_salary_ratio": norm["high_salary_ratio"], "adjusted_youth_wage": norm["adjusted_youth_wage"]},
-                {"salary_median": 0.4, "high_salary_ratio": 0.3, "adjusted_youth_wage": 0.3},
+                {"salary_median_shrunk": norm["salary_median_shrunk"], "high_salary_ratio": norm["high_salary_ratio"]},
+                {"salary_median_shrunk": 0.6, "high_salary_ratio": 0.4},
             ),
             "talent": weighted_score(
-                {"college_student_density": norm["college_student_density"], "vt_course_count": norm["vt_course_count"], "training_people_per_10k_youth": norm["training_people_per_10k_youth"]},
-                {"college_student_density": 0.3, "vt_course_count": 0.35, "training_people_per_10k_youth": 0.35},
+                {"youth_ratio": norm["youth_ratio"], "youth_yoy": norm["youth_yoy"], "college_student_density": norm["college_student_density"]},
+                {"youth_ratio": 0.4, "youth_yoy": 0.4, "college_student_density": 0.2},
             ),
             "housing": weighted_score(
                 {"rent_median": norm["rent_median"], "house_price_median": norm["house_price_median"], "rent_wage_ratio": norm["rent_wage_ratio"]},
@@ -550,13 +610,23 @@ def _calculate_current_yoi(
                 {"bus_stops_per_10k_youth": 0.35, "railway_stop_density": 0.4, "bike_stop_density": 0.25},
             ),
         }
-        score = weighted_score(components, config.yoi_weights)
-        scores[district_id] = score
+        raw_yoi_scores[district_id] = weighted_score(components, config.yoi_weights)
+        component_scores[district_id] = components
+
+    normalized_yoi = normalize_minmax(
+        raw_yoi_scores,
+        constant_value=float(config.normalization.get("constant_value", 50)),
+    )
+    scores = {district_id: normalized_yoi.get(district_id) for district_id in district_ids}
+    for district_id in district_ids:
+        norm = {column: normalized[column].get(district_id) for column, _ in columns}
+        score = scores[district_id]
         output.append(
             {
                 **raw[district_id],
                 "opportunityIndex": None if score is None else round(score, 6),
-                "yoiComponents": components,
+                "yoiRaw": raw_yoi_scores[district_id],
+                "yoiComponents": component_scores[district_id],
                 "normalizedInputs": norm,
                 "sourcePeriods": dict(source_periods),
                 "qualityStatus": "observed" if score is not None else "unavailable",
@@ -664,6 +734,11 @@ def _is_residential_house(row: Mapping[str, Any]) -> bool:
     transaction_type = str(row.get("transaction_type") or "")
     if transaction_type == "住宅用":
         return True
+    # A bare plot zoned 住宅區 is not a home sale. 平溪's only four "residential"
+    # rows were land deals with no building, dragging its median to 15,304/坪
+    # against a city median near 460,000.
+    if transaction_type == "土地" or not _number(row.get("building_area")):
+        return False
     raw = row.get("raw_record")
     if not isinstance(raw, Mapping):
         return False
@@ -672,6 +747,29 @@ def _is_residential_house(row: Mapping[str, Any]) -> bool:
     residential_usage = any(marker in usage for marker in ("住家", "住宅", "集合住宅"))
     residential_land = "住宅區" in land_use or land_use.strip() in {"住", "住宅"}
     return residential_usage or residential_land
+
+
+def _shrink_to_city(
+    district_value: float | None,
+    sample_size: int,
+    city_value: float | None,
+    strength: float,
+) -> float | None:
+    """Pull a thin district sample towards the city median.
+
+    Several districts post only a handful of vacancies (平溪 has one), so their
+    raw median is noise. ``strength`` is the number of observations at which the
+    district and the city carry equal weight.
+    """
+
+    if city_value is None:
+        return district_value
+    if district_value is None:
+        return float(city_value)
+    if strength <= 0:
+        return float(district_value)
+    weight = float(sample_size) + strength
+    return (sample_size * float(district_value) + strength * float(city_value)) / weight
 
 
 def _salary_midpoint(row: Mapping[str, Any]) -> float | None:

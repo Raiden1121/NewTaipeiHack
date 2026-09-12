@@ -12,6 +12,7 @@ import {
   type Density,
   type FontSize,
 } from "@/stores/useSettingsStore";
+import { useEffectiveColorTheme } from "@/hooks/useEffectiveColorTheme";
 
 const FONT_SIZE_OPTIONS: { value: FontSize; label: string }[] = [
   { value: "sm", label: "小" },
@@ -36,10 +37,10 @@ const COLOR_THEME_OPTIONS: {
   swatchClassName: string;
 }[] = [
   { value: "blue", label: "藍", swatchClassName: "bg-blue-700" },
-  { value: "indigo", label: "靛紫", swatchClassName: "bg-indigo-600" },
-  { value: "teal", label: "青綠", swatchClassName: "bg-teal-600" },
-  { value: "amber", label: "暖橘", swatchClassName: "bg-amber-500" },
-  { value: "rose", label: "玫瑰紅", swatchClassName: "bg-rose-600" },
+  { value: "indigo", label: "紫色", swatchClassName: "bg-[#722F99]" },
+  { value: "teal", label: "綠", swatchClassName: "bg-[#5c8391]" },
+  { value: "amber", label: "橘色", swatchClassName: "bg-[#FFA259]" },
+  { value: "rose", label: "粉紅", swatchClassName: "bg-[#F7ADAD]" },
   { value: "slate", label: "石板灰", swatchClassName: "bg-slate-600" },
 ];
 
@@ -103,7 +104,7 @@ export default function SettingsPanel() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   const fontSize = useSettingsStore((state) => state.fontSize);
-  const colorTheme = useSettingsStore((state) => state.colorTheme);
+  const effectiveColorTheme = useEffectiveColorTheme();
   const darkMode = useSettingsStore((state) => state.darkMode);
   const density = useSettingsStore((state) => state.density);
   const highContrast = useSettingsStore((state) => state.highContrast);
@@ -183,12 +184,12 @@ export default function SettingsPanel() {
                         key={option.value}
                         type="button"
                         aria-label={option.label}
-                        aria-pressed={colorTheme === option.value}
+                        aria-pressed={effectiveColorTheme === option.value}
                         onClick={() => setColorTheme(option.value)}
                         className={cn(
                           "h-7 w-7 rounded-full ring-offset-2 transition dark:ring-offset-slate-900",
                           option.swatchClassName,
-                          colorTheme === option.value &&
+                          effectiveColorTheme === option.value &&
                             "ring-2 ring-slate-900 dark:ring-white",
                         )}
                       />

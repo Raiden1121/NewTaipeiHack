@@ -54,10 +54,10 @@ class TestFertilityAnalytics(unittest.TestCase):
 
     def test_fafi_uses_equal_components_and_preserves_missing_values(self):
         rows = [
-            {"district_id": "d1", "daycareCoverage": 10, "score_housing": 20, "estimatedWage": 100},
-            {"district_id": "d2", "daycareCoverage": 20, "score_housing": 50, "estimatedWage": 200},
-            {"district_id": "d3", "daycareCoverage": 30, "score_housing": 80, "estimatedWage": 300},
-            {"district_id": "d4", "daycareCoverage": None, "score_housing": 80, "estimatedWage": None},
+            {"district_id": "d1", "daycareCoverage": 10, "score_housing": 20, "salaryMedian": 100},
+            {"district_id": "d2", "daycareCoverage": 20, "score_housing": 50, "salaryMedian": 200},
+            {"district_id": "d3", "daycareCoverage": 30, "score_housing": 80, "salaryMedian": 300},
+            {"district_id": "d4", "daycareCoverage": None, "score_housing": 80, "salaryMedian": None},
         ]
 
         result = calculate_fafi_scores(rows)
@@ -66,6 +66,70 @@ class TestFertilityAnalytics(unittest.TestCase):
         self.assertIsNone(result["districts"]["d4"]["fafiScore"])
         self.assertEqual(result["status"], "partial")
         self.assertIn("daycareCoverage", result["normalization"]["inputs"])
+        self.assertIn("salaryMedian", result["normalization"]["inputs"])
+
+    def test_fafi_weights_shift_the_component_balance(self):
+        rows = [
+            {"district_id": "d1", "daycareCoverage": 0, "score_housing": 100, "salaryMedian": 0},
+            {"district_id": "d2", "daycareCoverage": 50, "score_housing": 50, "salaryMedian": 50},
+            {"district_id": "d3", "daycareCoverage": 100, "score_housing": 0, "salaryMedian": 100},
+        ]
+
+        equal = calculate_fafi_scores(rows)
+        salary_only = calculate_fafi_scores(
+            rows, weights={"daycare_coverage": 0, "housing": 0, "salary": 1}
+        )
+
+        self.assertAlmostEqual(equal["districts"]["d1"]["fafiScore"], 100 / 3)
+        self.assertAlmostEqual(salary_only["districts"]["d1"]["fafiScore"], 0.0)
+        self.assertAlmostEqual(salary_only["districts"]["d3"]["fafiScore"], 100.0)
+        self.assertEqual(
+            salary_only["normalization"]["weights"],
+            {"daycare_coverage": 0.0, "housing": 0.0, "salary": 1.0},
+        )
+
+    def test_fafi_ignores_a_missing_component_that_carries_no_weight(self):
+        rows = [
+            {"district_id": "d1", "daycareCoverage": 10, "score_housing": None, "salaryMedian": 10},
+            {"district_id": "d2", "daycareCoverage": 90, "score_housing": None, "salaryMedian": 90},
+        ]
+
+        result = calculate_fafi_scores(
+            rows, weights={"daycare_coverage": 1, "housing": 0, "salary": 1}
+        )
+
+        self.assertAlmostEqual(result["districts"]["d2"]["fafiScore"], 100.0)
+        self.assertEqual(result["status"], "observed")
+
+    def test_fafi_uses_pure_minmax_without_p5_p95_clipping(self):
+        rows = [
+            {
+                "district_id": f"d{value}",
+                "daycareCoverage": value,
+                "score_housing": 50,
+                "salaryMedian": value,
+            }
+            for value in range(1, 11)
+        ]
+        rows.append(
+            {
+                "district_id": "d100",
+                "daycareCoverage": 100,
+                "score_housing": 50,
+                "salaryMedian": 100,
+            }
+        )
+
+        result = calculate_fafi_scores(rows)
+
+        expected_score = (10 - 1) / (100 - 1) * 100
+        self.assertAlmostEqual(
+            result["districts"]["d10"]["daycareCoverageScore"], expected_score
+        )
+        self.assertAlmostEqual(
+            result["districts"]["d10"]["wageScore"], expected_score
+        )
+        self.assertEqual(result["normalization"]["method"], "min_max")
 
 
 if __name__ == "__main__":

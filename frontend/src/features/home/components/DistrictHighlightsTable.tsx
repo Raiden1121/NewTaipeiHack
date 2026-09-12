@@ -54,16 +54,16 @@ export default function DistrictHighlightsTable() {
     <Card className="flex h-full flex-col">
       <CardHeader>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-slate">
-          Highlights
+          Ranking
         </p>
         <CardTitle className="text-lg font-bold text-slate-900">
-          重點行政區分析
+          行政區排名
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col">
         {isLoading ? (
           <div className="flex flex-col gap-2">
-            {Array.from({ length: 8 }).map((_, index) => (
+            {Array.from({ length: 14 }).map((_, index) => (
               <Skeleton key={index} className="h-9 w-full rounded-lg" />
             ))}
           </div>
@@ -84,15 +84,15 @@ export default function DistrictHighlightsTable() {
         ) : (
           <ol
             ref={scrollRef}
-            className="-mr-2 flex max-h-[460px] flex-col gap-0.5 overflow-y-auto pr-2"
+            className="-mr-2 flex max-h-[588px] flex-col gap-0.5 overflow-y-auto pr-2"
           >
             {ranked.map((district, index) => {
-              const isSelected = district.id === selectedDistrictId;
+              const isSelected = district.district_id === selectedDistrictId;
               return (
-                <li key={district.id} data-district-id={district.id}>
+                <li key={district.district_id} data-district-id={district.district_id}>
                   <button
                     type="button"
-                    onClick={() => selectDistrict(district.id)}
+                    onClick={() => selectDistrict(district.district_id)}
                     className={cn(
                       "flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
                       isSelected ? "bg-primary/10" : "hover:bg-slate-50",
@@ -115,7 +115,7 @@ export default function DistrictHighlightsTable() {
                           isSelected ? "text-primary" : "text-slate-800",
                         )}
                       >
-                        {district.name}
+                        {district.district_name}
                       </span>
                     </span>
                     <span className="text-sm font-bold text-slate-900">

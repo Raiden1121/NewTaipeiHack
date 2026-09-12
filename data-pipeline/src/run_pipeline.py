@@ -6,6 +6,7 @@ import argparse
 import json
 import logging
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -56,6 +57,7 @@ from orchestration.state import (
     refresh_state_key,
     write_refresh_state,
 )
+from source_registry import SourceRegistry
 from transform.geography import DistrictResolver
 from transform.io import (
     write_collection_report,
@@ -68,6 +70,7 @@ from transform.io import (
     write_source_artifacts,
 )
 from transform.pipeline import canonicalize_dataset, dataset_requires_resolver, run_transform
+from transform.provenance import enrich_curated_records
 
 
 LOGGER = logging.getLogger("data_pipeline")
@@ -310,6 +313,7 @@ def _run_execution_unit(
         )
         return status
 
+    source_registry = _load_source_registry(config_dir)
     try:
         if action is ResumeAction.REUSE_RAW:
             canonical_dataset = canonicalize_dataset(spec.dataset)
@@ -362,6 +366,7 @@ def _run_execution_unit(
                 retry_result.value,
                 period=unit.source_period,
                 fetched_at=fetched_at,
+                source_registry=source_registry,
             )
             if isinstance(retry_result.value, CollectedPayload):
                 raw_payload["source_artifacts"] = write_source_artifacts(
@@ -408,6 +413,19 @@ def _run_execution_unit(
             fetched_at=fetched_at,
             config_dir=config_dir,
         )
+        provenance_payload = (
+            raw_payload
+            if isinstance(raw_payload, Mapping)
+            else {"records": raw_payload}
+        )
+        enriched_records, source_resolution = enrich_curated_records(
+            result.records,
+            dataset=canonical_dataset,
+            raw_payload=provenance_payload,
+            registry=source_registry,
+        )
+        result.quality["source_resolution"] = source_resolution
+        result.records = enriched_records
         curated_path, quality_path, quarantine_path = write_curated(
             result,
             dataset=canonical_dataset,
@@ -421,6 +439,7 @@ def _run_execution_unit(
                 "curated_path": str(curated_path),
                 "quality_path": str(quality_path),
                 "quarantine_path": str(quarantine_path),
+                "source_resolution": source_resolution,
                 "rows_in": result.quality["rows_in"],
                 "rows_out": result.quality["rows_out"],
                 "rows_rejected": result.quality["rows_rejected"],
@@ -1036,6 +1055,7 @@ def _run_replay(
         payload = json.load(handle)
     canonical_dataset = canonicalize_dataset(dataset)
     records, fetched_at = _payload_records(dataset, payload)
+    source_registry = _load_source_registry(config_dir)
     resolver = (
         DistrictResolver.from_json(Path(config_dir) / "districts.json")
         if dataset_requires_resolver(canonical_dataset)
@@ -1048,6 +1068,15 @@ def _run_replay(
         fetched_at=fetched_at,
         config_dir=config_dir,
     )
+    raw_payload = payload if isinstance(payload, Mapping) else {"records": payload}
+    enriched_records, source_resolution = enrich_curated_records(
+        result.records,
+        dataset=canonical_dataset,
+        raw_payload=raw_payload,
+        registry=source_registry,
+    )
+    result.records = enriched_records
+    result.quality["source_resolution"] = source_resolution
     period = "all" if canonical_dataset in {
         "elections",
         "join_proposals",
@@ -1291,14 +1320,33 @@ def _dataset_index_key(entry: Mapping[str, Any]) -> tuple[str, str] | None:
 
 
 def _raw_and_transform_payload(
-    dataset: str, collected: Any, *, period: str, fetched_at: str
+    dataset: str,
+    collected: Any,
+    *,
+    period: str,
+    fetched_at: str,
+    source_registry: SourceRegistry | None = None,
 ) -> tuple[dict[str, Any], Any, tuple[Any, ...]]:
+    def source_metadata(metadata: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        values = dict(metadata or {})
+        if source_registry is None:
+            return values
+        context = source_registry.resolve(
+            dataset=dataset,
+            source=_text(values.get("source")),
+            source_url=_text(values.get("source_url")),
+        )
+        values["source"] = context.source
+        values["source_url"] = context.source_url
+        values["source_url_type"] = _text(values.get("source_url_type")) or context.url_type
+        return values
+
     if isinstance(collected, CollectedPayload):
         payload = {
             "dataset": dataset,
             "period": period,
             "fetched_at": fetched_at,
-            **dict(collected.metadata),
+            **source_metadata(collected.metadata),
             "records": list(collected.records),
         }
         return payload, payload["records"], collected.artifacts
@@ -1313,6 +1361,7 @@ def _raw_and_transform_payload(
             "dataset": dataset,
             "period": period,
             "fetched_at": fetched_at,
+            **source_metadata(),
             "overview_records": overview,
             "detail_records": detail,
             "school_locations": school_locations,
@@ -1332,6 +1381,11 @@ def _raw_and_transform_payload(
         payload["dataset"] = dataset
         payload["period"] = period
         payload["metadata"] = metadata
+        source_values = dict(metadata)
+        for field in ("source", "source_url", "source_url_type"):
+            if field in payload:
+                source_values[field] = payload[field]
+        payload.update(source_metadata(source_values))
         return payload, payload, ()
 
     records = collected.get("records") if isinstance(collected, Mapping) else collected
@@ -1341,6 +1395,7 @@ def _raw_and_transform_payload(
         "dataset": dataset,
         "period": period,
         "fetched_at": fetched_at,
+        **source_metadata(),
         "records": list(records),
     }
     return payload, payload["records"], ()
@@ -1454,6 +1509,21 @@ def _payload_records(dataset: str, payload: Any) -> tuple[Any, str | None]:
     metadata = payload.get("metadata")
     fetched_at = metadata.get("fetched_at") if isinstance(metadata, Mapping) else payload.get("fetched_at")
     return records, fetched_at
+
+
+@lru_cache(maxsize=8)
+def _load_source_registry(config_dir: str | Path) -> SourceRegistry:
+    configured_path = Path(config_dir) / "sources.json"
+    if not configured_path.is_file():
+        configured_path = Path(__file__).resolve().parents[1] / "config" / "sources.json"
+    return SourceRegistry.from_json(configured_path)
+
+
+def _text(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None
 
 
 def _snapshot_name(period: str, fetched_at: str) -> str:

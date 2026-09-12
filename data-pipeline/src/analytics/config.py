@@ -12,7 +12,7 @@ from typing import Any, Mapping
 
 _REQUIRED_WEIGHTS = ("w_join", "w_minutes", "w_resolved", "w_escalated")
 _SUPPORTED_NORMALIZATIONS = frozenset({"yearly_max"})
-_SUPPORTED_HOMEPAGE_NORMALIZATIONS = frozenset({"p5_p95"})
+_SUPPORTED_HOMEPAGE_NORMALIZATIONS = frozenset({"min_max", "p5_p95"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,10 +71,14 @@ class HomepageAnalyticsConfig:
     version: str
     annual_years_roc: tuple[int, ...]
     population_reference_year_roc: int
+    village_population_reference_period: str
+    budget_allocation_reference_year_roc: int
     election_years_roc: tuple[int, ...]
     service_radius_m: float
     normalization: Mapping[str, Any]
     yoi_weights: Mapping[str, float]
+    fafi_weights: Mapping[str, float]
+    salary_shrinkage_k: float
 
 
 def load_homepage_analytics_config(path: str | Path) -> HomepageAnalyticsConfig:
@@ -90,6 +94,20 @@ def load_homepage_analytics_config(path: str | Path) -> HomepageAnalyticsConfig:
         raise ValueError("population_reference_year_roc must be an integer")
     if population_year not in annual_years:
         raise ValueError("population_reference_year_roc must be in annual_years_roc")
+    village_population_period = payload.get("village_population_reference_period")
+    if (
+        not isinstance(village_population_period, str)
+        or re.fullmatch(r"\d{5}", village_population_period) is None
+        or not 1 <= int(village_population_period[3:]) <= 12
+    ):
+        raise ValueError("village_population_reference_period must be a ROC month")
+    budget_allocation_year = payload.get("budget_allocation_reference_year_roc")
+    if (
+        isinstance(budget_allocation_year, bool)
+        or not isinstance(budget_allocation_year, int)
+        or not 1 <= budget_allocation_year <= 999
+    ):
+        raise ValueError("budget_allocation_reference_year_roc must be a ROC year integer")
     radius = payload.get("service_radius_m")
     if isinstance(radius, bool) or not isinstance(radius, (int, float)) or radius <= 0:
         raise ValueError("service_radius_m must be a positive number")
@@ -114,14 +132,40 @@ def load_homepage_analytics_config(path: str | Path) -> HomepageAnalyticsConfig:
         weights[key] = float(value)
     if not weights or sum(weights.values()) <= 0:
         raise ValueError("yoi_weights must have a positive total")
+    # Optional: an absent block keeps the documented default of three equally
+    # weighted components.
+    fafi = payload.get("fafi", {})
+    if not isinstance(fafi, Mapping):
+        raise ValueError("fafi must be an object")
+    raw_fafi_weights = fafi.get("weights", {})
+    if not isinstance(raw_fafi_weights, Mapping):
+        raise ValueError("fafi.weights must be an object")
+    fafi_weights: dict[str, float] = {}
+    for key in ("daycare_coverage", "housing", "salary"):
+        value = raw_fafi_weights.get(key, 1)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            raise ValueError(f"fafi.weights.{key} must be non-negative")
+        fafi_weights[key] = float(value)
+    total = sum(fafi_weights.values())
+    if total <= 0:
+        raise ValueError("fafi.weights must have a positive total")
+    # Stored normalised so callers never have to divide by the total again.
+    fafi_weights = {key: value / total for key, value in fafi_weights.items()}
+    shrinkage = fafi.get("salary_shrinkage_k", 30)
+    if isinstance(shrinkage, bool) or not isinstance(shrinkage, (int, float)) or shrinkage < 0:
+        raise ValueError("fafi.salary_shrinkage_k must be a non-negative number")
     return HomepageAnalyticsConfig(
         version=version,
         annual_years_roc=annual_years,
         population_reference_year_roc=population_year,
+        village_population_reference_period=village_population_period,
+        budget_allocation_reference_year_roc=budget_allocation_year,
         election_years_roc=election_years,
         service_radius_m=float(radius),
         normalization={str(key): value for key, value in normalization.items()},
         yoi_weights=weights,
+        fafi_weights=fafi_weights,
+        salary_shrinkage_k=float(shrinkage),
     )
 
 

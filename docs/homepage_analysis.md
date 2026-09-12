@@ -1,4 +1,4 @@
-# 主頁（首頁）參數分析、指數公式設計與資料源對應 (v8 最終版)
+# 主頁（首頁）參數分析、指數公式設計與資料源對應 (v9 YOI 重構版)
 
 > 本文件依據最新的前端 React 元件架構（`features/home`），嚴格對齊 Notion MD 公式定義，並完整對應 `data_description.md` 中目前已登錄的 canonical datasets。
 > 所有計算皆由 Backend 完成後才拋給 Frontend 顯示。
@@ -7,13 +7,17 @@
 
 目前的 analytics 實作位於 `data-pipeline/src/analytics/`，執行入口為
 `run_analytics.py --metric homepage`。年度資料固定選 ROC 110–114；ROC 109
-只用作 ROC 110 的人口 YoY 基準。YOI 則使用各資料集最新可得快照，人口錨點
-為 ROC 114，不計算 YOI YoY。輸出寫入
+只用作 ROC 110 的人口 YoY 基準。YOI 使用各資料集最新可得快照，人口錨點
+為 ROC 114；其中 `youth_yoy` 以 ROC 114 與 ROC 113 各自最新可得月份比較。
+YOI 本身不計算年度 Delta。輸出寫入
 `data/analytics/homepage/all.json`，品質與缺值說明寫入
 `data/quality/analytics_homepage.json`。
 
-2026-09-11 真實資料執行結果：`current_yoi.districts` 29 筆，年度資料輸出
-ROC 110–114；服務涵蓋率可計算為全市 49.2266230851%，狀態為
+2026-09-12 v9 真實資料執行結果：`current_yoi.districts` 29 筆，年度資料輸出
+ROC 110–114；`opportunityIndex` 已由 `YOI_raw` 以純 Min-Max 標準化為 0–100，
+`S_talent` 的 29 區子分數皆有變異（13.79–73.03）。S_salary 的薪資中位數另以
+`k=30` 向全市中位數收縮，避免偏鄉小樣本放大波動。服務涵蓋率可計算為全市
+49.2266230851%，狀態為
 `partial`（9 個青創基地有驗證座標、0 個排除；1,039 個里界中 1,032 個
 接上 ROC 114 里級人口）。其中 6 個頁面缺地址的基地，是由固定的官方地址參照
 資料補入後再進行 transform，沒有改寫 raw。
@@ -104,18 +108,25 @@ ROC 110–114；服務涵蓋率可計算為全市 49.2266230851%，狀態為
 #### 加權合成公式
 
 ```text
-YOI = 0.25·S_job + 0.25·S_salary + 0.05·S_talent + 0.25·S_housing + 0.20·S_transport
+YOI_raw = 0.25·S_job + 0.25·S_salary + 0.15·S_talent + 0.20·S_housing + 0.15·S_transport
+YOI     = norm(YOI_raw)
 ```
 
-_(人才面向 S_talent 權重僅 0.05，原因：`college_majors` 為學校所在地而非學生戶籍地，會集中在淡水、新莊、三峽、板橋少數幾區，其餘區為 0，不具區分力)_
+`YOI_raw` 的五個子分數都已是 0–100；最後以相同的純 Min-Max
+標準化拉伸成公開的 `opportunityIndex` 0–100。若輸入缺值，沿用
+`weighted_score`：只使用可得分項並依可得權重重新計算；若沒有可用分項則為
+`null`。
+
+`S_talent` 改稱「青年活力與發展」。其中人口欄位衡量的是青年人口結構與變動，
+不是個人能力或因果性的留才效果；`college_majors` 仍是學校所在地代理，不能解讀
+成學生居住地分布。
 
 #### 標準化函數
 
-所有子數值在加權前先做 **Min-Max 標準化（截斷 P5/P95 極端值）**：
+所有子數值在加權前先做 **純 Min-Max 標準化（不截斷 P5/P95）**：
 
 ```text
-x_clipped = clip(x, P5, P95)
-norm(x)   = (x_clipped - min(x_clipped)) / (max(x_clipped) - min(x_clipped)) × 100
+norm(x)   = (x - min(x)) / (max(x) - min(x)) × 100
 norm_inv(x) = 100 - norm(x)   ← 反向指標用（數值越高，分數越低）
 ```
 
@@ -126,57 +137,69 @@ norm_inv(x) = 100 - norm(x)   ← 反向指標用（數值越高，分數越低�
 #### S₁：工作機會（S_job）
 
 ```text
-S_job = 0.50 × norm(每萬青年職缺數)
-      + 0.30 × norm(職業多樣性 Shannon Index)
-      + 0.20 × norm(人才需求趨勢 YoY)
+S_job = 0.60 × norm(職缺密度_per_km2)
+      + 0.40 × norm(職業多樣性 Shannon Index)
 ```
 
 | 元素             | 計算方式                                                                | 資料源                                         | 說明                                                                                                                 |
 | ---------------- | ----------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 每萬青年職缺數   | `(該區職缺總數 ÷ 該區 youth_18_35_total) × 10,000`                      | **C1.1** `job_vacancies` ÷ **A1** `population` | 使用 `position_count` 加總；只用 `geo_level=district` 的筆數                                                         |
-| 職業多樣性       | `H = −Σ pᵢ·ln(pᵢ)`，pᵢ = 職業類別 i 的職缺占比（依 raw 的職業類別欄位） | **C1.2** `job_vacancies`                       | Shannon Entropy，越高代表職業越多樣                                                                                  |
-| 人才需求趨勢 YoY | `(本年 new_demand_count − 上年) ÷ 上年 × 100%`                          | **C1.3** `talent_demand`                       | ⚠️ 此資料為**全國**粒度；29 區共用同一值，品質報告標示為 national proxy，不宣稱為區級觀測值 |
+| 職缺密度_per_km2 | `該區職缺 position_count 加總 ÷ 該區面積(km²)`                          | **C1.1** `job_vacancies` + **A4** `village_boundaries` | 使用 `position_count` 加總；只用 `geo_level=district` 的筆數；代表工作集中度，不是青年人口暴露量 |
+| 職業多樣性       | `H = −Σ pᵢ·log₂(pᵢ)`，pᵢ = 職業類別 i 的職缺占比（依 raw 的職業類別欄位） | **C1.2** `job_vacancies`                       | Shannon Entropy，越高代表職業越多樣                                                                                  |
+
+> `talent_demand_yoy` 仍可在 payload 中保留作為相容性／背景欄位，但已不再參與
+> `S_job`，因為現有來源是全國粒度，29 區共用同一值。
 
 ---
 
 #### S₂：薪資水準（S_salary）
 
 ```text
-S_salary = 0.40 × norm(職缺刊登薪資中位數)
-         + 0.30 × norm(高薪職缺比例)
-         + 0.30 × norm(各區調整後青年薪資_估算值)
+S_salary = 0.60 × norm(職缺刊登薪資中位數)
+         + 0.40 × norm(高薪職缺比例)
 ```
 
-| 元素               | 計算方式                                                 | 資料源                            | 說明                                             |
-| ------------------ | -------------------------------------------------------- | --------------------------------- | ------------------------------------------------ |
-| 職缺薪資中位數     | 各區有薪資職缺的 `salary_midpoint` 中位數                | **C2.2** `job_vacancy_salaries`   | 需過濾 `salary_midpoint` 為 null 的單邊薪資資料  |
-| 高薪職缺比例       | `薪資 > 全市中位數 × 1.5 的職缺數 ÷ 該區總職缺數`        | **C2.3**（衍生自 **C2.2**）       | 全市中位數以 `job_vacancy_salaries` 全部筆數計算 |
-| 各區調整後青年薪資 | **以房價做空間分布代理**，估算各區實際薪資（見下方邏輯） | **C2.1** `wages` + `house_prices` | 解決官方薪資僅到縣市層級的問題                   |
+| 元素           | 計算方式                                                                    | 資料源                            | 說明                                                                                              |
+| -------------- | --------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| 職缺薪資中位數 | 各區完整上下界職缺的 `salary_midpoint` 中位數                                | **C2.2** `job_vacancy_salaries`   | 只有 `salary_lower` 與 `salary_upper` 都存在時才使用區間中點；現有來源為台灣就業通 `taiwanjobs`，不是 104 |
+| 高薪職缺比例   | `薪資 > 全市中位數 × 1.5` 的 `position_count` ÷ 該區總職缺 `position_count` | **C2.3**（衍生自 **C2.2**）+ **C1.1** | 全市中位數以完整薪資區間的中點計算；分子只計薪資可判定的職缺，缺薪資不視為高薪 |
 
-#### 📝 各區調整後青年薪資 推算邏輯 (以房價做代理)
+為避免偏鄉小樣本的薪資中位數產生極端值，`S_salary` 使用向全市中位數收縮後的
+薪資。`n` 是該區具有完整上下界、可計算 `salary_midpoint` 的資料列數（不是
+`position_count`）；目前 `k=30`：
 
-經濟學上薪資與房價高度正相關。我們使用時間跨度長、穩定的房價資料來反推各區薪資：
-_(註：此處推算薪資時，使用_*「所有種類」*_的平均房價數據，包含住宅用與工業用，以全面反映地方經濟能量。)_
+```text
+raw_salary       = 該區薪資中位數（n=0 時視為 0）
+city_salary      = 全市完整薪資中點的中位數
+salary_shrunk    = (n × raw_salary + 30 × city_salary) / (n + 30)
+S_salary         = 0.60 × norm(salary_shrunk) + 0.40 × norm(高薪職缺比例)
+```
 
-1. **計算房價相對指數**：`price_ratio(d, year) = MEDIAN(house_prices[d, year]) / MEDIAN(house_prices[全市, year])`
-2. **分配縣市級薪資到區**：`estimated_wage(d, year) = wages[新北市, year, 25-29歲] × price_ratio(d, year)`
-3. _(可選驗證)_：計算 `CORR(estimated_wage(d), MEDIAN(job_vacancy_salaries[d]))`，若 `R² > 0.7` 則分配可信。
+payload 同時保留 `salary_median`（未收縮值）、`salary_sample_size` 與
+`salary_median_shrunk`，方便查核收縮幅度；`n=0` 且全市有中位數時，收縮值為全市
+中位數，並不代表該區有觀測到薪資。
+
+> 現有薪資是職缺刊登的月薪區間中點，不是實際受僱者的實領薪資。薪資 coverage、
+> 被排除的單邊薪資與未對應行政區資料仍記在 quality artifact；`adjusted_youth_wage`
+> 可為相容性／散點圖保留，但不再進入 `S_salary`，因此不再與房價形成 YOI 的循環論證。
 
 ---
 
-#### S₃：人才發展（S_talent）
+#### S₃：青年活力與發展（S_talent）
 
 ```text
-S_talent = 0.30 × norm(大專學生數密度)
-         + 0.35 × norm(職訓課程數)
-         + 0.35 × norm(訓練人次_每萬青年)
+S_talent = 0.40 × norm(青年人口佔比)
+         + 0.40 × norm(青年人口成長率 YoY)
+         + 0.20 × norm(大專學生數密度)
 ```
 
-| 元素            | 計算方式                                                            | 資料源                               | 說明                                                                                                 |
-| --------------- | ------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| 大專學生數密度  | `該區 student_count 加總 ÷ 該區面積 km²`                            | **C3.1** `college_majors`            | ⚠️ 縣市級（學校所在地），全部集中在少數區；其餘區為 0。故 S_talent 權重已降至 0.05                   |
-| 職訓課程數      | 該區 `distinct_course_count`                                        | **C3.3** `vt_courses`                | ⚠️ 目前只有五股（32）、泰山（42）兩區有資料，其他 27 區均為 null → 建議先對這 27 區給予全市最低值 32 |
-| 訓練人次/萬青年 | `(新北市 training_people 加總 ÷ 新北市 youth_18_35_total) × 10,000` | **C3.4** `training_numbers` ÷ **A1** | ⚠️ 縣市級，無法拆到區；29 區共用同一值                                                               |
+| 元素             | 計算方式                                                                    | 資料源                         | 說明                                                                                              |
+| ---------------- | --------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| 青年人口佔比     | `該區 youth_18_35_total ÷ 該區 people_total × 100%`                         | **A1** `population`            | 使用 YOI 參考年度 ROC 114 的同一人口月份錨點；衡量人口結構，不等於人才品質                     |
+| 青年人口成長率   | `(本年青年人口 − 上年青年人口) ÷ 上年青年人口 × 100%`                       | **A1** `population`（跨年）    | ROC 114 對 ROC 113；兩年各取最新可得月份，作為青年人口吸引／留存的觀察訊號                   |
+| 大專學生數密度   | `該區 student_count 加總 ÷ 該區面積 km²`                                   | **C3.1** `college_majors`      | 取 YOI 參考學年度 ROC 114；以學校所在地映射行政區，仍是學區／人才群聚 proxy，不代表學生戶籍地 |
+
+> `vt_course_count` 與 `training_people_per_10k_youth` 可在 payload 中保留作為相容性／
+> 背景欄位，但已從 `S_talent` 移除；它們目前分別有 27 區觀測最小值補值與全市共用值問題。
 
 ---
 
@@ -280,25 +303,13 @@ def generate_homepage_data(snapshot_date, year):
     all_salary_midpoints = [v.salary_midpoint for v in vacancy_salaries if v.salary_midpoint]
     city_salary_median   = median(all_salary_midpoints)
     high_salary_threshold = city_salary_median * 1.5
+    shrinkage_k = 30
 
-    # ── 薪資代理計算 (利用房價) ──────────────────────────────
-    # 注意：推算薪資使用「全部種類」的房價
-    all_house_median = median([h.price_per_ping for h in houses if h.price_per_ping])
-    city_base_wage = wages["25-29"].value
-
-    estimated_wages = {}
-    for d in ALL_29_DISTRICTS:
-        d_houses_all = [h.price_per_ping for h in houses if h.district_id == d and h.price_per_ping]
-        if d_houses_all:
-            price_ratio = median(d_houses_all) / all_house_median
-            estimated_wages[d] = city_base_wage * price_ratio
-        else:
-            estimated_wages[d] = city_base_wage  # Fallback
-
-    # ── 全國人才需求趨勢 YoY（全國共用）─────────────────────
-    talent_now  = sum(t.new_demand_count for t in talent[year])
-    talent_prev = sum(t.new_demand_count for t in talent[year-1])
-    talent_yoy  = (talent_now - talent_prev) / talent_prev * 100
+    # ── 薪資與人才需求的相容性欄位 ────────────────────────────
+    # adjusted_youth_wage、talent_demand_yoy 仍可供其他頁面或歷史欄位使用，
+    # 但不再進入 YOI 的 S_salary / S_job。
+    latest_wage = wages.latest_youth_wage("25-29")
+    talent_yoy  = calculate_national_talent_demand_yoy(talent)
 
     # ── Section 2：29 區迴圈 ─────────────────────────────────
     raw_scores = []  # 暫存各子指標原始值，用於後續 norm
@@ -307,22 +318,23 @@ def generate_homepage_data(snapshot_date, year):
         area = district_areas[d]
         pop_youth = pop[d].youth_18_35_total
 
-        # S_job 原始值
+        # S_job 原始值：面積密度 + 職業多樣性
         vac_count    = sum(v.position_count for v in vacancies if v.district_id == d)
-        per_10k_vac  = (vac_count / pop_youth) * 10000 if pop_youth else 0
+        vacancy_density_km2 = vac_count / area if area else None
         shannon      = calc_shannon_entropy(vacancies, d)  # pᵢ = 各職業類別占比
 
         # S_salary 原始值
         d_salaries   = [v.salary_midpoint for v in vacancy_salaries
                         if v.district_id == d and v.salary_midpoint]
         salary_median = median(d_salaries) if d_salaries else 0
-        high_sal_ratio = len([s for s in d_salaries if s > high_salary_threshold]) / len(d_salaries) if d_salaries else 0
-        adj_youth_wage = estimated_wages[d] # 來自上述代理計算
+        salary_shrunk = (len(d_salaries) * salary_median
+                         + shrinkage_k * city_salary_median) / (len(d_salaries) + shrinkage_k)
+        high_sal_ratio = weighted_high_salary_position_ratio(d, high_salary_threshold)
 
-        # S_talent 原始值（縣市或缺值共用）
-        college_density = sum(c.student_count for c in college) / area  # 縣市共用學生總數
-        vt_courses   = vt.get(d, {"distinct_course_count": 32}).distinct_course_count  # 缺值給最低值 32
-        train_per_10k = (sum(t.training_people for t in training) / city_youth_now) * 10000  # 縣市共用
+        # S_talent 原始值：青年人口結構、跨年變化與大專學生密度
+        youth_ratio = pop[d].youth_18_35_total / pop[d].people_total * 100
+        youth_yoy = (pop[d].youth_18_35_total - pop_prev[d].youth_18_35_total) / pop_prev[d].youth_18_35_total * 100
+        college_density = sum(c.student_count for c in college if c.district_id == d) / area if area else None
 
         # S_housing 原始值
         rent_med   = median([r.rent_total for r in rentals if r.district_id == d]) if has_data(rentals, d) else city_min_rent
@@ -345,15 +357,16 @@ def generate_homepage_data(snapshot_date, year):
 
         raw_scores.append({
             "id": d,
-            "per_10k_vac":    per_10k_vac,
+            "vacancy_density_km2": vacancy_density_km2,
             "shannon":         shannon,
+            "youth_ratio":     youth_ratio,
+            "youth_yoy":       youth_yoy,
             "talent_yoy":      talent_yoy,     # 全國共用
             "salary_median":   salary_median,
+            "salary_sample_size": len(d_salaries),
+            "salary_median_shrunk": salary_shrunk,
             "high_sal_ratio":  high_sal_ratio,
-            "adj_youth_wage":  adj_youth_wage,  # 來自代理計算
-            "college_density": college_density, # 縣市共用
-            "vt_courses":      vt_courses,
-            "train_per_10k":   train_per_10k,  # 縣市共用
+            "college_density": college_density,
             "rent_med":        rent_med,
             "house_med":       house_med,
             "rent_wage_ratio": rent_wage_ratio,
@@ -362,8 +375,10 @@ def generate_homepage_data(snapshot_date, year):
             "bike_density":    bike_density,
         })
 
-    # ── 對所有區做 Min-Max 標準化（先截斷 P5/P95）──────────
-    def normalize_col(col):   return [minmax_with_clip(v[col]) for v in raw_scores]
+    # ── 對所有區做純 Min-Max 標準化（不截斷 P5/P95）────────
+    def normalize_col(col):
+        normalized = normalize_minmax({v["id"]: v[col] for v in raw_scores})
+        return [normalized[v["id"]] for v in raw_scores]
     def normalize_inv(col):   return [100 - v for v in normalize_col(col)]
 
     # ── 計算 YOI 並決定留才風險 ──────────────────────────────
@@ -371,15 +386,13 @@ def generate_homepage_data(snapshot_date, year):
     yoi_list = []
 
     for i, d_raw in enumerate(raw_scores):
-        s_job     = (0.50 * norm_per_10k_vac[i]
-                   + 0.30 * norm_shannon[i]
-                   + 0.20 * norm_talent_yoy[i])
-        s_salary  = (0.40 * norm_salary_median[i]
-                   + 0.30 * norm_high_sal_ratio[i]
-                   + 0.30 * norm_adj_youth_wage[i])
-        s_talent  = (0.30 * norm_college_density[i]
-                   + 0.35 * norm_vt_courses[i]
-                   + 0.35 * norm_train_per_10k[i])
+        s_job     = (0.60 * norm_vacancy_density_km2[i]
+                   + 0.40 * norm_shannon[i])
+        s_salary  = (0.60 * norm_salary_median_shrunk[i]
+                   + 0.40 * norm_high_sal_ratio[i])
+        s_talent  = (0.40 * norm_youth_ratio[i]
+                   + 0.40 * norm_youth_yoy[i]
+                   + 0.20 * norm_college_density[i])
         s_housing = (0.35 * norm_inv_rent_med[i]
                    + 0.35 * norm_inv_house_med[i]
                    + 0.30 * norm_inv_rent_wage_ratio[i])
@@ -387,9 +400,12 @@ def generate_homepage_data(snapshot_date, year):
                      + 0.40 * norm_rail_density[i]
                      + 0.25 * norm_bike_density[i])
 
-        yoi = (0.25*s_job + 0.25*s_salary + 0.05*s_talent
-             + 0.25*s_housing + 0.20*s_transport)
-        yoi_list.append(yoi)
+        yoi_raw = (0.25*s_job + 0.25*s_salary + 0.15*s_talent
+                 + 0.20*s_housing + 0.15*s_transport)
+        yoi_list.append(yoi_raw)
+
+    # 公開的 opportunityIndex 再對 29 區的 YOI_raw 做一次純 Min-Max norm。
+    opportunity_index = normalize_minmax(yoi_list)
 
     # 計算 Q1/Q3 做留才風險分級
     q1 = percentile(yoi_list, 25)

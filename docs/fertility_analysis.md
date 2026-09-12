@@ -79,9 +79,15 @@
 ```text
 FaFI_score = ( norm(托育資源覆蓋率) + score_housing(即居住友善度) + norm(各地區平均薪資) ) / 3
 ```
-* `norm()` 函式與 Homepage 相同，為 Min-Max 標準化並截斷 P5/P95，將數值投射到 0-100。
+* `norm()` 函式與 Homepage 相同，為不截斷 P5/P95 的純 Min-Max 標準化，將數值投射到 0-100。
 * `score_housing` 已經是 0-100 且方向為正向（越高越友善），故直接放入。
-* 「各地區平均薪資」採用與 Employment 頁面相同的 `estimated_wage`（房價代理推算值）。
+* 「各地區平均薪資」採用 Homepage 的 `salary_median_shrunk`（完整薪資區間中點的
+  區域中位數，依 `k=30` 向全市中位數收縮），不再使用房價推算的
+  `adjusted_youth_wage`。
+
+其中薪資樣本數 `n` 是該區可計算完整薪資中點的資料列數；`salary_sample_size` 會
+一併輸出供查核。FaFI 預設三項等權，權重與薪資收縮強度由 homepage analytics
+設定檔管理。
 
 > 💡 **為何這三項算出來保證介於 0-100 之間？**
 > 因為上述三個輸入變數各自的範圍都被嚴格限制在 `[0, 100]`，我們將這三者相加後「除以 3」求算術平均。根據數學原理，即使出現極端值（三個都拿 0 分，或三個都拿 100 分），平均的結果仍會完美鎖定在 `0-100` 的區間內，完全不會溢出。
@@ -99,7 +105,7 @@ def generate_fertility_data(snapshot_date, year):
     # yoi_data = generate_homepage_data(year)
     # yoi_by_district = yoi_data["yoi_dict"]
     # score_housing   = yoi_data["score_housing"]
-    # estimated_wage  = yoi_data["estimated_wage"]
+    # salary_median_shrunk = yoi_data["salary_median_shrunk"]
 
     # 取得生育與人口資料
     births = db.get("births", year)       # E1
@@ -148,12 +154,12 @@ def generate_fertility_data(snapshot_date, year):
     city_daycare_coverage = calculate_citywide_coverage(daycare_centers, 1.0, "youth_18_35_female")
 
     # ── 4. 計算青年成家環境友善指數 (FaFI) ───────────────────
-    norm_daycare = minmax_clip_to_100(list(daycare_coverage_by_district.values()))
-    norm_wage = minmax_clip_to_100(list(estimated_wage.values()))
+    norm_daycare = normalize_minmax(daycare_coverage_by_district)
+    norm_salary = normalize_minmax(salary_median_shrunk_by_district)
 
     fafi_scores = {}
     for i, d in enumerate(ALL_29_DISTRICTS):
-        fafi = (norm_daycare[i] + score_housing[d] + norm_wage[i]) / 3.0
+        fafi = (norm_daycare[d] + score_housing[d] + norm_salary[d]) / 3.0
         fafi_scores[d] = fafi
 
     # 計算 Q1, Q3 用於 FaFI 分級

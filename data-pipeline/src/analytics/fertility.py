@@ -12,7 +12,7 @@ from .annual_metrics import calculate_annual_fertility
 from .config import HomepageAnalyticsConfig
 from .data_gaps import explain_reason_codes
 from .homepage import _source_periods
-from .homepage_math import calculate_ols_regression, normalize_p5_p95
+from .homepage_math import calculate_ols_regression, normalize_minmax
 from .input_resolver import HomepageInputResolver
 from .io import CuratedSlice, atomic_json_write
 from .service_coverage import calculate_population_service_coverage
@@ -100,9 +100,21 @@ def calculate_annual_fertility_metrics(
     return {"metric_id": "fertilityAnnual", "years": output_years}
 
 
-def calculate_fafi_scores(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
-    """Calculate the equal-weighted Family-Friendly Index for district rows."""
+DEFAULT_FAFI_WEIGHTS: Mapping[str, float] = {
+    "daycare_coverage": 1 / 3,
+    "housing": 1 / 3,
+    "salary": 1 / 3,
+}
 
+
+def calculate_fafi_scores(
+    rows: Iterable[Mapping[str, Any]],
+    *,
+    weights: Mapping[str, float] | None = None,
+) -> dict[str, Any]:
+    """Calculate the weighted Family-Friendly Index for district rows."""
+
+    active_weights = _fafi_weights(weights)
     indexed = {
         str(row.get("district_id")): dict(row)
         for row in rows
@@ -112,20 +124,27 @@ def calculate_fafi_scores(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         district_id: _number(row.get("daycareCoverage"))
         for district_id, row in indexed.items()
     }
-    wage_values = {
-        district_id: _number(row.get("estimatedWage"))
+    salary_values = {
+        district_id: _number(row.get("salaryMedian"))
         for district_id, row in indexed.items()
     }
-    normalized_coverage = normalize_p5_p95(coverage_values)
-    normalized_wage = normalize_p5_p95(wage_values)
+    normalized_coverage = normalize_minmax(coverage_values)
+    normalized_salary = normalize_minmax(salary_values)
 
     fafi_values: dict[str, float | None] = {}
     result_rows: dict[str, dict[str, Any]] = {}
     for district_id, row in indexed.items():
         coverage_score = normalized_coverage.get(district_id)
-        wage_score = normalized_wage.get(district_id)
+        wage_score = normalized_salary.get(district_id)
         housing_score = _number(row.get("score_housing"))
-        fafi = _mean_if_complete((coverage_score, housing_score, wage_score))
+        fafi = _weighted_if_complete(
+            {
+                "daycare_coverage": coverage_score,
+                "housing": housing_score,
+                "salary": wage_score,
+            },
+            active_weights,
+        )
         fafi_values[district_id] = fafi
         result_rows[district_id] = {
             "daycareCoverageScore": coverage_score,
@@ -157,8 +176,9 @@ def calculate_fafi_scores(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "metric_id": "fafi",
         "status": status,
         "normalization": {
-            "method": "p5_p95",
-            "inputs": ["daycareCoverage", "score_housing", "estimatedWage"],
+            "method": "min_max",
+            "inputs": ["daycareCoverage", "score_housing", "salaryMedian"],
+            "weights": dict(active_weights),
             "q1": q1,
             "q3": q3,
         },
@@ -217,10 +237,7 @@ def generate_fertility_data(
     birth_records = load_periods("births", [f"{year:03d}" for year in annual_years])
     village_population = load_periods(
         "population_villages",
-        [
-            f"{config.population_reference_year_roc:03d}{month:02d}"
-            for month in range(1, 13)
-        ],
+        [config.village_population_reference_period],
     )
     boundaries = load_latest("village_boundaries")
     daycare_points = load_latest("babysitting_places")
@@ -299,7 +316,13 @@ def generate_fertility_data(
                 "daycareCoverage": _number(daycare_row.get("value")),
                 "daycareCoverageStatus": daycare.get("status"),
                 "score_housing": _number(components.get("housing")),
-                "estimatedWage": _number(homepage_row.get("adjusted_youth_wage")),
+                # Real per-district vacancy pay, shrunk towards the city median
+                # so thin samples cannot swing a district. The former
+                # `adjusted_youth_wage` was a city constant times the district
+                # house-price ratio, so it carried no district wage signal at
+                # all and collided with `score_housing`.
+                "salaryMedian": _number(homepage_row.get("salary_median_shrunk")),
+                "salarySampleSize": _number(homepage_row.get("salary_sample_size")),
                 "sourcePeriod": {
                     "fertility": [str(reference_year)],
                     "daycare": daycare_source_periods,
@@ -307,7 +330,7 @@ def generate_fertility_data(
             }
         )
 
-    fafi = calculate_fafi_scores(current_rows)
+    fafi = calculate_fafi_scores(current_rows, weights=config.fafi_weights)
     if daycare.get("status") != "observed":
         fafi["status"] = _merge_statuses(fafi.get("status"), daycare.get("status"))
         fafi["blocking_reasons"] = sorted(
@@ -381,6 +404,8 @@ def generate_fertility_data(
                 "reference_year_roc": reference_year,
                 "daycare_radius_m": 1000,
                 "current_yoi": "latest_available_snapshot",
+                "fafi_normalization": "min_max",
+                "salary_shrinkage_k": config.salary_shrinkage_k,
             },
             "status": current_status,
             "source_period": quality["source_periods"],
@@ -587,6 +612,36 @@ def _ratio(numerator: Any, denominator: Any, *, multiplier: float) -> float | No
 def _mean_if_complete(values: Iterable[Any]) -> float | None:
     numbers = [_number(value) for value in values]
     return None if any(value is None for value in numbers) else sum(numbers) / len(numbers)
+
+
+def _fafi_weights(weights: Mapping[str, float] | None) -> Mapping[str, float]:
+    if not weights:
+        return DEFAULT_FAFI_WEIGHTS
+    selected = {key: float(weights.get(key, 0.0)) for key in DEFAULT_FAFI_WEIGHTS}
+    total = sum(selected.values())
+    if total <= 0:
+        raise ValueError("fafi weights must have a positive total")
+    return {key: value / total for key, value in selected.items()}
+
+
+def _weighted_if_complete(
+    components: Mapping[str, Any], weights: Mapping[str, float]
+) -> float | None:
+    """Weighted mean, or None when any weighted component is missing.
+
+    A component carrying zero weight is allowed to be missing: it cannot move
+    the result either way.
+    """
+
+    total = 0.0
+    for key, weight in weights.items():
+        if weight <= 0:
+            continue
+        value = _number(components.get(key))
+        if value is None:
+            return None
+        total += value * weight
+    return total
 
 
 def _percentile(values: list[float], fraction: float) -> float:

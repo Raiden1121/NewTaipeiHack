@@ -15,7 +15,7 @@ import {
   type DistrictFeature,
 } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
-import { useSettingsStore } from "@/stores/useSettingsStore";
+import { useEffectiveColorTheme } from "@/hooks/useEffectiveColorTheme";
 import { participationFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,7 +34,13 @@ const DRAG_THRESHOLD = 4;
 // 允許地圖平移到僅剩一半在框內，確保邊緣行政區點選後也能置中。
 const PAN_MARGIN_RATIO = 0.5;
 
-const LEGEND_STEPS = ["bg-primary/20", "bg-primary/55", "bg-primary"];
+const LEGEND_STEPS = [
+  "bg-primary/15",
+  "bg-primary/35",
+  "bg-primary/55",
+  "bg-primary/75",
+  "bg-primary",
+];
 
 interface View {
   scale: number;
@@ -95,10 +101,10 @@ export default function ParticipationHotspotMap() {
     (state) => state.selectedDistrictId,
   );
   const selectDistrict = useSelectedDistrict((state) => state.selectDistrict);
-  const colorTheme = useSettingsStore((state) => state.colorTheme);
+  const colorTheme = useEffectiveColorTheme();
 
   const districtById = useMemo(
-    () => new Map(districts.map((district) => [district.id, district])),
+    () => new Map(districts.map((district) => [district.district_id, district])),
     [districts],
   );
 
@@ -357,8 +363,8 @@ export default function ParticipationHotspotMap() {
                 {orderedFeatures.map((district) => {
                   const id = district.properties.id;
                   const name = district.properties.name ?? "未命名行政區";
-                  const participationIndex =
-                    districtById.get(id)?.youthParticipationIndex;
+                  const participationRate =
+                    districtById.get(id)?.youthCandidacyRatePer100k;
                   const isSelected = id === selectedDistrictId;
                   const isHovered = id === hoveredDistrictId;
 
@@ -379,7 +385,7 @@ export default function ParticipationHotspotMap() {
                       style={{
                         fill: isSelected
                           ? SELECTED_DISTRICT_FILL
-                          : participationFillColor(participationIndex, colorTheme),
+                          : participationFillColor(participationRate, colorTheme),
                         strokeWidth:
                           (isSelected || isHovered ? 3 : 1.5) / view.scale,
                       }}
@@ -415,7 +421,7 @@ export default function ParticipationHotspotMap() {
                 onClick={() => zoomBy(SCALE_STEP)}
                 disabled={view.scale >= MAX_SCALE}
                 aria-label="放大"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40 sm:h-8 sm:w-8"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -424,7 +430,7 @@ export default function ParticipationHotspotMap() {
                 onClick={() => zoomBy(1 / SCALE_STEP)}
                 disabled={view.scale <= MIN_SCALE}
                 aria-label="縮小"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40 sm:h-8 sm:w-8"
               >
                 <Minus className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -433,7 +439,7 @@ export default function ParticipationHotspotMap() {
                 onClick={resetView}
                 disabled={view.scale === 1 && view.x === 0 && view.y === 0}
                 aria-label="重設視圖"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40 sm:h-8 sm:w-8"
               >
                 <RotateCcw className="h-4 w-4" aria-hidden="true" />
               </button>

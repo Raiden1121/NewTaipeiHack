@@ -45,10 +45,6 @@ function SidebarNav({ onNavigate }: SidebarNavProps) {
           })}
         </ul>
       </nav>
-
-      <p className="px-3 text-xs text-white/50">
-        內部決策支援系統 · 資料為模擬佔位
-      </p>
     </div>
   );
 }

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "description": "新北市社會局開放資料「托嬰中心」的地址欄位有數筆與官方名冊不符（多為門牌『-』遺失、路/街誤植、字元亂碼）。本檔以官方名冊為準逐筆更正後再送門牌比對，不修改 data/raw 快照。",
+  "verified_at": "2026-09-12",
+  "sources": [
+    {
+      "id": "ntpc_sw_roster_114",
+      "title": "新北市政府社會局 114年受評托嬰中心名冊(全)",
+      "url": "https://www.sw.ntpc.gov.tw/userfiles/1102400/files/114%E5%B9%B4%E5%8F%97%E8%A9%95%E6%89%98%E5%AC%B0%E4%B8%AD%E5%BF%83%E5%90%8D%E5%86%8A(%E5%85%A8)(1).pdf"
+    },
+    {
+      "id": "osm",
+      "title": "OpenStreetMap (ODbL)",
+      "url": "https://www.openstreetmap.org/"
+    }
+  ],
+  "records": [
+    {
+      "source_record_id": "babysitting_places:private:69cecdb0-7796-48df-84e5-99e4f1274245:74",
+      "facility_name": "新北市私立巨堡托嬰中心",
+      "source_address": "永寧路115巷1號2樓、3號2樓",
+      "corrected_address": "新北市永和區永寧街115巷1號",
+      "reason": "street_type_typo",
+      "note": "永和區無『永寧路』，官方名冊為永寧街。",
+      "source_id": "ntpc_sw_roster_114"
+    },
+    {
+      "source_record_id": "babysitting_places:private:69cecdb0-7796-48df-84e5-99e4f1274245:114",
+      "facility_name": "新北市私立愛貝比峰廷托嬰中心",
+      "source_address": "?廷街58號1、2樓",
+      "corrected_address": "新北市土城區峯廷街58號",
+      "reason": "mojibake",
+      "note": "來源首字為亂碼，官方名冊與門牌檔皆作『峯廷街』。",
+      "source_id": "ntpc_sw_roster_114"
+    },
+    {
+      "source_record_id": "babysitting_places:public:b3faf2aa-e96b-4f2f-b647-da47dc094860:67",
+      "facility_name": "土城頂埔公共托育中心",
+      "source_address": "中央路四段5512號2樓",
+      "corrected_address": "新北市土城區中央路四段55-12號",
+      "reason": "missing_plate_hyphen",
+      "source_id": "ntpc_sw_roster_114"
+    },
+    {
+      "source_record_id": "babysitting_places:public:b3faf2aa-e96b-4f2f-b647-da47dc094860:91",
+      "facility_name": "永和仁愛公共托育中心",
+      "source_address": "仁愛路2441號12樓",
+      "corrected_address": "新北市永和區仁愛路244-1號",
+      "reason": "missing_plate_hyphen",
+      "source_id": "ntpc_sw_roster_114"
+    },
+    {
+      "source_record_id": "babysitting_places:public:b3faf2aa-e96b-4f2f-b647-da47dc094860:96",
+      "facility_name": "板橋埔墘公共托育中心",
+      "source_address": "永豐街428號(埔墘國小日新樓1樓)",
+      "corrected_address": "新北市板橋區永豐街42-8號",
+      "reason": "missing_plate_hyphen",
+      "source_id": "ntpc_sw_roster_114"
+    },
+    {
+      "source_record_id": "babysitting_places:public:b3faf2aa-e96b-4f2f-b647-da47dc094860:98",
+      "facility_name": "三重興穀公共托育中心",
+      "source_address": "五谷王北街48巷181號",
+      "corrected_address": "新北市三重區五谷王北街48巷18-1號",
+      "reason": "missing_plate_hyphen",
+      "source_id": "ntpc_sw_roster_114"
+    },
+    {
+      "source_record_id": "babysitting_places:public:b3faf2aa-e96b-4f2f-b647-da47dc094860:107",
+      "facility_name": "三重光榮公共托育中心",
+      "source_address": "介壽路261號2、3樓",
+      "corrected_address": "新北市三重區介壽路26-1號",
+      "reason": "missing_plate_hyphen",
+      "source_id": "ntpc_sw_roster_114"
+    },
+    {
+      "source_record_id": "babysitting_places:public:b3faf2aa-e96b-4f2f-b647-da47dc094860:9",
+      "facility_name": "三重二重公共托育中心",
+      "source_address": "大有街10號",
+      "corrected_address": "新北市三重區大有街10號",
+      "reason": "address_not_in_door_plate_file",
+      "note": "地址正確但位於二重國小校內，官方門牌檔無此門牌；座標取自 OpenStreetMap 二重國小 (way/relation 7343069)。",
+      "source_id": "osm",
+      "latitude": 25.0655793,
+      "longitude": 121.4783981
+    }
+  ]
+}
