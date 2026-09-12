@@ -48,6 +48,31 @@ def budget_rows():
     ]
 
 
+def settlement_row():
+    return {
+        "document_id": "youth_budgets:113:final_settlement:abc",
+        "budget_year_roc": "113",
+        "document_status": "final_settlement",
+        "document_status_label": "單位決算",
+        "row_type": "total",
+        "business_plan": "合計",
+        "work_plan": None,
+        "budget_amount": "161,758,908",
+        "original_budget_amount": "161,758,908",
+        "budget_adjustment_amount": "-",
+        "realized_amount": "138,627,956",
+        "payable_amount": "1,253,506",
+        "reserved_amount": "11,794,731",
+        "settlement_amount": "151,676,193",
+        "surplus_amount": "-10,082,715",
+        "source_execution_ratio_percent": "93.77",
+        "unit_label": "新臺幣元",
+        "table_title": "歲出機關別決算表",
+        "source_page_number": 13,
+        "source_pdf_sha256": "sha256:abc",
+    }
+
+
 class TestTransformBudget(unittest.TestCase):
     def test_transforms_organization_budget_without_district_allocation(self):
         result = transform_youth_budgets(
@@ -92,6 +117,23 @@ class TestTransformBudget(unittest.TestCase):
 
         self.assertEqual(result.quality["rows_rejected"], 1)
         self.assertIn("missing_work_plan", result.quarantine[0]["reason"])
+
+    def test_transforms_final_settlement_with_source_amounts_and_twd_unit(self):
+        result = transform_youth_budgets(
+            [settlement_row()], fetched_at="2026-09-11T00:00:00+00:00"
+        )
+
+        row = result.records[0]
+        self.assertEqual(row["document_status"], "final_settlement")
+        self.assertEqual(row["metric_id"], "settlement_amount")
+        self.assertEqual(row["value"], 151676193)
+        self.assertEqual(row["unit"], "TWD")
+        self.assertEqual(row["budget_amount"], 161758908)
+        self.assertEqual(row["realized_amount"], 138627956)
+        self.assertEqual(row["payable_amount"], 1253506)
+        self.assertEqual(row["reserved_amount"], 11794731)
+        self.assertEqual(row["surplus_amount"], -10082715)
+        self.assertEqual(row["source_execution_ratio_percent"], 93.77)
 
     def test_pipeline_dispatches_youth_budget_mapping_envelope(self):
         result = run_transform(

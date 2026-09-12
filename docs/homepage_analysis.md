@@ -1,484 +1,459 @@
-# 主頁（首頁）參數分析、指數公式設計與資料源對應
+# 主頁（首頁）參數分析、指數公式設計與資料源對應 (v8 最終版)
 
-> 本文件針對首頁 preview 中所有可視元素，逐一拆解其所需參數、計算公式、以及對應的資料源編號。
+> 本文件依據最新的前端 React 元件架構（`features/home`），嚴格對齊 Notion MD 公式定義，並完整對應 `data_description.md` 中目前已登錄的 canonical datasets。
+> 所有計算皆由 Backend 完成後才拋給 Frontend 顯示。
 
----
+### Analytics 執行口徑
 
-## 一、主頁版面結構與所有參數清單
+目前的 analytics 實作位於 `data-pipeline/src/analytics/`，執行入口為
+`run_analytics.py --metric homepage`。年度資料固定選 ROC 110–114；ROC 109
+只用作 ROC 110 的人口 YoY 基準。YOI 則使用各資料集最新可得快照，人口錨點
+為 ROC 114，不計算 YOI YoY。輸出寫入
+`data/analytics/homepage/all.json`，品質與缺值說明寫入
+`data/quality/analytics_homepage.json`。
 
-根據 [主頁 preview](file:///c:/Users/m2006/Desktop/新北黑克松/page_preview/1. 主頁.png)，首頁分為 **5 大區塊**：
-
-```mermaid
-graph TD
-    A["首頁"] --> B["區塊 1：青年就業與發展機會 — KPI 卡片"]
-    A --> C["區塊 2：新北市 29 區青年機會指數 — 地圖 + 排行表"]
-    A --> D["區塊 3：青年參政概況"]
-    A --> E["區塊 4：青年生育與成家"]
-    A --> F["區塊 5：施政協助與政策支援"]
-```
-
-### 區塊 1：青年就業與發展機會 — 頂部 KPI 卡片（3 張）
-
-| # | 顯示項目 | 範例值 | 說明 |
-|---|--------|-------|------|
-| 1-1 | **全台 18–35 歲青年人口** | 5,231k | 全國青年人口總數 |
-| 1-2 | 較去年變動率 | ↓ -1.2% vs 去年 | YoY 變動 |
-| 1-3 | **青年占總人口比例** | 22.4% | 新北市青年人口 ÷ 新北市總人口 |
-| 1-4 | 較去年變動 | ↓ -0.4% vs 去年 | YoY 變動 |
-| 1-5 | **青年人口年增率** | -1.2% | 新北市 18–35 青年 YoY |
-| 1-6 | 趨勢附註 | 長期微幅下降趨勢 | 趨勢判斷文字 |
+2026-09-11 真實資料執行結果：`current_yoi.districts` 29 筆，年度資料輸出
+ROC 110–114；服務涵蓋率可計算為全市 49.2266230851%，狀態為
+`partial`（9 個青創基地有驗證座標、0 個排除；1,039 個里界中 1,032 個
+接上 ROC 114 里級人口）。其中 6 個頁面缺地址的基地，是由固定的官方地址參照
+資料補入後再進行 transform，沒有改寫 raw。
 
 ---
 
-### 區塊 2：新北市 29 區青年機會指數 — 地圖 + 排行表
+## 一、前端元件與參數對應表
 
-| # | 顯示項目 | 範例值 | 說明 |
-|---|--------|-------|------|
-| 2-1 | **29 區分層設色地圖** | — | 以「青年機會指數」著色，機會低→高（淺→深） |
-| 2-2 | 地圖 Tooltip：行政區名 | 板橋區（核心區） | 滑鼠 hover 時顯示 |
-| 2-3 | 地圖 Tooltip：機會指數 | 機會指數: 78（穩定） | 含等級判斷文字 |
-| 2-4 | 地圖 Tooltip：各區小指標 | 1,250+/月 職缺、29 個軌道站點 | 快速預覽 |
-| 2-5 | 切換按鈕：密度 / 趨勢 | — | 地圖可在「密度檢視」和「趨勢檢視」間切換 |
-| 2-6 | **重點行政區分析表** | — | 右側表格 |
-| 2-7 | 表格欄位：行政區 | 三重區 | — |
-| 2-8 | 表格欄位：機會指數 | 86 | 青年機會指數 (0–100) |
-| 2-9 | 表格欄位：年增率 | +2.1% | 青年人口 YoY |
-| 2-10 | 表格欄位：留才風險 | 低 / 中 / 高 | AI 綜合判定 |
-| 2-11 | 圖例 | 機會低 ← → 機會高 | 色階圖例 |
+首頁分為 **4 大 Section**，對應 5 個核心 Component。
+
+> **資料源編號說明**：A = 全站底層、C = 青年就業五面向、E = 生育、F = 施政協助（對應 Notion 編號）
+
+### Section 1：青年就業與發展機會 (`KpiSummaryRow.tsx`)
+
+| UI 顯示項目            | 對應欄位                      | 資料源                      | 計算邏輯                                                              |
+| ---------------------- | ----------------------------- | --------------------------- | --------------------------------------------------------------------- |
+| 全台 18–35 歲青年人口  | `NATIONAL_YOUTH_POPULATION`   | **A1** `population`         | 加總全國各縣市 `youth_18_35_total`；若無全國資料則放常數 4,820,000    |
+| 新北市青年佔總人口比例 | `CITY_YOUTH_POPULATION_SHARE` | **A1** `population`         | `youth_18_35_total`（新北市合計）÷ `people_total`（新北市合計）× 100% |
+| 青年人口年增率 (YoY)   | `YOUTH_POPULATION_YOY`        | **A1** `population`（跨年） | (今年新北市 `youth_18_35_total` − 去年) ÷ 去年 × 100%                 |
 
 ---
 
-### 區塊 3：青年參政概況
+### Section 2：29 區青年機會指數地圖與排行表 (`DistrictChoroplethMap.tsx` & `DistrictHighlightsTable.tsx`)
 
-| # | 顯示項目 | 範例值 | 說明 |
-|---|--------|-------|------|
-| 3-1 | **青年參選密度** | 12.8% | 20–35 歲候選人比例 |
-| 3-2 | 較去年變動 | ↑ +1.5% | YoY |
-| 3-3 | **各區參政強度分佈地圖** | — | 氣泡圖 / 散點圖，顯示各區參政強度 |
-| 3-4 | 「查看各區詳細數據」按鈕 | — | 導向青年參政頁 |
+| UI 顯示項目             | 對應欄位             | 資料源                                   | 計算邏輯                                       |
+| ----------------------- | -------------------- | ---------------------------------------- | ---------------------------------------------- |
+| 地圖顏色 / 機會指數     | `opportunityIndex`   | **A1, C1.1–C2.3, C4.1, C4.2, C5.1–C5.3** | YOI 公式（詳見第二節），輸出 0–100             |
+| 留才風險 (地圖 Tooltip) | `retentionRiskLevel` | 衍生自 `opportunityIndex`                | 直接對應 YOI 的 Q1/Q3 四分位切分（詳見第二節） |
 
----
-
-### 區塊 4：青年生育與成家
-
-| # | 顯示項目 | 範例值 | 說明 |
-|---|--------|-------|------|
-| 4-1 | **總生育率 vs 平均生育率 地圖** | — | 分層設色圖 |
-| 4-2 | 「疊加機會指數」按鈕 | — | 可疊加青年機會指數做比較 |
-| 4-3 | **市府資源分布評分** | 78.5 | 各區青年生育相關資源的綜合評分 |
-| 4-4 | **生育補助涵蓋率** | 92% | 有生育補助的區占比，或青年可獲得補助的比例 |
-| 4-5 | **AI 數據分析洞察** | 文字段落 | AI 分析生育率與公共資源密度的相關性 |
+> ⚠️ **備註：機會指數 YoY/Delta 欄位已移除。**
+> 原因：我們的 `job_vacancies`、`rentals` 均為**單一快照**，沒有歷年區級資料，無法計算 YOI 的年度趨勢。前端排行表中的「增減」欄位應由後端在補齊多年快照後再接入，目前先移除或顯示「—」。
 
 ---
 
-### 區塊 5：施政協助與政策支援
+### Section 3：青年參政與生育概況 (`ParticipationOverviewCard.tsx` & `FertilityOverviewCard.tsx`)
 
-| # | 顯示項目 | 範例值 | 說明 |
-|---|--------|-------|------|
-| 5-1 | **政策成效追蹤** | — | 卡片標題 |
-| 5-2 | 追蹤政策名稱 | 青年租金補貼專案 | 被追蹤的代表性政策 |
-| 5-3 | 執行狀態標籤 | 執行中 | Badge |
-| 5-4 | **預算執行率** | 85% | 進度條 |
-| 5-5 | **目標達成率** | 92% | 進度條 |
-| 5-6 | 「查看詳細報表」按鈕 | — | 導向施政協助頁 |
-| 5-7 | **AI 政策輔助** | — | 右側卡片 |
-| 5-8 | AI 輸入框 placeholder | 例如：請評估在三重區增加青年創業基地的可行性… | 使用者輸入 prompt |
+| UI 顯示項目        | 對應欄位                          | 資料源                                        | 計算邏輯                                                                                                                                                                      |
+| ------------------ | --------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 青年參選率         | `youthParticipationIndex`         | **D** `elections`（2014/2018/2022 T1＋V1）+ **A1** | 先由 analytics 依選舉類型與 18–35 歲口徑決定分子；T1 保留選區粒度，不硬套單一行政區 |
+| 整體服務涵蓋率     | `serviceCoverageRate`（新增欄位） | **D4** `youth_service_points` + `population_villages` + `village_boundaries` | 圓形 buffer（直線距離）＋ 面積比例分攤（詳見下方說明） |
+| 平均生育率（全市） | `fertilityRate`                   | **E1** `births` + **A1** `population`         | 新北市 `births_mother_age_18_35` 加總 ÷ 新北市 `youth_18_35_female` 加總 × 1000‰ (這個部分會因為點選上面地圖而算出各地區的平均生育率，右邊那塊顯示全市平均讓他們知道量化差異) |
+| 對全市平均比       | `fertilityVsCityAvg`（新增欄位）  | 衍生自上兩項                                  | 各區 `fertilityRate` ÷ 全市平均 `fertilityRate` × 100%（後端計算後回傳）                                                                                                      |
+
+#### 📝 服務涵蓋率詳細計算方式
+
+- **定義**：各服務據點 2.5 公里服務半徑內涵蓋之青年人口比例。
+- **計算方法**（不做「整里進/出」的二元判定）：
+  1. 對每個服務據點以半徑 `r=2.5km` 畫圓，取所有圓的聯集 `B`。
+  2. 對每個里 `v`，計算里多邊形與 B 的交集面積比例 `f_v = area(polygon_v ∩ B) / area(polygon_v)`。_(需在等面積投影如 EPSG:3826 下計算)_
+  3. 該里「被涵蓋的青年人口」= `f_v × youth_18_35(v)`（假設青年在里內均勻分布）。
+  4. 匯總到區：`服務涵蓋率(區) = Σ_v [ f_v × youth_18_35(v) ] ÷ Σ_v youth_18_35(v)`
+- **資料狀態**：9 筆基地全部保留；頁面已有地址的點由 collector 做官方門牌資料唯一匹配，固定參照檔補入的 6 筆則由 transform 依 `point_id` 合併官方地址與座標。只有最後 `geocode_status=matched` 的點才會進入 buffer。沒有可驗證座標的點會標記 `excluded_no_verified_coordinate`，不當成 0 覆蓋。里級人口與官方里界由 `population_villages`、`village_boundaries` 提供；若任何一項不足，結果會回傳 `unavailable` 或 `partial` 及 blocking reasons。
+
+> ✅ **`births` 資料確認**：`metric_id = births_mother_age_18_35`，即「生母 18–35 歲的出生數」，2019–2025 年共 29 區，`youth_eligibility = eligible`，可直接使用。
+>
+> ✅ **analytics 已完成**：
+>
+> - **青年參選率**：以投票日的出生日期／出生年或來源年齡判定 18–35 歲；T1 輸出選舉區 grain，V1 輸出 29 區 grain。T1 不會被硬套到單一行政區。
+> - **服務涵蓋率**：使用 EPSG:3826 的里界 polygon、2.5 km buffer 聯集與面積比例分攤；無驗證座標的據點只在 quality 中列為排除。
+> - 前端若直接使用這份 analytics JSON，仍應依 `status`、`quality_status` 與 `null` 顯示資料狀態，不把缺值渲染成 0。
 
 ---
 
-## 二、專有指數公式設計
+### Section 4：施政協助 (`PolicySupportPanel.tsx`)
 
-### 指數 A：青年機會指數 Youth Opportunity Index（YOI）
+| UI 顯示項目          | 對應欄位                          | 資料源                             | 計算邏輯                                                                                           |
+| -------------------- | --------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 青年局年度預算折線圖 | `budgetTrend`（新增欄位，為陣列） | **F1** `youth_budgets`             | 只取 ROC 110–114 的 `row_type = total` 法定預算；預算案不混入法定預算趨勢 |
+| 青年總預算（當年）   | `TOTAL_BUDGET`                    | **F1** `youth_budgets`             | 取年度範圍內最新法定預算的 `row_type = total` 值 |
+| 預算 YoY             | `BUDGET_YOY`                      | **F1** `youth_budgets`（跨年）     | `(今年 total value − 去年 total value) ÷ 去年 total value × 100%`                                  |
+| 預算執行率           | `BUDGET_EXECUTION_RATE`           | **F1** `youth_budgets`（含 `final_settlement`） | `決算實現數 ÷ 法定預算數 × 100%`，公式留在 analytics |
 
-> 範圍 **0–100**，由 5 個面向子指數加權合成。此指數用於主頁地圖著色及排行表。
+> ✅ **備註：決算 analytics 已接**
+> `youth_budgets` 已從青年局「統計專區 → 預決算公告」取得 `final_settlement`；目前可安全解析 ROC 113，ROC 111／112 PDF 是影像型並已保存 failure/artifact。`realized_amount`、`settlement_amount` 等欄位已保留，執行率由 analytics 以 `realized_amount / legal_budget_amount × 100%` 計算。
+> 無法解析的年度輸出 `executionRate=null` 並保留 `execution_failure`，不以 settlement amount 代替 realized amount。
+>
+> ⚠️ **備註：達成率欄位已移除**
+> 原因：18 個資料集中均無「政策 KPI 目標數」或「KPI 達成數」，無法計算。不以無資料支撐的公式顯示任何數值。
 
-#### 架構
+---
 
-```
-YOI = w₁·S_job + w₂·S_salary + w₃·S_talent + w₄·S_housing + w₅·S_transport
-```
+## 二、核心指數公式設計（Backend 需實作）
 
-其中 `w₁ + w₂ + w₃ + w₄ + w₅ = 1`
+### 1. 青年機會指數 Youth Opportunity Index（YOI）
 
-**建議權重**（可由使用者調整）：
+> 產生 `districts.csv` 的 `opportunityIndex`。範圍 **0–100**。
 
-| 面向 | 代號 | 建議權重 | 理由 |
-|------|------|---------|------|
-| 工作機會 | S_job | 0.25 | 就業機會是青年留才最核心的驅力 |
-| 薪資水準 | S_salary | 0.25 | 薪資與工作機會同等重要 |
-| 人才發展 | S_talent | 0.15 | 教育與培訓是長期發展基礎 |
-| 居住負擔 | S_housing | 0.20 | 居住成本是青年生活壓力的關鍵因素 |
-| 交通可及 | S_transport | 0.15 | 通勤便利性影響就業範圍 |
+#### 加權合成公式
 
-#### 子指數 S₁：工作機會（S_job）— 範圍 0–100
-
-```
-S_job = 0.50 × norm(每萬名青年職缺數)
-      + 0.30 × norm(職業多樣性_Shannon)
-      + 0.20 × norm(人才需求趨勢_YoY成長率)
+```text
+YOI = 0.25·S_job + 0.25·S_salary + 0.05·S_talent + 0.25·S_housing + 0.20·S_transport
 ```
 
-**各元素計算方式**：
+_(人才面向 S_talent 權重僅 0.05，原因：`college_majors` 為學校所在地而非學生戶籍地，會集中在淡水、新莊、三峽、板橋少數幾區，其餘區為 0，不具區分力)_
 
-| 元素 | 公式 | 資料源 |
-|------|------|--------|
-| 每萬名青年職缺數 | (該區職缺總數 ÷ 該區 18–35 人口) × 10,000 | **C1.1**（台灣就業通職缺 by zipno）÷ **A1** |
-| 職業多樣性 (Shannon Index) | H = −Σ pᵢ ln(pᵢ)，pᵢ = 該區第 i 類職業的職缺占比 | **C1.2**（職缺 CJOB_NAME1/CJOB_NAME2） |
-| 人才需求趨勢 | (本年度求才人數 − 上年度求才人數) ÷ 上年度求才人數 × 100% | **C1.3**（勞動部求才僱用人數） |
+#### 標準化函數
 
-#### 子指數 S₂：薪資水準（S_salary）— 範圍 0–100
+所有子數值在加權前先做 **Min-Max 標準化（截斷 P5/P95 極端值）**：
 
+```text
+x_clipped = clip(x, P5, P95)
+norm(x)   = (x_clipped - min(x_clipped)) / (max(x_clipped) - min(x_clipped)) × 100
+norm_inv(x) = 100 - norm(x)   ← 反向指標用（數值越高，分數越低）
 ```
+
+若 max = min（29 區值相同），則 norm = 50。
+
+---
+
+#### S₁：工作機會（S_job）
+
+```text
+S_job = 0.50 × norm(每萬青年職缺數)
+      + 0.30 × norm(職業多樣性 Shannon Index)
+      + 0.20 × norm(人才需求趨勢 YoY)
+```
+
+| 元素             | 計算方式                                                                | 資料源                                         | 說明                                                                                                                 |
+| ---------------- | ----------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 每萬青年職缺數   | `(該區職缺總數 ÷ 該區 youth_18_35_total) × 10,000`                      | **C1.1** `job_vacancies` ÷ **A1** `population` | 使用 `position_count` 加總；只用 `geo_level=district` 的筆數                                                         |
+| 職業多樣性       | `H = −Σ pᵢ·ln(pᵢ)`，pᵢ = 職業類別 i 的職缺占比（依 raw 的職業類別欄位） | **C1.2** `job_vacancies`                       | Shannon Entropy，越高代表職業越多樣                                                                                  |
+| 人才需求趨勢 YoY | `(本年 new_demand_count − 上年) ÷ 上年 × 100%`                          | **C1.3** `talent_demand`                       | ⚠️ 此資料為**全國**粒度；29 區共用同一值，品質報告標示為 national proxy，不宣稱為區級觀測值 |
+
+---
+
+#### S₂：薪資水準（S_salary）
+
+```text
 S_salary = 0.40 × norm(職缺刊登薪資中位數)
          + 0.30 × norm(高薪職缺比例)
-         + 0.30 × norm(青年薪資_縣市級)
+         + 0.30 × norm(各區調整後青年薪資_估算值)
 ```
 
-| 元素 | 公式 | 資料源 |
-|------|------|--------|
-| 職缺刊登薪資中位數 | 各區所有職缺 (NT_L + NT_U)/2 的中位數 | **C2.2** |
-| 高薪職缺比例 | 該區刊登薪資 > 全市中位數 × 1.5 的職缺數 ÷ 該區總職缺數 | **C2.3**（衍生自 C2.2） |
-| 青年薪資 | 主計總處受僱員工 25–29 歲年薪（縣市級，各區共用新北市數值） | **C2.1** |
+| 元素               | 計算方式                                                 | 資料源                            | 說明                                             |
+| ------------------ | -------------------------------------------------------- | --------------------------------- | ------------------------------------------------ |
+| 職缺薪資中位數     | 各區有薪資職缺的 `salary_midpoint` 中位數                | **C2.2** `job_vacancy_salaries`   | 需過濾 `salary_midpoint` 為 null 的單邊薪資資料  |
+| 高薪職缺比例       | `薪資 > 全市中位數 × 1.5 的職缺數 ÷ 該區總職缺數`        | **C2.3**（衍生自 **C2.2**）       | 全市中位數以 `job_vacancy_salaries` 全部筆數計算 |
+| 各區調整後青年薪資 | **以房價做空間分布代理**，估算各區實際薪資（見下方邏輯） | **C2.1** `wages` + `house_prices` | 解決官方薪資僅到縣市層級的問題                   |
 
-#### 子指數 S₃：人才發展（S_talent）— 範圍 0–100
+#### 📝 各區調整後青年薪資 推算邏輯 (以房價做代理)
 
-> [!WARNING]
-> MD 檔備註指出：教育部資料是「學校所在地」非「青年居住地」，大專校院集中在淡水、新莊、三峽、板橋等少數幾區，其餘區會是 0。建議此面向**降至縣市級**或改成跨區可及的職訓資源。下方公式以「可及職訓資源」為主、教育資源為輔。
+經濟學上薪資與房價高度正相關。我們使用時間跨度長、穩定的房價資料來反推各區薪資：
+_(註：此處推算薪資時，使用_*「所有種類」*_的平均房價數據，包含住宅用與工業用，以全面反映地方經濟能量。)_
 
-```
-S_talent = 0.30 × norm(區內及鄰區大專學生數密度)
+1. **計算房價相對指數**：`price_ratio(d, year) = MEDIAN(house_prices[d, year]) / MEDIAN(house_prices[全市, year])`
+2. **分配縣市級薪資到區**：`estimated_wage(d, year) = wages[新北市, year, 25-29歲] × price_ratio(d, year)`
+3. _(可選驗證)_：計算 `CORR(estimated_wage(d), MEDIAN(job_vacancy_salaries[d]))`，若 `R² > 0.7` 則分配可信。
+
+---
+
+#### S₃：人才發展（S_talent）
+
+```text
+S_talent = 0.30 × norm(大專學生數密度)
          + 0.35 × norm(職訓課程數)
          + 0.35 × norm(訓練人次_每萬青年)
 ```
 
-| 元素 | 公式 | 資料源 |
-|------|------|--------|
-| 大專學生數密度 | 該區大專在校學生數 ÷ 該區面積 (km²) | **C3.1** + **A4** |
-| 職訓課程數 | 該區（依辦訓地址地理編碼）的職訓課程數 | **C3.3** |
-| 訓練人次 per 萬青年 | (區內訓練人次 ÷ 區 18–35 人口) × 10,000 | **C3.4** ÷ **A1** |
+| 元素            | 計算方式                                                            | 資料源                               | 說明                                                                                                 |
+| --------------- | ------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| 大專學生數密度  | `該區 student_count 加總 ÷ 該區面積 km²`                            | **C3.1** `college_majors`            | ⚠️ 縣市級（學校所在地），全部集中在少數區；其餘區為 0。故 S_talent 權重已降至 0.05                   |
+| 職訓課程數      | 該區 `distinct_course_count`                                        | **C3.3** `vt_courses`                | ⚠️ 目前只有五股（32）、泰山（42）兩區有資料，其他 27 區均為 null → 建議先對這 27 區給予全市最低值 32 |
+| 訓練人次/萬青年 | `(新北市 training_people 加總 ÷ 新北市 youth_18_35_total) × 10,000` | **C3.4** `training_numbers` ÷ **A1** | ⚠️ 縣市級，無法拆到區；29 區共用同一值                                                               |
 
-> [!NOTE]
-> 若 C3.3/C3.4 無法精確到區級，可先用新北市整體數值等分，或以「該區到最近職訓據點的距離反比」做加權。
+---
 
-#### 子指數 S₄：居住負擔（S_housing）— 範圍 0–100（**反向指標**）
+#### S₄：居住負擔（S_housing）— **反向指標**
 
-> 居住負擔越重 → 分數越低。因此在 norm 時做反轉：`norm_inv(x) = 1 − norm(x)`
-
-```
+```text
 S_housing = 0.35 × norm_inv(租金中位數)
-          + 0.35 × norm_inv(房價中位數_per_m²)
+          + 0.35 × norm_inv(房價中位數_per_ping)
           + 0.30 × norm_inv(租金薪資比)
 ```
 
-| 元素 | 公式 | 資料源 |
-|------|------|--------|
-| 租金中位數 | 該區當期不動產租賃實價登錄中位數 | **C4.1** |
-| 房價中位數 per m² | 該區不動產買賣實價登錄 ÷ 坪數 → 轉 m² | **C4.2** |
-| 租金薪資比 | 月租金中位數 ÷ 該區職缺薪資中位數（C2.2） | **C4.3** = **C4.1** ÷ **C2.2** |
+| 元素               | 計算方式                                      | 資料源                  | 說明                                                                                            |
+| ------------------ | --------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
+| 租金中位數         | 各區所有 `rent_total` 的中位數                | **C4.1** `rentals`      | ⚠️ 缺坪林、平溪兩區；這兩區給予 29 區最低租金值                                                 |
+| 房價中位數（每坪） | 各區「**限定住宅用**」`price_per_ping` 中位數 | **C4.2** `house_prices` | ⚠️ 為反映真實居住負擔，**排除工業用房價**。例外：平溪因缺乏住宅專門數據，特例使用「所有」房價。 |
+| 租金薪資比         | `各區租金中位數 ÷ 各區職缺薪資中位數（C2.2）` | **C4.3**（衍生）        | 衡量租屋對薪資的壓力                                                                            |
 
-#### 子指數 S₅：交通可及（S_transport）— 範圍 0–100
+---
 
-```
+#### S₅：交通可及（S_transport）
+
+```text
 S_transport = 0.35 × norm(每萬青年公車站數)
             + 0.40 × norm(軌道站點密度)
             + 0.25 × norm(公共自行車站點密度)
 ```
 
-| 元素 | 公式 | 資料源 |
-|------|------|--------|
-| 每萬青年公車站數 | (區內公車站數 ÷ 區 18–35 人口) × 10,000 | **C5.4** = **C5.1** ÷ **A1** |
-| 軌道站點密度 | 區內軌道站點數 ÷ 區面積 km² | **C5.2** ÷ **A4** |
-| 公共自行車站點密度 | 區內 YouBike 站點數 ÷ 區面積 km² | **C5.3** ÷ **A4** |
+| 元素               | 計算方式                                                  | 資料源                            | 說明                                                  |
+| ------------------ | --------------------------------------------------------- | --------------------------------- | ----------------------------------------------------- |
+| 每萬青年公車站數   | `(各區 bus_stops 筆數 ÷ 該區 youth_18_35_total) × 10,000` | **C5.1** `bus_stops` ÷ **A1**     | 28,845 筆可映射到區；4,149 筆 `district_id=null` 排除 |
+| 軌道站點密度       | `各區 railway_stops 筆數 ÷ 該區面積 km²`                  | **C5.2** `railway_stops` ÷ **A4** | 目前只有 18 區有站點；其餘 11 區給值 0                |
+| 公共自行車站點密度 | `各區 bike_stops 筆數 ÷ 該區面積 km²`                     | **C5.3** `bike_stops` ÷ **A4**    | 1,595 筆可映射；5 筆 `district_id=null` 排除          |
 
-#### 標準化函數 `norm(x)`
-
-對 29 區的原始值做 **Min-Max 標準化** 後映射至 0–100：
-
-```
-norm(xᵢ) = (xᵢ − min(x)) / (max(x) − min(x)) × 100
-```
-
-- 若 max = min（所有區相同），則 norm = 50
-- 反向指標 `norm_inv(xᵢ) = 100 − norm(xᵢ)`
-- 為避免極端值扭曲，建議先以 **5th / 95th 百分位** 做 clip：
-  ```
-  xᵢ_clipped = clip(xᵢ, P₅, P₉₅)
-  ```
-
-#### YOI 等級判定
-
-| 分數範圍 | 等級 | 地圖顯示文字 |
-|---------|------|-----------|
-| 80–100 | 優良 | 機會充沛 |
-| 60–79 | 穩定 | 穩定 |
-| 40–59 | 普通 | 待改善 |
-| 0–39 | 偏低 | 機會不足 |
+> ⚠️ **A4（各區面積）**：`data_description.md` 中無此資料集。建議從 GeoJSON 地圖邊界（新北市 29 區界線，已在前端 `useNewTaipeiTopology` 使用）計算各區面積 km²，或直接使用內政部公告的行政區面積查詢表。
 
 ---
 
-### 指數 B：留才風險等級 Retention Risk
+### 2. 留才風險評級（Retention Risk Level）
 
-> 顯示在主頁排行表的第 4 欄。非數值，而是 **低 / 中 / 高** 三級。
+> 產生 `districts.csv` 的 `retentionRiskLevel`。
 
-#### 公式
+**採用最簡化方法：直接對 YOI 值做四分位切分**。
+機會越高的行政區，留才風險越低；不需額外的複合公式。
 
+```text
+計算所有 29 區的 opportunityIndex 清單，取：
+  Q1 = 第 25 百分位數
+  Q3 = 第 75 百分位數
+
+若 opportunityIndex >= Q3 → retentionRiskLevel = 'low'
+若 opportunityIndex <= Q1 → retentionRiskLevel = 'high'
+否則                      → retentionRiskLevel = 'medium'
 ```
-Retention_Risk_Score = 
-    0.30 × norm_inv(YOI)                        // 機會指數越低 → 風險越高
-  + 0.30 × norm_inv(青年人口YoY)                 // 人口負成長越嚴重 → 風險越高
-  + 0.20 × norm_inv(Cohort_Retention_Signal)     // 世代留存越差 → 風險越高
-  + 0.20 × norm(淨遷出率)                        // 淨遷出越多 → 風險越高
-```
-
-| 元素 | 公式 | 資料源 |
-|------|------|--------|
-| YOI | 上方計算的青年機會指數 | 衍生 |
-| 青年人口 YoY | (今年 18–35 人口 − 去年) ÷ 去年 × 100% | **B4** ← **A1** 跨年 |
-| Cohort Retention Signal | (今年 N+1 歲人口 ÷ 去年 N 歲人口)，取 18→19…34→35 的中位數 | **A1** 跨年逐齡 |
-| 淨遷出率 | (遷出 − 遷入) ÷ 區 18–35 人口 × 100% | **A5** ÷ **A1** |
-
-#### 等級判定
-
-| Risk Score 範圍 | 等級 | 標籤顏色 |
-|---------------|------|---------|
-| 0–33 | 低 | 🟢 綠色 |
-| 34–66 | 中 | 🟡 橘色 |
-| 67–100 | 高 | 🔴 紅色 |
 
 ---
 
-### 指數 C：青年參選密度（主頁區塊 3 顯示）
+## 三、Backend API 資料計算 Pseudocode（歷史公式示意）
 
-> 主頁只顯示**一個全市彙總的 % 數字**，而非各區。
+> 以下程式碼保留原始 MD 的公式說明，實際執行契約以
+> `data-pipeline/src/analytics/homepage.py` 為準；目前已接入 T1／V1、服務涵蓋率、決算狀態與缺值 quality metadata。
 
-#### 公式
+```python
+def generate_homepage_data(snapshot_date, year):
+    """
+    產生首頁所需的全部資料。
+    snapshot_date: 職缺/交通快照日期（目前只有 2026-09-03）
+    year: 主要統計年份（建議用最新完整年）
+    """
 
+    # ── 拉取原始資料 ──────────────────────────────────────────
+    pop      = db.get("population", year)          # A1
+    pop_prev = db.get("population", year - 1)       # A1 上一年
+    births   = db.get("births", year)              # E1
+    vacancies        = db.get("job_vacancies")      # C1.1
+    vacancy_salaries = db.get("job_vacancy_salaries") # C2.2
+    wages    = db.get("wages", year)               # C2.1
+    houses   = db.get("house_prices")              # C4.2
+    rentals  = db.get("rentals")                   # C4.1
+    talent   = db.get("talent_demand", year)       # C1.3（全國）
+    college  = db.get("college_majors", year)      # C3.1（縣市）
+    vt       = db.get("vt_courses")                # C3.3（只有五股、泰山）
+    training = db.get("training_numbers")          # C3.4（縣市）
+    bus      = db.get("bus_stops")                 # C5.1
+    rail     = db.get("railway_stops")             # C5.2
+    bike     = db.get("bike_stops")                # C5.3
+    budgets  = db.get("youth_budgets")             # F1
+    district_areas = get_district_areas_from_geojson() # A4（由 GeoJSON 計算）
+
+    # ── Section 1：全市 KPI ───────────────────────────────────
+    city_youth_now  = sum(pop[d].youth_18_35_total for d in ALL_29_DISTRICTS)
+    city_youth_prev = sum(pop_prev[d].youth_18_35_total for d in ALL_29_DISTRICTS)
+    city_total_pop  = sum(pop[d].people_total for d in ALL_29_DISTRICTS)
+
+    kpi = {
+        "nationalYouthPop": NATIONAL_CONST or sum_from_all_counties(pop),
+        "cityYouthShare":   city_youth_now / city_total_pop * 100,
+        "youthPopYoY":      (city_youth_now - city_youth_prev) / city_youth_prev * 100,
+    }
+
+    # ── 預計算全市中位數（薪資用）────────────────────────────
+    all_salary_midpoints = [v.salary_midpoint for v in vacancy_salaries if v.salary_midpoint]
+    city_salary_median   = median(all_salary_midpoints)
+    high_salary_threshold = city_salary_median * 1.5
+
+    # ── 薪資代理計算 (利用房價) ──────────────────────────────
+    # 注意：推算薪資使用「全部種類」的房價
+    all_house_median = median([h.price_per_ping for h in houses if h.price_per_ping])
+    city_base_wage = wages["25-29"].value
+
+    estimated_wages = {}
+    for d in ALL_29_DISTRICTS:
+        d_houses_all = [h.price_per_ping for h in houses if h.district_id == d and h.price_per_ping]
+        if d_houses_all:
+            price_ratio = median(d_houses_all) / all_house_median
+            estimated_wages[d] = city_base_wage * price_ratio
+        else:
+            estimated_wages[d] = city_base_wage  # Fallback
+
+    # ── 全國人才需求趨勢 YoY（全國共用）─────────────────────
+    talent_now  = sum(t.new_demand_count for t in talent[year])
+    talent_prev = sum(t.new_demand_count for t in talent[year-1])
+    talent_yoy  = (talent_now - talent_prev) / talent_prev * 100
+
+    # ── Section 2：29 區迴圈 ─────────────────────────────────
+    raw_scores = []  # 暫存各子指標原始值，用於後續 norm
+
+    for d in ALL_29_DISTRICTS:
+        area = district_areas[d]
+        pop_youth = pop[d].youth_18_35_total
+
+        # S_job 原始值
+        vac_count    = sum(v.position_count for v in vacancies if v.district_id == d)
+        per_10k_vac  = (vac_count / pop_youth) * 10000 if pop_youth else 0
+        shannon      = calc_shannon_entropy(vacancies, d)  # pᵢ = 各職業類別占比
+
+        # S_salary 原始值
+        d_salaries   = [v.salary_midpoint for v in vacancy_salaries
+                        if v.district_id == d and v.salary_midpoint]
+        salary_median = median(d_salaries) if d_salaries else 0
+        high_sal_ratio = len([s for s in d_salaries if s > high_salary_threshold]) / len(d_salaries) if d_salaries else 0
+        adj_youth_wage = estimated_wages[d] # 來自上述代理計算
+
+        # S_talent 原始值（縣市或缺值共用）
+        college_density = sum(c.student_count for c in college) / area  # 縣市共用學生總數
+        vt_courses   = vt.get(d, {"distinct_course_count": 32}).distinct_course_count  # 缺值給最低值 32
+        train_per_10k = (sum(t.training_people for t in training) / city_youth_now) * 10000  # 縣市共用
+
+        # S_housing 原始值
+        rent_med   = median([r.rent_total for r in rentals if r.district_id == d]) if has_data(rentals, d) else city_min_rent
+
+        # 居住負擔限定「住宅用」(平溪例外)
+        d_houses_res = [h.price_per_ping for h in houses if h.district_id == d and h.price_per_ping and h.transaction_type == '住宅用']
+        if not d_houses_res and d == '平溪區':
+            d_houses_res = [h.price_per_ping for h in houses if h.district_id == d and h.price_per_ping] # 降級使用全部
+        house_med = median(d_houses_res) if d_houses_res else city_min_house_res
+
+        rent_wage_ratio = rent_med / salary_median if salary_median else 0
+
+        # S_transport 原始值
+        bus_count  = len([b for b in bus  if b.district_id == d])
+        rail_count = len([r for r in rail if r.district_id == d])
+        bike_count = len([b for b in bike if b.district_id == d])
+        bus_per_10k      = (bus_count / pop_youth) * 10000 if pop_youth else 0
+        rail_density     = rail_count / area if area else 0
+        bike_density     = bike_count / area if area else 0
+
+        raw_scores.append({
+            "id": d,
+            "per_10k_vac":    per_10k_vac,
+            "shannon":         shannon,
+            "talent_yoy":      talent_yoy,     # 全國共用
+            "salary_median":   salary_median,
+            "high_sal_ratio":  high_sal_ratio,
+            "adj_youth_wage":  adj_youth_wage,  # 來自代理計算
+            "college_density": college_density, # 縣市共用
+            "vt_courses":      vt_courses,
+            "train_per_10k":   train_per_10k,  # 縣市共用
+            "rent_med":        rent_med,
+            "house_med":       house_med,
+            "rent_wage_ratio": rent_wage_ratio,
+            "bus_per_10k":     bus_per_10k,
+            "rail_density":    rail_density,
+            "bike_density":    bike_density,
+        })
+
+    # ── 對所有區做 Min-Max 標準化（先截斷 P5/P95）──────────
+    def normalize_col(col):   return [minmax_with_clip(v[col]) for v in raw_scores]
+    def normalize_inv(col):   return [100 - v for v in normalize_col(col)]
+
+    # ── 計算 YOI 並決定留才風險 ──────────────────────────────
+    districts_result = []
+    yoi_list = []
+
+    for i, d_raw in enumerate(raw_scores):
+        s_job     = (0.50 * norm_per_10k_vac[i]
+                   + 0.30 * norm_shannon[i]
+                   + 0.20 * norm_talent_yoy[i])
+        s_salary  = (0.40 * norm_salary_median[i]
+                   + 0.30 * norm_high_sal_ratio[i]
+                   + 0.30 * norm_adj_youth_wage[i])
+        s_talent  = (0.30 * norm_college_density[i]
+                   + 0.35 * norm_vt_courses[i]
+                   + 0.35 * norm_train_per_10k[i])
+        s_housing = (0.35 * norm_inv_rent_med[i]
+                   + 0.35 * norm_inv_house_med[i]
+                   + 0.30 * norm_inv_rent_wage_ratio[i])
+        s_transport = (0.35 * norm_bus_per_10k[i]
+                     + 0.40 * norm_rail_density[i]
+                     + 0.25 * norm_bike_density[i])
+
+        yoi = (0.25*s_job + 0.25*s_salary + 0.05*s_talent
+             + 0.25*s_housing + 0.20*s_transport)
+        yoi_list.append(yoi)
+
+    # 計算 Q1/Q3 做留才風險分級
+    q1 = percentile(yoi_list, 25)
+    q3 = percentile(yoi_list, 75)
+
+    # ── Section 3：生育率 ─────────────────────────────────────
+    city_births   = sum(b.value for b in births)
+    city_female   = sum(pop[d].youth_18_35_female for d in ALL_29_DISTRICTS)
+    city_fert_avg = (city_births / city_female) * 1000
+
+    # ── Section 4：施政預算折線圖 ────────────────────────────
+    budget_trend = [
+        {"year": row.budget_year_roc, "value_thousand": row.value}
+        for row in budgets if row.row_type == "total"
+    ]  # ROC 110–114；缺少來源的年度保留 unavailable
+
+    # 計算預算 YoY（最新年 vs 前一年）
+    sorted_budgets = sorted(budget_trend, key=lambda x: x["year"])
+    budget_yoy = (
+        (sorted_budgets[-1]["value_thousand"] - sorted_budgets[-2]["value_thousand"])
+        / sorted_budgets[-2]["value_thousand"] * 100
+    ) if len(sorted_budgets) >= 2 else None
+
+    # ── 組合最終輸出 ──────────────────────────────────────────
+    for i, d in enumerate(ALL_29_DISTRICTS):
+        yoi = round(yoi_list[i], 1)
+        districts_result.append({
+            "id":                   d,
+            "name":                 district_names[d],
+            "opportunityIndex":     yoi,
+            "retentionRiskLevel":   "low" if yoi >= q3 else ("high" if yoi <= q1 else "medium"),
+            # YOI 不產生歷年 delta；T1 保留選舉區，V1 才能回填行政區。
+            # 正式輸出使用最新 V1 的 youth_candidacy_rate。
+            "youthParticipationIndex": v1_participation_by_district.get(d),
+            # 服務涵蓋率使用里級人口與 GeoJSON 面積交集；無驗證點不補成 0。
+            # f_v = polygon_v.intersection(B).area / polygon_v.area
+            # cov_rate = sum(f_v * pop_v) / pop_district
+            "serviceCoverageRate":     calculate_areal_interpolation_coverage(d),
+            "fertilityRate":        (births_by_district[d] / pop[d].youth_18_35_female) * 1000,
+            "fertilityVsCityAvg":   ((births_by_district[d] / pop[d].youth_18_35_female) * 1000) / city_fert_avg * 100,
+        })
+
+    return {
+        "kpi":      kpi,
+        "districts": districts_result,
+        "policy": {
+            "budgetTrend":          budget_trend,
+            "currentBudget":        sorted_budgets[-1]["value_thousand"],
+            "budgetYoY":            budget_yoy,
+            "executionRate":        latest_budget_execution_rate,
+        }
+    }
 ```
-青年參選密度 = (18–35 歲候選人數 ÷ 全部候選人數) × 100%
-```
-
-- preview 圖上寫「20–35 歲候選人比例 = 12.8%」
-- YoY 變動 = 本屆密度 − 上屆密度
-
-#### 主頁地圖 — 各區參政強度
-
-各區氣泡圖需一個綜合分數，建議使用 MD 檔中列出的 6 項指標中**可取得的 3 項**做簡化版：
-
-```
-區參政強度 = 0.40 × norm(青年參選密度_區)
-           + 0.30 × norm(里長青年占比_區)
-           + 0.30 × norm(參選傾向比_區)
-```
-
-| 指標 | 公式（依照 MD 檔定義） | 資料源 |
-|------|------|--------|
-| 青年參選密度（區） | 18–35 候選人數 ÷ P₁₈₋₃₅ × 100,000 | **D**（選舉資料）+ **A1** |
-| 里長青年占比 | 18–35 歲里長當選人 ÷ 全區里長席次 | **D** |
-| 參選傾向比 | (青年候選人 ÷ 青年人口) ÷ (全體候選人 ÷ 成年人口) | **D** + **A1** |
-
-> [!IMPORTANT]
-> MD 檔中標示「青年參政所有相關資料」的 Checkbox = **No**，代表這塊資料目前**未取得**。建議優先確認選舉委員會公報是否有候選人年齡或出生年月，若無則此區塊需改為占位或用有限的公開資料（如中選會各年齡層選舉人人數統計表）呈現。
 
 ---
 
-### 指數 D：市府資源分布評分（主頁區塊 4 右側）
+## 四、目前剩餘資料工作（不改公式）
 
-> Preview 中顯示 **78.5 分**，代表各區青年生育相關市府資源的綜合分數。
+| 項目                | 說明                                                                                            | 影響欄位                       |
+| ------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------ |
+| 🟡 決算 OCR           | ROC 111／112 影像型決算 PDF 已保存 artifact；完成 OCR 後才能補齊這兩年的 `executionRate`       | `BUDGET_EXECUTION_RATE`        |
+| ✅ 真實資料刷新       | 已完成 ROC 110–114 年度資料與最新快照；後續依來源更新週期重跑即可更新 source periods、筆數與 failures             | 全部 quality metadata          |
+| 🟡 前端接線           | 前端 adapter 讀取 `analytics/homepage/all.json`，依 `status`／`null` 顯示缺值，不在前端重算 | 首頁各 UI 欄位                 |
 
-#### 公式
-
-```
-市府資源分布評分 = 0.40 × norm(生育補助金額_區)
-                + 0.30 × norm(托育資源覆蓋率_區)
-                + 0.30 × norm(青年生育相關計畫數_區)
-```
-
-映射至 **0–100** 區間後取全市平均作為主頁顯示數值。
-
-| 元素 | 計算方式 | 資料源 |
-|------|---------|--------|
-| 生育補助金額 | 各區青年生育相關補助的總金額 | 需自行整理（新北市青年局/社會局公開補助清單） |
-| 托育資源覆蓋率 | 以托育機構為中心劃緩衝區，計算涵蓋的青年人口比例（類似 MD 中服務涵蓋率算法） | 類似 **D4** 算法 + **A1** |
-| 計畫數 | 各區有多少青年生育相關計畫/方案 | 需自行整理（青年局/社會局/衛福部資料） |
-
-> [!NOTE]
-> 此指標的資料源在 CSV 中標為 **F1**（青年政策清單 + 預算，Checkbox = No），目前尚未接入 pipeline。若短期無法取得，建議先以「各區托育機構密度 × 已知補助方案數」做簡化估算。
-
----
-
-### 指數 E：生育補助涵蓋率（主頁區塊 4 右側）
-
-```
-生育補助涵蓋率 = 有提供青年生育補助的行政區數 ÷ 29 × 100%
-```
-
-或更細緻的定義：
-
-```
-生育補助涵蓋率 = Σ(各區有補助的青年女性人口) ÷ 全市 18–35 女性人口 × 100%
-```
-
-| 資料源 |
-|--------|
-| **A2**（各區 18–35 女性人口）+ 青年生育補助政策清單（**F1** 待整理） |
-
----
-
-### 指數 F：政策成效 — 預算執行率 & 目標達成率（主頁區塊 5）
-
-#### 預算執行率
-
-```
-預算執行率 = 決算執行數 ÷ 法定預算數 × 100%
-```
-
-- 資料源：MD 中提到的 **D6**（新北市青年局預算/決算、主計處資料）
-
-#### 目標達成率
-
-```
-目標達成率 = 已達成的 KPI 數 ÷ 總 KPI 數 × 100%
-```
-
-或依具體政策：
-
-```
-目標達成率 = 實際受益人數 ÷ 預定受益人數 × 100%
-```
-
-- 資料源：**F2**（政策成效指標，Checkbox = No），需從青年局年報或審計報告中提取。
-
----
-
-## 三、各區塊完整資料源對應表
-
-### 區塊 1：青年就業與發展機會 — KPI 卡片
-
-| 顯示項目 | 使用的資料源編號 | 計算方式 |
-|--------|-------------|---------|
-| 全台 18–35 歲青年人口 | **B2** ← **A1** 全國彙總 | SUM(全國各縣市 18–35 歲人口) |
-| 較去年變動率 (全國) | **B2** + **A1** (去年) | (今年全國青年人口 − 去年) ÷ 去年 |
-| 青年占總人口比例 | **B3** ← **A1** | 新北市 18–35 人口 ÷ 新北市總人口 |
-| 較去年變動 (占比) | **B3** (去年 vs 今年) | 今年占比 − 去年占比 |
-| 青年人口年增率 | **B4** ← **A1** 跨年 | (今年新北 18–35 − 去年) ÷ 去年 × 100% |
-| 趨勢附註 | **A1** 5–10 年歷史 | 用線性回歸斜率判斷：正→成長、負→下降、接近0→持平 |
-
----
-
-### 區塊 2：29 區青年機會指數地圖 + 排行表
-
-| 顯示項目 | 使用的資料源編號 | 計算方式 |
-|--------|-------------|---------|
-| 地圖底圖 (29 區 geometry) | **A3** | GeoJSON polygon |
-| 地圖著色 (青年機會指數) | **C1.1, C1.2, C1.3, C2.1, C2.2, C2.3, C3.1, C3.3, C3.4, C4.1, C4.2, C4.3, C5.1, C5.2, C5.3, A1, A4** | 上方 YOI 公式 |
-| 地圖 Tooltip 職缺數 | **C1.1** | 該區當期職缺總數 |
-| 地圖 Tooltip 軌道站點 | **C5.2** | 該區軌道站點數 |
-| 排行表 — 行政區 | **A3** | TOWNNAME |
-| 排行表 — 機會指數 | 同上 YOI | 0–100 |
-| 排行表 — 年增率 | **B4** ← **A1** | 該區青年人口 YoY |
-| 排行表 — 留才風險 | **A1, A5, B4** + YOI | 上方 Retention Risk 公式 |
-| 密度/趨勢切換 | **A1** (多年) + **A4** | 密度 = 青年人口 ÷ 面積；趨勢 = 多年 YoY 折線 |
-
----
-
-### 區塊 3：青年參政概況
-
-| 顯示項目 | 使用的資料源編號 | 計算方式 |
-|--------|-------------|---------|
-| 青年參選密度 (全市) | **D** + **A1** | 18–35 候選人 ÷ 全部候選人 × 100% |
-| YoY 變動 | **D** (跨屆) | 本屆密度 − 上屆密度 |
-| 各區氣泡圖 | **D** + **A1** + **A3** | 各區參政強度（見上方公式） |
-
----
-
-### 區塊 4：青年生育與成家
-
-| 顯示項目 | 使用的資料源編號 | 計算方式 |
-|--------|-------------|---------|
-| 總生育率 vs 平均生育率 地圖 | **E1** + **E2** + **A2** + **A3** | E1：各區嬰兒出生數；E2 = E1 ÷ 區 18–35 女性人口 |
-| 疊加機會指數 | 上方 **YOI** | 地圖上疊加 YOI 等高線或雙色 |
-| 市府資源分布評分 | **F1** (待整理) + **A1** | 見上方指數 D 公式 |
-| 生育補助涵蓋率 | **A2** + **F1** (待整理) | 見上方指數 E 公式 |
-| AI 數據分析洞察 | **E1, E2, YOI, F1** | AI 讀取以上彙總值，分析相關性並生成文字 |
-
----
-
-### 區塊 5：施政協助與政策支援
-
-| 顯示項目 | 使用的資料源編號 | 計算方式 |
-|--------|-------------|---------|
-| 政策名稱 + 執行狀態 | **F1** | 青年政策清單 |
-| 預算執行率 | **F2** ← 青年局預算決算 (**D6** in MD) | 決算 ÷ 法定預算 × 100% |
-| 目標達成率 | **F2** | 實際 KPI ÷ 目標 KPI × 100% |
-| AI 政策輔助 | **F3** ← A–E 彙總 + **F4** 指標字典 | 使用者輸入 → AI Service → 結構化回應 |
-
----
-
-## 四、完整資料源依賴彙整（主頁所需）
-
-下表列出主頁所需的**所有資料源**，以及其目前是否已接入 pipeline：
-
-| 資料源編號 | 項目名稱 | 主頁用到的區塊 | 已接 Pipeline? | 優先級 |
-|---------|---------|------------|---------------|-------|
-| **A1** | 各區 18–35 單齡人口（男/女、按月） | ①②③④ | ✅ Yes | 🔴 必須 |
-| **A2** | 各區 18–35 女性人口 | ④ | ✅ Yes | 🔴 必須 |
-| **A3** | 鄉鎮市區界線 GeoJSON | ②③④ | ❌ No | 🔴 必須 |
-| **A4** | 各區面積 km² | ② | ❌ No（可由 A3 算出） | 🟡 中 |
-| **A5** | 遷入／遷出 | ② | ✅ Yes | 🟡 中 |
-| **B2** | 全台 18–35 青年人口 | ① | ✅ Yes | 🔴 必須 |
-| **B3** | 青年占總人口比例 | ① | ✅ Yes | 🔴 必須 |
-| **B4** | 青年人口年增率 YoY | ①② | ✅ Yes | 🔴 必須 |
-| **C1.1** | 每萬名青年職缺數 | ② | ✅ Yes | 🔴 必須 |
-| **C1.2** | 職業多樣性 (Shannon) | ② | ❌ No（需計算） | 🟡 中 |
-| **C1.3** | 人才需求趨勢 | ② | ✅ Yes | 🟡 中 |
-| **C2.1** | 青年薪資（縣市級） | ② | ✅ Yes | 🟡 中 |
-| **C2.2** | 職缺刊登薪資 | ② | ✅ Yes | 🔴 必須 |
-| **C2.3** | 高薪職缺比例 | ② | ❌ No（衍生自 C2.2） | 🟡 中 |
-| **C3.1** | 大學科系／學生數 | ② | ✅ Yes | 🟡 中 |
-| **C3.3** | 職訓課程數 | ② | ✅ Yes | 🟡 中 |
-| **C3.4** | 訓練人次 | ② | ✅ Yes | 🟡 中 |
-| **C4.1** | 租金中位數 | ② | ✅ Yes | 🔴 必須 |
-| **C4.2** | 房價中位數 | ② | ✅ Yes | 🔴 必須 |
-| **C4.3** | 租金 ÷ 薪資比 | ② | ❌ No（衍生） | 🟡 中 |
-| **C5.1** | 公車站點數 | ② | ✅ Yes | 🟡 中 |
-| **C5.2** | 軌道站點 | ② | ✅ Yes | 🟡 中 |
-| **C5.3** | 公共自行車站點 | ② | ✅ Yes | 🟡 中 |
-| **C5.4** | 每萬青年公車站數 | ② | ❌ No（衍生） | 🟡 中 |
-| **D** | 青年參政資料 | ③ | ❌ No | 🔴 必須（但資料缺） |
-| **E1** | 各區青年總生育人口 | ④ | ✅ Yes | 🔴 必須 |
-| **E2** | 各區平均生育人口 | ④ | ❌ No（衍生） | 🟡 中 |
-| **F1** | 青年政策清單 + 預算 | ④⑤ | ❌ No | 🟡 中 |
-| **F2** | 政策成效指標 | ⑤ | ❌ No | 🟡 中 |
-| **F3** | AI 決策輸入 | ④⑤ | ❌ No | 🟢 低（AI 服務層） |
-| **F4** | 指標字典 | ⑤ | ❌ No | 🟢 低（metadata） |
-
----
-
-## 五、待討論事項
-
-> [!IMPORTANT]
-> ### 1. 青年參政資料嚴重不足
-> MD 檔中標示 D 類資料 Checkbox = No，且備註「資料少到有點烙賽」。主頁區塊 3 的青年參選密度、各區氣泡圖**需要候選人年齡資料**，但目前查不到公開的區級資料。
-> 
-> **建議方案**：
-> - **Plan A**：從中選會選舉公報 PDF 人工擷取候選人出生年 → 計算年齡 → 分區統計
-> - **Plan B**：改為顯示「各年齡層選舉人人數」（中選會有，但只到縣市）搭配全市的青年參選比例
-> - **Plan C**：主頁此區塊改為「青年公共資源可及性」（用就業服務據點數 + 青年局補助案件數）
-
-> [!IMPORTANT]
-> ### 2. 施政協助區塊資料缺口
-> F1（政策清單 + 預算）和 F2（政策成效）的 Checkbox 都是 No，目前未接入 pipeline。主頁區塊 5 的預算執行率和目標達成率無資料源。
->
-> **建議方案**：
-> - 從青年局官網「統計專區」或「預決算公告」手動擷取年度預算/決算數據
-> - 短期可先用占位資料，後續補上
-
-> [!WARNING]
-> ### 3. 人才發展面向區級資料問題
-> C3（人才發展）的教育資料是「學校所在地」，非學生居住地。大部分區的學校數和學生數為 0。
->
-> **已在公式中做的處理**：將教育資源的權重降低 (30%)，提高職訓資源權重 (70%)。若職訓課程也無法精確到區，建議整個面向改用新北市統一值或以距離加權。
-
-> [!NOTE]
-> ### 4. 青年機會指數權重可調整
-> 上方 YOI 的五面向權重 (0.25, 0.25, 0.15, 0.20, 0.15) 是基於「就業和薪資為最核心驅力」的假設。如果團隊有不同的政策觀點（例如認為居住負擔應更重要），可以調整權重。建議在 UI 上提供權重調整 slider 讓使用者自訂。
+目前已完成的 analytics 包含：YOI 五個子指數、年度人口／生育率／預算、T1／V1
+青年參選事件，以及服務涵蓋率 spatial 計算。資料不足時輸出品質狀態，不以
+補零方式製造數值。

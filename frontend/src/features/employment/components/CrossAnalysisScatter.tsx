@@ -39,9 +39,9 @@ const CHARTS: ScatterChart[] = [
   },
   {
     id: "housing-salary",
-    chartTitle: "房價所得比與平均薪資關聯（各行政區）",
+    chartTitle: "房價與平均薪資關聯（各行政區）",
     xLabel: "青年平均月薪 (萬元)",
-    yLabel: "房價所得比（倍）",
+    yLabel: "每坪平均房價 (萬元)",
     trend: { x1: 6, y1: 80, x2: 92, y2: 30 },
     points: [
       { x: 12, y: 74, urban: false },

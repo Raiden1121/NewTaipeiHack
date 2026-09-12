@@ -14,13 +14,14 @@ from collectors.Babysitting_place import fetch_babysitting_places
 from collectors.bike_stop import fetch_bike_stops
 from collectors.bus_stop import fetch_bus_stops
 from collectors.college_major import fetch_college_majors
+from collectors.college_school import fetch_college_school_locations
 from collectors.graduate_major import fetch_graduate_majors
 from collectors.house_price import fetch_house_prices
 from collectors.job_vacancy import fetch_new_taipei_job_vacancies
 from collectors.job_vacancy_salary import fetch_job_posted_salaries
 from collectors.marriage_nums import fetch_marriage_numbers
 from collectors.moving_in import fetch_moving
-from collectors.population_collector import fetch_population
+from collectors.population_collector import fetch_population, fetch_population_for_period
 from collectors.railway_stop import fetch_railway_stops
 from collectors.rental_price import fetch_rental_prices
 from collectors.talent_demand import fetch_talent_demand
@@ -28,7 +29,13 @@ from collectors.training_nums import fetch_training_numbers
 from collectors.vt_course import fetch_vt_courses
 from collectors.wage import fetch_wage
 from collectors.contracts import CollectedPayload
+from collectors.join_proposals import fetch_join_proposals
+from collectors.elections import fetch_elections
+from collectors.youth_council_minutes import fetch_youth_council_minutes
 from collectors.youth_budget import fetch_youth_budgets
+from collectors.youth_grants import fetch_youth_grants
+from collectors.youth_service_points import fetch_youth_service_points
+from collectors.village_boundaries import fetch_village_boundaries
 from collectors.errors import CollectorNoDataError
 from orchestration.contracts import CollectorSpec, ExecutionUnit, PeriodStrategy
 from orchestration.refresh import (
@@ -64,6 +71,7 @@ from transform.pipeline import canonicalize_dataset, dataset_requires_resolver, 
 
 
 LOGGER = logging.getLogger("data_pipeline")
+POPULATION_ELECTION_ANCHOR_PERIODS = frozenset({"10312", "10712", "11112"})
 
 
 def _collect_college(period: str) -> dict[str, Any]:
@@ -75,6 +83,7 @@ def _collect_college(period: str) -> dict[str, Any]:
         "detail_records": fetch_college_majors(
             academic_year=academic_year, county="新北市", include_student_detail=True
         ),
+        "school_locations": fetch_college_school_locations(),
     }
 
 
@@ -95,14 +104,53 @@ def _collect_wages(period: str) -> Any:
     return fetch_wage(county="新北市", year=period[:3])
 
 
+def _collect_population(period: str) -> Any:
+    """Use the historical source adapter when the period has one registered."""
+
+    return fetch_population_for_period(period, county="新北市")
+
+
 def _collect_youth_budgets(_period: str) -> CollectedPayload:
     """Fetch the current official list; period is execution provenance only."""
 
     return fetch_youth_budgets()
 
 
+def _collect_elections(_period: str) -> CollectedPayload:
+    """Fetch New Taipei T1/V1 candidate rosters for 2014/2018/2022."""
+
+    return fetch_elections()
+
+
+def _collect_youth_service_points(_period: str) -> CollectedPayload:
+    """Fetch the current Youth Bureau startup-base snapshot."""
+
+    return fetch_youth_service_points()
+
+
+def _collect_youth_grants(_period: str) -> CollectedPayload:
+    """Fetch all annual civil-organization grant detail documents."""
+
+    return fetch_youth_grants()
+
+
+def _collect_join_proposals(_period: str) -> CollectedPayload:
+    """Fetch all available nationwide join proposals."""
+
+    return fetch_join_proposals()
+
+
+def _collect_youth_council_minutes(_period: str) -> CollectedPayload:
+    """Fetch all discoverable Youth Bureau meeting records."""
+
+    return fetch_youth_council_minutes()
+
+
 DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
-    CollectorSpec("population", lambda period: fetch_population(period, county="新北市")),
+    CollectorSpec("population", _collect_population),
+    CollectorSpec(
+        "population_villages", lambda period: fetch_population(period, county="新北市")
+    ),
     CollectorSpec("movement", lambda period: fetch_moving(period, county="新北市")),
     CollectorSpec("births", _collect_births, PeriodStrategy.ANNUAL),
     CollectorSpec("marriages", _collect_marriages, PeriodStrategy.ANNUAL),
@@ -126,6 +174,18 @@ DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
     ),
     CollectorSpec("talent_demand", lambda period: fetch_talent_demand(), PeriodStrategy.ALL_AVAILABLE),
     CollectorSpec("youth_budgets", _collect_youth_budgets, PeriodStrategy.ALL_AVAILABLE),
+    CollectorSpec("youth_grants", _collect_youth_grants, PeriodStrategy.ALL_AVAILABLE),
+    CollectorSpec("elections", _collect_elections, PeriodStrategy.ALL_AVAILABLE),
+    CollectorSpec(
+        "youth_service_points", _collect_youth_service_points, PeriodStrategy.SNAPSHOT
+    ),
+    CollectorSpec(
+        "village_boundaries", lambda period: fetch_village_boundaries(), PeriodStrategy.SNAPSHOT
+    ),
+    CollectorSpec("join_proposals", _collect_join_proposals, PeriodStrategy.ALL_AVAILABLE),
+    CollectorSpec(
+        "youth_council_minutes", _collect_youth_council_minutes, PeriodStrategy.ALL_AVAILABLE
+    ),
 )
 
 
@@ -346,6 +406,7 @@ def _run_execution_unit(
             transform_input,
             resolver=resolver,
             fetched_at=fetched_at,
+            config_dir=config_dir,
         )
         curated_path, quality_path, quarantine_path = write_curated(
             result,
@@ -504,6 +565,7 @@ def run_period_range(
     config_dir: str | Path,
     include_tdx: bool = False,
     strict: bool = False,
+    datasets: Sequence[str] | None = None,
     collector_specs: Sequence[CollectorSpec] | None = None,
     resume: bool = False,
     force: bool = False,
@@ -515,6 +577,7 @@ def run_period_range(
     specs = tuple(DEFAULT_COLLECTOR_SPECS if collector_specs is None else collector_specs)
     if include_tdx and collector_specs is None:
         specs += TDX_COLLECTOR_SPECS
+    specs = _select_collector_specs(specs, datasets)
     units = build_execution_units(specs, start_period, end_period)
     unit_statuses: list[dict[str, Any]] = []
     total_units = len(units)
@@ -604,6 +667,7 @@ def run_refresh(
     strict: bool = False,
     datasets: Sequence[str] | None = None,
     failed_only: bool = False,
+    force: bool = False,
     now: datetime | None = None,
     refresh_profiles_path: str | Path | None = None,
     collector_specs: Sequence[CollectorSpec] | None = None,
@@ -642,6 +706,7 @@ def run_refresh(
         state=state,
         selected=datasets,
         failed_only=failed_only,
+        force=force,
         now=current,
         profiles=configured_profiles,
     )
@@ -739,6 +804,13 @@ def _run_retention(
 ) -> dict[str, Any]:
     """Apply retention only after every collection unit is error-free."""
 
+    if not statuses:
+        return {
+            "status": "skipped",
+            "reason": "no_execution_units",
+            "retention_years": retention_years,
+            "current_period": current_period,
+        }
     if any(status.get("status") == "error" for status in statuses):
         return {
             "status": "skipped",
@@ -750,12 +822,40 @@ def _run_retention(
         _canonical_dataset_or_name(spec.dataset): spec.period_strategy
         for spec in specs
     }
+    protected_periods = {"population": set(POPULATION_ELECTION_ANCHOR_PERIODS)}
+    protected_periods = {
+        dataset: periods
+        for dataset, periods in protected_periods.items()
+        if dataset in strategies
+    }
     return prune_local_data(
         output_dir,
         current_period=current_period,
         period_strategies=strategies,
         retention_years=retention_years,
+        protected_periods=protected_periods,
     )
+
+
+def _select_collector_specs(
+    specs: Sequence[CollectorSpec], datasets: Sequence[str] | None
+) -> tuple[CollectorSpec, ...]:
+    """Select named collectors while preserving registry order."""
+
+    if datasets is None:
+        return tuple(specs)
+    selected = tuple(datasets)
+    if not selected:
+        raise ValueError("datasets must contain at least one dataset name")
+    if len(set(selected)) != len(selected):
+        raise ValueError("datasets must not contain duplicates")
+    available = {spec.dataset for spec in specs}
+    unknown = set(selected) - available
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise ValueError(f"unknown dataset(s): {names}")
+    selected_set = set(selected)
+    return tuple(spec for spec in specs if spec.dataset in selected_set)
 
 
 def _update_refresh_state_entry(
@@ -806,7 +906,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "--datasets",
-        help="Comma-separated dataset names; only valid with --refresh-profile",
+        help=(
+            "Comma-separated dataset names; valid with --refresh-profile "
+            "or a historical period range"
+        ),
     )
     parser.add_argument(
         "--failed-only",
@@ -840,13 +943,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--retention-years must be positive")
     _configure_terminal_logging()
 
-    refresh_arguments = (
-        args.refresh_profile is not None
-        or args.datasets is not None
-        or args.failed_only
-    )
-    if refresh_arguments and not args.refresh_profile:
-        parser.error("--datasets and --failed-only require --refresh-profile")
+    if args.failed_only and not args.refresh_profile:
+        parser.error("--failed-only requires --refresh-profile")
     if args.refresh_profile:
         if (
             args.input is not None
@@ -867,6 +965,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             strict=args.strict,
             datasets=selected_datasets,
             failed_only=args.failed_only,
+            force=args.force,
             retention_years=args.retention_years,
         )
         return 1 if report["status"] == "error" else 0
@@ -874,6 +973,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.input:
         if not args.dataset:
             parser.error("--dataset is required with --input")
+        if args.datasets is not None:
+            parser.error("--datasets cannot be combined with --input")
         return _run_replay(
             dataset=args.dataset,
             input_path=Path(args.input),
@@ -885,6 +986,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.end_period and not args.start_period:
         parser.error("--start-period is required with --end-period")
     if args.start_period:
+        selected_datasets = _parse_refresh_datasets(args.datasets, parser)
         report = run_period_range(
             args.start_period,
             args.end_period,
@@ -892,11 +994,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             config_dir=args.config_dir,
             include_tdx=args.include_tdx,
             strict=args.strict,
+            datasets=selected_datasets,
             resume=args.resume,
             force=args.force,
             retention_years=args.retention_years,
         )
         return 1 if report["status"] == "error" else 0
+    if args.datasets is not None:
+        parser.error("--datasets requires --refresh-profile or a period range")
     if not args.period:
         parser.error("choose either --input with --dataset or --period")
 
@@ -936,8 +1041,20 @@ def _run_replay(
         if dataset_requires_resolver(canonical_dataset)
         else None
     )
-    result = run_transform(canonical_dataset, records, resolver=resolver, fetched_at=fetched_at)
-    write_curated(result, dataset=canonical_dataset, output_dir=output_dir)
+    result = run_transform(
+        canonical_dataset,
+        records,
+        resolver=resolver,
+        fetched_at=fetched_at,
+        config_dir=config_dir,
+    )
+    period = "all" if canonical_dataset in {
+        "elections",
+        "join_proposals",
+        "youth_council_minutes",
+        "youth_grants",
+    } else None
+    write_curated(result, dataset=canonical_dataset, output_dir=output_dir, period=period)
     return 0
 
 
@@ -1066,32 +1183,10 @@ def _write_authoritative_index(
     *,
     output_dir: str | Path,
 ) -> Path:
-    output_root = Path(output_dir)
-    entries: list[dict[str, Any]] = []
-    for unit, status in zip(units, statuses, strict=True):
-        if status.get("status") != "ok":
-            continue
-        curated_value = status.get("curated_path")
-        if not isinstance(curated_value, str):
-            continue
-        curated_path = Path(curated_value)
-        if not curated_path.is_file():
-            continue
-        try:
-            relative_path = curated_path.resolve().relative_to(output_root.resolve())
-        except ValueError:
-            continue
-        entries.append(
-            {
-                "dataset": _canonical_dataset_or_name(unit.spec.dataset),
-                "output_key": unit.output_key,
-                "path": relative_path.as_posix(),
-                "period_strategy": unit.spec.period_strategy.value,
-                "source_period": unit.source_period,
-                "transform_version": TRANSFORM_VERSION,
-            }
-        )
-    return write_dataset_index(entries, output_dir=output_root)
+    # A range run is commonly split by source family (annual, snapshot, TDX).
+    # Preserve existing successful entries so the next analytics run can still
+    # resolve datasets produced by an earlier command.
+    return _merge_refresh_index(units, statuses, output_dir=output_dir)
 
 
 def _merge_refresh_index(
@@ -1133,6 +1228,10 @@ def _merge_refresh_index(
         entry
         for key, entry in replacements.items()
         if key not in replaced
+    )
+    merged.sort(
+        key=lambda entry: (str(entry.get("dataset", "")), str(entry.get("output_key", ""))),
+        reverse=True,
     )
     return write_dataset_index(merged, output_dir=output_root)
 
@@ -1209,14 +1308,20 @@ def _raw_and_transform_payload(
             raise TypeError("college_majors collector must return an envelope")
         overview = collected.get("overview_records", [])
         detail = collected.get("detail_records", [])
+        school_locations = collected.get("school_locations", [])
         payload = {
             "dataset": dataset,
             "period": period,
             "fetched_at": fetched_at,
             "overview_records": overview,
             "detail_records": detail,
+            "school_locations": school_locations,
         }
-        return payload, {"overview_records": overview, "detail_records": detail}, ()
+        return payload, {
+            "overview_records": overview,
+            "detail_records": detail,
+            "school_locations": school_locations,
+        }, ()
 
     if dataset == "wages":
         if not isinstance(collected, Mapping):

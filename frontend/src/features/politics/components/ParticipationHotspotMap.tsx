@@ -15,6 +15,7 @@ import {
   type DistrictFeature,
 } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 import { participationFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +24,8 @@ import { cn } from "@/lib/utils";
 
 const MAP_WIDTH = 760;
 const MAP_HEIGHT = 560;
+// 讓投影範圍內縮，避免緊貼地圖邊界的行政區在選取／hover 加粗邊框時被 viewBox 裁切。
+const MAP_PADDING = 14;
 const MIN_SCALE = 1;
 const MAX_SCALE = 4;
 const SCALE_STEP = 1.6;
@@ -31,12 +34,7 @@ const DRAG_THRESHOLD = 4;
 // 允許地圖平移到僅剩一半在框內，確保邊緣行政區點選後也能置中。
 const PAN_MARGIN_RATIO = 0.5;
 
-const LEGEND_STEPS = [
-  "bg-primary/10",
-  "bg-primary/35",
-  "bg-primary/60",
-  "bg-primary",
-];
+const LEGEND_STEPS = ["bg-primary/20", "bg-primary/55", "bg-primary"];
 
 interface View {
   scale: number;
@@ -97,6 +95,7 @@ export default function ParticipationHotspotMap() {
     (state) => state.selectedDistrictId,
   );
   const selectDistrict = useSelectedDistrict((state) => state.selectDistrict);
+  const colorTheme = useSettingsStore((state) => state.colorTheme);
 
   const districtById = useMemo(
     () => new Map(districts.map((district) => [district.id, district])),
@@ -108,7 +107,14 @@ export default function ParticipationHotspotMap() {
     [features],
   );
   const projection = useMemo(
-    () => geoMercator().fitSize([MAP_WIDTH, MAP_HEIGHT], collection as never),
+    () =>
+      geoMercator().fitExtent(
+        [
+          [MAP_PADDING, MAP_PADDING],
+          [MAP_WIDTH - MAP_PADDING, MAP_HEIGHT - MAP_PADDING],
+        ],
+        collection as never,
+      ),
     [collection],
   );
   const pathGenerator = useMemo(() => geoPath(projection), [projection]);
@@ -256,6 +262,26 @@ export default function ParticipationHotspotMap() {
   const isLoading = topologyState === "loading" || isDistrictsLoading;
   const isError = topologyState === "error" || isDistrictsError;
 
+  // 選取／hover 的行政區排到最後繪製，避免其加粗邊框被相鄰行政區蓋住而看似被裁切。
+  const orderedFeatures =
+    selectedDistrictId || hoveredDistrictId
+      ? [
+          ...features.filter(
+            (item) =>
+              item.properties.id !== selectedDistrictId &&
+              item.properties.id !== hoveredDistrictId,
+          ),
+          ...features.filter(
+            (item) =>
+              item.properties.id === hoveredDistrictId &&
+              item.properties.id !== selectedDistrictId,
+          ),
+          ...features.filter(
+            (item) => item.properties.id === selectedDistrictId,
+          ),
+        ]
+      : features;
+
   return (
     <Card className="h-full">
       <CardHeader>
@@ -328,7 +354,7 @@ export default function ParticipationHotspotMap() {
                 }}
                 onTransitionEnd={() => setAnimating(false)}
               >
-                {features.map((district) => {
+                {orderedFeatures.map((district) => {
                   const id = district.properties.id;
                   const name = district.properties.name ?? "未命名行政區";
                   const participationIndex =
@@ -353,7 +379,7 @@ export default function ParticipationHotspotMap() {
                       style={{
                         fill: isSelected
                           ? SELECTED_DISTRICT_FILL
-                          : participationFillColor(participationIndex),
+                          : participationFillColor(participationIndex, colorTheme),
                         strokeWidth:
                           (isSelected || isHovered ? 3 : 1.5) / view.scale,
                       }}

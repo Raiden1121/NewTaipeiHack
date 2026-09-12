@@ -6,6 +6,26 @@
     <meta name="theme-color" content="#08111f" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>新北市行政區地圖</title>
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem("newtaipei-youth-settings");
+          var s = raw ? JSON.parse(raw).state : null;
+          var root = document.documentElement;
+          var mode = s && s.darkMode;
+          var isDark =
+            mode === "dark" ||
+            (mode !== "light" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          root.classList.toggle("dark", isDark);
+          root.dataset.themeColor = (s && s.colorTheme) || "blue";
+          root.dataset.density = (s && s.density) || "comfortable";
+          root.classList.toggle("high-contrast", !!(s && s.highContrast));
+          var fontSizePx = { sm: "14px", md: "16px", lg: "18px" };
+          root.style.fontSize = fontSizePx[(s && s.fontSize) || "md"];
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -17,7 +17,9 @@ from .contracts import TransformResult
 from .quality import QualityCollector
 
 
-_DOCUMENT_STATUSES = frozenset({"proposed_budget", "legal_budget"})
+_DOCUMENT_STATUSES = frozenset(
+    {"proposed_budget", "legal_budget", "final_settlement"}
+)
 _ROW_TYPES = frozenset({"total", "detail"})
 
 
@@ -45,15 +47,67 @@ def transform_youth_budgets(
                 raise TransformValueError(f"row_type is unsupported: {row_type!r}")
             business_plan = _required_text(raw, "business_plan")
             work_plan = clean_text(raw.get("work_plan"))
-            if row_type == "detail" and work_plan is None:
+            if (
+                document_status != "final_settlement"
+                and row_type == "detail"
+                and work_plan is None
+            ):
                 raise TransformValueError("missing_work_plan")
-            if row_type == "total" and work_plan is not None:
+            if (
+                document_status != "final_settlement"
+                and row_type == "total"
+                and work_plan is not None
+            ):
                 raise TransformValueError("total_work_plan_must_be_null")
             unit_label = _required_text(raw, "unit_label")
-            if unit_label != "新臺幣千元":
+            expected_unit = (
+                "新臺幣元" if document_status == "final_settlement" else "新臺幣千元"
+            )
+            if unit_label != expected_unit:
                 raise TransformValueError(f"unit_label is unsupported: {unit_label!r}")
-            amount = parse_int(raw.get("budget_amount"), field="budget_amount", allow_none=False)
-            ratio = parse_decimal(raw.get("ratio_percent"), field="ratio_percent", allow_none=False)
+            if document_status == "final_settlement":
+                budget_amount = parse_int(
+                    raw.get("budget_amount"), field="budget_amount", allow_none=False
+                )
+                settlement_amount = parse_int(
+                    raw.get("settlement_amount"),
+                    field="settlement_amount",
+                )
+                realized_amount = parse_int(
+                    raw.get("realized_amount"), field="realized_amount"
+                )
+                payable_amount = parse_int(
+                    raw.get("payable_amount"), field="payable_amount"
+                )
+                reserved_amount = parse_int(
+                    raw.get("reserved_amount"), field="reserved_amount"
+                )
+                surplus_amount = _parse_signed_int(
+                    raw.get("surplus_amount"), field="surplus_amount"
+                )
+                source_execution_ratio = parse_decimal(
+                    raw.get("source_execution_ratio_percent"),
+                    field="source_execution_ratio_percent",
+                )
+                value = settlement_amount
+                metric_id = "settlement_amount"
+                unit = "TWD"
+            else:
+                budget_amount = parse_int(
+                    raw.get("budget_amount"), field="budget_amount", allow_none=False
+                )
+                settlement_amount = None
+                realized_amount = None
+                payable_amount = None
+                reserved_amount = None
+                surplus_amount = None
+                source_execution_ratio = None
+                ratio = parse_decimal(
+                    raw.get("ratio_percent"), field="ratio_percent", allow_none=False
+                )
+                value = budget_amount
+                metric_id = "budget_amount"
+                unit = "TWD_thousand"
         except TransformValueError as exc:
             quality.record_numeric_error()
             quality.reject(index, raw, f"invalid_value:{exc}")
@@ -69,9 +123,9 @@ def transform_youth_budgets(
             period_start=f"{year}-01-01",
             period_end=f"{year}-12-31",
             period_type="year",
-            metric_id="budget_amount",
-            value=amount,
-            unit="TWD_thousand",
+            metric_id=metric_id,
+            value=value,
+            unit=unit,
             age_scope="not_age_specific",
             age_min=None,
             age_max=None,
@@ -87,7 +141,14 @@ def transform_youth_budgets(
                 "row_type": row_type,
                 "business_plan": business_plan,
                 "work_plan": work_plan,
-                "budget_ratio_percent": ratio,
+                "budget_ratio_percent": ratio if document_status != "final_settlement" else None,
+                "budget_amount": budget_amount,
+                "realized_amount": realized_amount,
+                "payable_amount": payable_amount,
+                "reserved_amount": reserved_amount,
+                "settlement_amount": settlement_amount,
+                "surplus_amount": surplus_amount,
+                "source_execution_ratio_percent": source_execution_ratio,
                 "source_pdf_sha256": clean_text(raw.get("source_pdf_sha256")),
                 "raw_record": deepcopy(raw),
             }
@@ -103,3 +164,13 @@ def _required_text(record: Mapping[str, Any], field: str) -> str:
     if value is None:
         raise TransformValueError(f"{field} is required")
     return value
+
+
+def _parse_signed_int(value: Any, *, field: str) -> int | None:
+    text = clean_text(value)
+    if text is None:
+        return None
+    normalized = text.replace(",", "")
+    if not normalized.lstrip("+").lstrip("-").isdigit():
+        raise TransformValueError(f"{field} must be an integer: {value!r}")
+    return int(normalized)

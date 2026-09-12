@@ -15,9 +15,16 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/policy-support", label: "施政協助", icon: LifeBuoy },
 ];
 
-export function navTitleForPath(pathname: string): string {
-  const match = NAV_ITEMS.find((item) =>
+function findNavItem(pathname: string): NavItem | undefined {
+  return NAV_ITEMS.find((item) =>
     item.to === "/" ? pathname === "/" : pathname.startsWith(item.to),
   );
-  return match?.label ?? "青年族群公開統計資料整合儀表板";
+}
+
+export function navTitleForPath(pathname: string): string {
+  return findNavItem(pathname)?.label ?? "青年族群公開統計資料整合儀表板";
+}
+
+export function navIconForPath(pathname: string): LucideIcon {
+  return findNavItem(pathname)?.icon ?? LayoutDashboard;
 }

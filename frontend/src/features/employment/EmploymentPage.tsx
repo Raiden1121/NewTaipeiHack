@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
@@ -5,6 +6,7 @@ import OpportunityIndexMap from "./components/OpportunityIndexMap";
 import DistrictDetailCard from "./components/DistrictDetailCard";
 import CrossAnalysisScatter from "./components/CrossAnalysisScatter";
 import SectionErrorFallback from "@/components/shared/SectionErrorFallback";
+import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 
 interface SectionProps {
   eyebrow: string;
@@ -36,6 +38,12 @@ function Section({ eyebrow, title, description, action, children }: SectionProps
 
 export default function EmploymentPage() {
   const { reset } = useQueryErrorResetBoundary();
+  const clearSelection = useSelectedDistrict((state) => state.clearSelection);
+
+  // 離開頁面時清除已選取的行政區，避免下次回到本頁時仍顯示上次的選取狀態。
+  useEffect(() => {
+    return () => clearSelection();
+  }, [clearSelection]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 px-4 py-6 md:px-6 md:py-8">

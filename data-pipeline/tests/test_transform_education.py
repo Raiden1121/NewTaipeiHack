@@ -8,6 +8,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from transform.education import transform_college_majors, transform_graduate_majors  # noqa: E402
+from transform.geography import DistrictResolver  # noqa: E402
 
 
 def overview_record():
@@ -45,6 +46,67 @@ def detail_record(*, school_code="1", department_code="1111001"):
 
 
 class TestTransformEducation(unittest.TestCase):
+    def test_maps_college_records_to_district_using_school_code(self):
+        resolver = DistrictResolver(
+            [
+                {
+                    "district_id": "65000010",
+                    "district_name": "板橋區",
+                    "postal_code": "220",
+                    "aliases": [],
+                }
+            ]
+        )
+        locations = [
+            {
+                "school_code": "1",
+                "school_name": "測試大學",
+                "county_name": "新北市",
+                "district_name": "板橋區",
+                "postal_code": "220",
+                "school_address": "新北市板橋區測試路1號",
+                "source": "moe_33207_108",
+            }
+        ]
+
+        result = transform_college_majors(
+            [overview_record()],
+            [detail_record()],
+            resolver=resolver,
+            school_locations=locations,
+        )
+
+        record = result.records[0]
+        self.assertEqual(record["geo_level"], "district")
+        self.assertEqual(record["district_id"], "65000010")
+        self.assertEqual(record["district_name"], "板橋區")
+        self.assertEqual(record["school_address"], "新北市板橋區測試路1號")
+        self.assertEqual(record["school_location_status"], "matched")
+
+    def test_keeps_null_district_when_school_code_is_not_in_location_reference(self):
+        resolver = DistrictResolver(
+            [
+                {
+                    "district_id": "65000010",
+                    "district_name": "板橋區",
+                    "postal_code": "220",
+                    "aliases": [],
+                }
+            ]
+        )
+
+        result = transform_college_majors(
+            [overview_record()],
+            resolver=resolver,
+            school_locations=[],
+        )
+
+        record = result.records[0]
+        self.assertEqual(record["geo_level"], "district")
+        self.assertIsNone(record["district_id"])
+        self.assertEqual(record["school_location_status"], "unmatched_school")
+        self.assertIn("school_location_unmatched", record["quality_flags"])
+
     def test_joins_9621_and_9622_using_normalized_codes_but_preserves_sources(self):
         overview = overview_record()
         detail = detail_record()

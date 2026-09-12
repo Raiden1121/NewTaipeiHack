@@ -20,6 +20,8 @@ class RefreshProfileTests(unittest.TestCase):
         profiles = load_refresh_profiles(config_path)
 
         self.assertIn("babysitting_places", profiles["monthly"])
+        self.assertIn("join_proposals", profiles["monthly"])
+        self.assertIn("youth_council_minutes", profiles["monthly"])
 
     def test_loads_profiles_and_filters_selected_datasets(self):
         with TemporaryDirectory() as directory:
@@ -117,6 +119,33 @@ class RefreshProfileTests(unittest.TestCase):
                 now=datetime(2026, 9, 9, 1, 0, tzinfo=timezone.utc),
             ),
             [],
+        )
+
+    def test_build_refresh_units_force_includes_a_not_due_unit(self):
+        specs = (CollectorSpec("population", lambda _period: [], PeriodStrategy.MONTHLY),)
+        profiles = {"daily": (), "weekly": (), "monthly": ("population",)}
+        state = {
+            "schema_version": 1,
+            "units": {
+                "population:11509": {
+                    "status": "ok",
+                    "last_checked_at": "2026-09-09T00:00:00+00:00",
+                }
+            },
+        }
+
+        units = build_refresh_units(
+            specs,
+            profile="monthly",
+            profiles=profiles,
+            state=state,
+            now=datetime(2026, 9, 9, 1, 0, tzinfo=timezone.utc),
+            force=True,
+        )
+
+        self.assertEqual(
+            [(unit.spec.dataset, unit.output_key) for unit in units],
+            [("population", "11509")],
         )
 
 

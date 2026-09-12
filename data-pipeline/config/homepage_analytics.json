@@ -1,0 +1,18 @@
+{
+  "version": "1",
+  "annual_years_roc": [110, 111, 112, 113, 114],
+  "population_reference_year_roc": 114,
+  "election_years_roc": [103, 107, 111],
+  "service_radius_m": 2500,
+  "normalization": {
+    "method": "p5_p95",
+    "constant_value": 50
+  },
+  "yoi_weights": {
+    "job": 0.25,
+    "salary": 0.25,
+    "talent": 0.05,
+    "housing": 0.25,
+    "transport": 0.20
+  }
+}

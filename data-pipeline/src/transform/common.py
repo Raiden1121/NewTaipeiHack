@@ -13,7 +13,7 @@ from typing import Any, Mapping
 
 
 MISSING_TOKENS = frozenset({"", "-", "—", "－", "NA", "N/A", "無", "面議"})
-GEO_LEVELS = frozenset({"district", "county", "national", "organization"})
+GEO_LEVELS = frozenset({"district", "village", "county", "national", "organization"})
 PERIOD_TYPES = frozenset({"day", "month", "year", "snapshot"})
 AGE_SCOPES = frozenset(
     {

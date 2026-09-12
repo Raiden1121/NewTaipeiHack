@@ -1,0 +1,132 @@
+{
+  "version": "1",
+  "verified_on": "2026-09-12",
+  "gaps": {
+    "source_has_no_data_before_10701": {
+      "summary": "戶政 ODRP014 最早只發布到 ROC 107 年 1 月，更早的月份查無資料。",
+      "detail": "實測 ODRP014 的 10301–10612 全部回 OD-0102-S（查無資料），10701 起才回 OD-0101-S。這個 reason 只描述 ODRP014；population 的 10312 已改由內政部歷史 archive 補入，10301–10311 與 10401–10612 仍未回填，population_villages 仍只走 ODRP014。",
+      "datasets": ["population", "population_villages"],
+      "resolution": "若需要 ROC 103 其他月份，需再註冊對應的官方歷史 archive；目前 10312 已由單一年齡 CSV adapter 支援。",
+      "recheck_after": null
+    },
+    "source_not_published": {
+      "summary": "來源尚未發布該年度資料。",
+      "detail": "主計總處『表6』xlsx 目前只含 表6(108年)–表6(113年) 六個分頁，沒有 114 年。collector 已正確標為 no_data。",
+      "datasets": ["wages"],
+      "resolution": "等來源發布後重跑即可，不需改 collector。",
+      "recheck_after": "2027-01"
+    },
+    "agency_not_established_before_111": {
+      "summary": "新北市政府青年局 111 年才成立，110／111 年沒有自有單位預算。",
+      "detail": "官網預算列表（id=108）只有 112–116 年度。這是機關尚未成立的事實，不是資料遺漏；110／111 的青年業務經費當時掛在其他局處。",
+      "datasets": ["youth_budgets"],
+      "resolution": "若需 110／111 數字，須改查主計處總預算的相關科目，等於換資料源。",
+      "recheck_after": null
+    },
+    "source_is_scanned_image_ocr_required": {
+      "summary": "決算 PDF 為掃描影像，無法直接抽取文字。",
+      "detail": "ROC 112 決算 PDF 抽出 0 字元、ROC 111 僅 498 字元且不含『歲出機關別決算表』。ROC 113 正常（35,484 字元）。raw artifact 與解析失敗紀錄均已保留。",
+      "datasets": ["youth_budgets"],
+      "resolution": "需導入 OCR，或改用主計處／議會附件的文字版。",
+      "recheck_after": null
+    },
+    "source_not_yet_announced": {
+      "summary": "來源尚未公告該年度決算。",
+      "detail": "官網決算列表（id=109）目前只有 111／112／113 年度，公告節奏為隔年 7–8 月。ROC 114 決算預期在 115 年 7–8 月出現。",
+      "datasets": ["youth_budgets"],
+      "resolution": "等公告，collector 不需修改。",
+      "recheck_after": "2027-08"
+    },
+    "source_schema_has_no_location_field": {
+      "summary": "來源欄位本身沒有地址或地點，無法解析行政區。",
+      "detail": "youth_grants 的 PDF 表頭只有 8 欄（工作計畫科目名稱／補助事項或用途／補助對象／主辦機關／累計撥付金額／有無涉及採購／處理方式／是否為除外規定），沒有受補助單位地址或計畫地點；實測以單位名稱與用途文字比對 29 區名只命中 3/110 筆。training_numbers 的 9 個欄位同樣沒有訓練單位地址或上課地點，87 筆單位名稱比對命中 0 筆。",
+      "datasets": ["youth_grants", "training_numbers"],
+      "resolution": "youth_grants 需外接法人／商業登記地址資料庫；training_numbers 需用課程代碼回查台灣就業通課程頁。兩者都屬新增資料源。",
+      "recheck_after": null
+    },
+    "source_scope_is_two_training_centers": {
+      "summary": "來源僅收錄勞動力發展署北分署自辦職前訓練班，新北場地只有泰山、五股兩處職訓場。",
+      "detail": "9,546 筆 raw 的『訓練區域』欄位只有泰山區與五股區兩個值，『訓練單位名稱』全部是北基宜花金馬分署。這不是地理編碼失敗，其餘 27 區在來源中本來就沒有課程。",
+      "datasets": ["vt_courses"],
+      "resolution": "要涵蓋委外／民間職訓班須改用台灣就業通課程 API。",
+      "recheck_after": null
+    },
+    "source_is_national_only": {
+      "summary": "來源只有全國彙總，沒有縣市或行政區別。",
+      "detail": "talent_demand 的 raw 只有『統計期』×『職業別』×3 個人次欄位，完全沒有地理欄位。",
+      "datasets": ["talent_demand"],
+      "resolution": "需改用勞動部按縣市統計的求職求才資料集；區級公開資料不存在。",
+      "recheck_after": null
+    },
+    "incomplete_village_population_coverage": {
+      "summary": "里界快照比里級人口新，7 個里對不上，屬期間錯位而非資料遺漏。",
+      "detail": "淡水新崁里／新市里、五股芳洲里、林口新林里／力行里／頭湖里／文湖里是 ROC 115 年 7 月生效的里鄰調整。ROC 114 任何月份的 ODRP014 都不存在它們（rows_in 11301–11506 皆 1032，11507 起 1039），而里界檔是 2026-09 快照含 1,039 里。transform 零拒絕、quarantine 為空，服務涵蓋率以 1,032/1,039 計算。",
+      "datasets": ["population_villages", "village_boundaries"],
+      "resolution": "將里級人口參考期改為 ROC 115，或在 analytics 將新里對應回母里。",
+      "recheck_after": null
+    },
+    "historical_population_denominator_unavailable": {
+      "summary": "未註冊歷史 anchor 的月份仍沒有可用的青年人口分母。",
+      "detail": "ODRP014 的 10301–10612 實測全部查無資料；本次已用內政部官方 10312 單一年齡 archive 補入 2014 年末人口，並保留 10712、11112 兩個選舉年末 ODRP014 anchor。故目前 103／107／111 選舉 analytics 的分母都有值；其他未註冊月份仍不可用。",
+      "datasets": ["population", "elections"],
+      "resolution": "若要補齊非選舉月份，需新增並驗證對應官方歷史資源；不可用其他年度人口估算代替。",
+      "recheck_after": null
+    },
+    "grant_district_unresolved": {
+      "summary": "補助明細來源沒有地址或計畫地點，無法解析行政區。",
+      "detail": "PDF 表頭只有 8 欄，沒有受補助單位地址或計畫地點；實測以單位名稱與用途文字比對 29 區名只命中 3/160 筆。因此各區補助分布無法產出，年度總額不受影響。",
+      "datasets": ["youth_grants"],
+      "resolution": "需外接法人／商業登記地址資料庫，以統編或立案名稱查址。",
+      "recheck_after": null
+    },
+    "latest_available_official_age_group_proxy": {
+      "summary": "官方薪資只有縣市級年齡組，以 25–29 歲代理青年薪資。",
+      "detail": "主計總處表6 僅提供縣市層級的官方年齡組，沒有精確 18–35 歲薪資，也沒有行政區別。analytics 取新北市 25–29 歲平均數，並以房價比例推估各區。這不是 18–35 歲的實際薪資。",
+      "datasets": ["wages"],
+      "resolution": "無公開的區級或精確 18–35 歲薪資來源。",
+      "recheck_after": null
+    },
+    "observed_minimum": {
+      "summary": "該區在來源中沒有觀測值，以全市觀測最小值填補。",
+      "detail": "vt_courses 只有五股（32）、泰山（42）兩區有課程，其餘 27 區補入觀測最小值 32；租金與房價缺漏區同樣補入觀測最小值。填補後這些欄位經 P5/P95 正規化多半塌成常數 50，對區間排序不具區辨力。",
+      "datasets": ["vt_courses", "rentals", "house_prices"],
+      "resolution": "vt_courses 需改用涵蓋委外班的台灣就業通課程 API。",
+      "recheck_after": null
+    },
+    "homepage_fallback_constant": {
+      "summary": "全台青年人口為寫死常數，非本管線計算值。",
+      "detail": "kpi.nationalYouthPopulation 固定為 4,820,000，並標記 nationalYouthPopulationQuality=proxy。管線只收新北市資料，沒有全國各縣市人口來源。",
+      "datasets": [],
+      "resolution": "若需真實值，須新增全國人口 collector。",
+      "recheck_after": null
+    },
+    "period_misalignment_114_population_vs_115_boundary": {
+      "summary": "里界快照比里級人口新，兩者的里數不同期。",
+      "detail": "淡水新崁里／新市里、五股芳洲里、林口新林里／力行里／頭湖里／文湖里共 7 個里是 ROC 115 年 7 月生效的里鄰調整。ROC 114 年任何月份的 ODRP014 都不存在它們（rows_in 11301–11506 皆為 1032，11507 起為 1039），而里界檔是 2026-09 快照含 1,039 里。transform 零拒絕、quarantine 為空，這是期間錯位而非資料遺漏。",
+      "datasets": ["population_villages", "village_boundaries"],
+      "resolution": "將里級人口參考期改為 ROC 115，或在 analytics 將新里對應回母里。",
+      "recheck_after": null
+    },
+    "grant_coverage_scope_mixed": {
+      "summary": "各年度補助明細的累計期間不同，不能畫在同一條趨勢線。",
+      "detail": "ROC 111 的 PDF 標題是『至111年12月止』（全年累計），112–115 是『至該年3月止』（僅第一季累計）。趨勢圖只輸出同一 coverage_scope 的年度，其餘保留在 coverage.excluded_years。",
+      "datasets": ["youth_grants"],
+      "resolution": "等青年局公告各年度全年版明細後，全年序列即可成立。",
+      "recheck_after": null
+    },
+    "youth_proposal_tracker_unavailable": {
+      "summary": "青年局提案列管表不是公開資料，漏斗第 4、5 階無法計算。",
+      "detail": "公開的會議紀錄只能支撐『提案受理／進入審議／獲採納』三階；『執行中』與『已完成』需要內部列管表。",
+      "datasets": ["youth_council_minutes"],
+      "resolution": "需青年局提供列管表匯出檔。",
+      "recheck_after": null
+    },
+    "population_denominator_unpublished": {
+      "summary": "該期間沒有已註冊的青年人口分母。",
+      "detail": "候選人數、當選席次與青年里長占比不需分母，仍為實際觀測值；已註冊年末 anchor（10312、10712、11112）可計算每十萬青年參選率與 YRR，其他缺期仍保留 null。",
+      "datasets": ["population"],
+      "resolution": "見 source_has_no_data_before_10701；需補對應官方歷史 partition，不跨年借用人口。",
+      "recheck_after": null
+    }
+  }
+}

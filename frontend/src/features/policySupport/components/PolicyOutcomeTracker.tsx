@@ -15,8 +15,8 @@ const TREND_ICON = {
 } as const;
 
 function trendColor(trend: OutcomeTrend): string {
-  if (trend === "up") return "text-risk-low";
-  if (trend === "down") return "text-risk-high";
+  if (trend === "up") return "text-risk-high";
+  if (trend === "down") return "text-risk-low";
   return "text-accent-slate";
 }
 

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const NATIONAL_YOUTH_POPULATION = 4_820_000;
 const NATIONAL_YOUTH_POPULATION_SHARE = 20.6;
@@ -79,6 +80,12 @@ export default function KpiSummaryRow() {
       label: "青年人口年增率 (YoY)",
       value: `${YOUTH_POPULATION_YOY > 0 ? "+" : ""}${YOUTH_POPULATION_YOY}%`,
       detail: "較去年同期",
+      valueClassName:
+        YOUTH_POPULATION_YOY > 0
+          ? "text-risk-high"
+          : YOUTH_POPULATION_YOY < 0
+            ? "text-risk-low"
+            : undefined,
     },
   ];
 
@@ -101,7 +108,14 @@ export default function KpiSummaryRow() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-slate-900">{kpi.value}</p>
+              <p
+                className={cn(
+                  "text-2xl font-bold text-slate-900",
+                  kpi.valueClassName,
+                )}
+              >
+                {kpi.value}
+              </p>
               <p className="mt-1 text-xs text-slate-500">{kpi.detail}</p>
             </CardContent>
           </Card>

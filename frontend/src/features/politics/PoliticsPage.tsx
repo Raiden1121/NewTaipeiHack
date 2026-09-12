@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
@@ -7,6 +8,7 @@ import ParticipationKpiGrid from "./components/ParticipationKpiGrid";
 import ResourceIoCharts from "./components/ResourceIoCharts";
 import YouthTopicWordCloud from "./components/YouthTopicWordCloud";
 import SectionErrorFallback from "@/components/shared/SectionErrorFallback";
+import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 
 interface SectionProps {
   eyebrow: string;
@@ -34,6 +36,12 @@ function Section({ eyebrow, title, description, children }: SectionProps) {
 
 export default function PoliticsPage() {
   const { reset } = useQueryErrorResetBoundary();
+  const clearSelection = useSelectedDistrict((state) => state.clearSelection);
+
+  // 離開頁面時清除已選取的行政區，避免下次回到本頁時仍顯示上次的選取狀態。
+  useEffect(() => {
+    return () => clearSelection();
+  }, [clearSelection]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 px-4 py-6 md:px-6 md:py-8">
@@ -73,7 +81,7 @@ export default function PoliticsPage() {
       <Section
         eyebrow="Youth Voice"
         title="青年需求與聲音"
-        description="各年度青年關注議題之重要程度分布"
+        description="青年關注議題之重要程度分布"
       >
         <ErrorBoundary onReset={reset} FallbackComponent={SectionErrorFallback}>
           <YouthTopicWordCloud />

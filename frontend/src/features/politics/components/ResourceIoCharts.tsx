@@ -4,27 +4,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // 佔位圖表數值皆為示意，待真實統計資料串接。
 
-interface AreaGrant {
-  area: string;
-  amount: number;
+interface DepartmentBudget {
+  label: string;
+  amount: number; // 千元
+  share: number; // %
 }
 
-// 佔位：全部行政區補助金額，圖表僅取前七名降冪呈現。
-const GRANT_BY_AREA: AreaGrant[] = [
-  { area: "板橋區", amount: 186 },
-  { area: "三重區", amount: 172 },
-  { area: "中和區", amount: 165 },
-  { area: "新莊區", amount: 158 },
-  { area: "永和區", amount: 141 },
-  { area: "土城區", amount: 133 },
-  { area: "林口區", amount: 120 },
-  { area: "淡水區", amount: 108 },
-  { area: "新店區", amount: 96 },
+// 佔位：青年局各科別預算比例，待主計處資料串接。
+const DEPARTMENT_BUDGET: DepartmentBudget[] = [
+  { label: "綜合規劃", amount: 38960, share: 24.42 },
+  { label: "職涯發展", amount: 37730, share: 23.65 },
+  { label: "創業資源", amount: 70979, share: 44.49 },
+  { label: "資本門設備與投資", amount: 11852, share: 7.43 },
 ];
 
-const TOP_AREA_GRANTS = [...GRANT_BY_AREA]
-  .sort((a, b) => b.amount - a.amount)
-  .slice(0, 7);
+const SORTED_DEPARTMENT_BUDGET = [...DEPARTMENT_BUDGET].sort(
+  (a, b) => b.share - a.share,
+);
+
+// 長標籤（如「資本門設備與投資」）換行呈現，避免與相鄰長條的標籤重疊。
+function splitLabel(label: string, maxCharsPerLine = 5): string[] {
+  if (label.length <= maxCharsPerLine) return [label];
+  return [label.slice(0, maxCharsPerLine), label.slice(maxCharsPerLine)];
+}
 
 interface YearlyBudget {
   year: number;
@@ -56,29 +58,31 @@ function BarChart() {
 
   const vbW = CHART_VB_W;
   const vbH = CHART_VB_H;
-  const labelH = 34;
+  const labelH = 44;
   const barsTop = 14;
   const barsBottom = vbH - labelH;
   const plotH = barsBottom - barsTop;
-  const gap = 8;
+  const gap = 14;
   const barWidth =
-    (vbW - gap * (TOP_AREA_GRANTS.length + 1)) / TOP_AREA_GRANTS.length;
-  const max = Math.max(...TOP_AREA_GRANTS.map((item) => item.amount));
+    (vbW - gap * (SORTED_DEPARTMENT_BUDGET.length + 1)) /
+    SORTED_DEPARTMENT_BUDGET.length;
+  const max = Math.max(...SORTED_DEPARTMENT_BUDGET.map((item) => item.share));
 
-  const bars = TOP_AREA_GRANTS.map((item, index) => {
-    const height = (item.amount / max) * plotH;
+  const bars = SORTED_DEPARTMENT_BUDGET.map((item, index) => {
+    const height = (item.share / max) * plotH;
     return {
       ...item,
       x: gap + index * (barWidth + gap),
       y: barsBottom - height,
       width: barWidth,
       height,
+      lines: splitLabel(item.label),
     };
   });
 
   const hovered = hoveredIndex !== null ? bars[hoveredIndex] : null;
-  const tooltipW = 62;
-  const tooltipH = 24;
+  const tooltipW = 88;
+  const tooltipH = 34;
   const tooltipX = hovered
     ? clamp(hovered.x + hovered.width / 2 - tooltipW / 2, 2, vbW - tooltipW - 2)
     : 0;
@@ -89,11 +93,11 @@ function BarChart() {
       viewBox={`0 0 ${vbW} ${vbH}`}
       className="block h-auto w-full"
       role="img"
-      aria-label="補助地區分布長條圖佔位，僅列出前七名"
+      aria-label="青年局各科別預算比例長條圖佔位"
     >
       {bars.map((bar, index) => (
         <rect
-          key={bar.area}
+          key={bar.label}
           x={bar.x}
           y={bar.y}
           width={bar.width}
@@ -116,14 +120,20 @@ function BarChart() {
       />
       {bars.map((bar) => (
         <text
-          key={`${bar.area}-label`}
-          x={bar.x + bar.width / 2}
-          y={barsBottom + 16}
+          key={`${bar.label}-label`}
           textAnchor="middle"
           className="fill-slate-400"
           fontSize={11}
         >
-          {bar.area}
+          {bar.lines.map((line, lineIndex) => (
+            <tspan
+              key={line}
+              x={bar.x + bar.width / 2}
+              y={barsBottom + 16 + lineIndex * 13}
+            >
+              {line}
+            </tspan>
+          ))}
         </text>
       ))}
       {hovered && (
@@ -138,14 +148,24 @@ function BarChart() {
           />
           <text
             x={tooltipX + tooltipW / 2}
-            y={tooltipY + tooltipH / 2 + 1}
+            y={tooltipY + 14}
             textAnchor="middle"
             dominantBaseline="central"
             fill="#ffffff"
-            fontSize={11}
+            fontSize={12}
             fontWeight={700}
           >
-            {hovered.amount} 萬元
+            {hovered.share}%
+          </text>
+          <text
+            x={tooltipX + tooltipW / 2}
+            y={tooltipY + 26}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill="#cbd5e1"
+            fontSize={9.5}
+          >
+            {hovered.amount.toLocaleString("zh-Hant-TW")} 千元
           </text>
         </g>
       )}
@@ -160,17 +180,26 @@ function LineChart() {
   const top = 14;
   const bottom = vbH - labelH;
   const plotH = bottom - top;
+  const leftPad = 16;
+  const rightPad = 10;
   const amounts = YEARLY_BUDGET.map((item) => item.amount);
   const max = Math.max(...amounts);
   const min = Math.min(...amounts);
-  const stepX = vbW / (YEARLY_BUDGET.length - 1);
+  const stepX = (vbW - leftPad - rightPad) / (YEARLY_BUDGET.length - 1);
 
   const points = YEARLY_BUDGET.map((item, index) => {
-    const x = index * stepX;
+    const x = leftPad + index * stepX;
     const y = bottom - ((item.amount - min) / (max - min)) * plotH;
     return { x, y, year: item.year };
   });
   const polylinePoints = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+  const firstX = points[0].x.toFixed(1);
+  const lastX = points[points.length - 1].x.toFixed(1);
+
+  const axisTopY = top - 6;
+  const axisRightX = vbW - rightPad / 2;
+  const yLabelX = leftPad - 12;
+  const yLabelY = (top + bottom) / 2;
 
   return (
     <svg
@@ -179,8 +208,49 @@ function LineChart() {
       role="img"
       aria-label="年度總預算趨勢折線圖佔位，近五年"
     >
+      <defs>
+        <marker
+          id="resource-io-trend-arrow"
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M0,0 L10,5 L0,10 Z" className="fill-slate-300" />
+        </marker>
+      </defs>
+      <line
+        x1={leftPad}
+        y1={bottom}
+        x2={axisRightX}
+        y2={bottom}
+        className="stroke-slate-300"
+        strokeWidth={1}
+        markerEnd="url(#resource-io-trend-arrow)"
+      />
+      <line
+        x1={leftPad}
+        y1={bottom}
+        x2={leftPad}
+        y2={axisTopY}
+        className="stroke-slate-300"
+        strokeWidth={1}
+        markerEnd="url(#resource-io-trend-arrow)"
+      />
+      <text
+        x={yLabelX}
+        y={yLabelY}
+        textAnchor="middle"
+        transform={`rotate(-90 ${yLabelX} ${yLabelY})`}
+        className="fill-slate-400"
+        fontSize={11}
+      >
+        億元
+      </text>
       <polyline
-        points={`0,${bottom} ${polylinePoints.join(" ")} ${vbW},${bottom}`}
+        points={`${firstX},${bottom} ${polylinePoints.join(" ")} ${lastX},${bottom}`}
         className="fill-primary/10 stroke-none"
       />
       <polyline
@@ -301,7 +371,7 @@ function ChartCard({ eyebrow, title, note, children }: ChartCardProps) {
 export default function ResourceIoCharts() {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <ChartCard eyebrow="By Area" title="補助地區分布" note="（僅列出前七）">
+      <ChartCard eyebrow="By Department" title="青年局各科別預算比例">
         <BarChart />
       </ChartCard>
       <ChartCard eyebrow="Yearly Trend" title="年度總預算趨勢">

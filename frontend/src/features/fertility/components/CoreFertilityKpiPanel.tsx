@@ -94,7 +94,7 @@ export default function CoreFertilityKpiPanel() {
                     <span
                       className={cn(
                         "text-xs font-bold",
-                        isPositiveDelta ? "text-risk-low" : "text-risk-high",
+                        isPositiveDelta ? "text-risk-high" : "text-risk-low",
                       )}
                     >
                       {isPositiveDelta ? "+" : ""}
