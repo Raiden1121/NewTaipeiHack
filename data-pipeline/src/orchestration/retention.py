@@ -66,6 +66,7 @@ def prune_local_data(
     current_period: str,
     period_strategies: Mapping[str, PeriodStrategy],
     retention_years: int = 5,
+    protected_periods: Mapping[str, set[str]] | None = None,
 ) -> dict[str, Any]:
     """Prune local pipeline outputs while preserving unknown-period data.
 
@@ -88,13 +89,21 @@ def prune_local_data(
             if not directory.is_dir():
                 continue
             for path in sorted(directory.glob("*.json")):
-                if _partition_is_stale(path.stem, strategy, window):
+                if _partition_is_stale(path.stem, strategy, window) and not _is_protected(
+                    dataset,
+                    path.stem,
+                    protected_periods,
+                ):
                     _delete_file(path, root, deleted_paths)
 
     collection_directory = root / "quality" / "collection"
     if collection_directory.is_dir():
         for path in sorted(collection_directory.glob("*.json")):
-            if _partition_is_stale(path.stem, PeriodStrategy.MONTHLY, window):
+            if _partition_is_stale(path.stem, PeriodStrategy.MONTHLY, window) and not _is_protected(
+                "__collection__",
+                path.stem,
+                protected_periods,
+            ):
                 _delete_file(path, root, deleted_paths)
 
     for dataset, strategy in period_strategies.items():
@@ -110,7 +119,7 @@ def prune_local_data(
                 source_period = payload.get("period")
                 if isinstance(source_period, str) and _partition_is_stale(
                     source_period, strategy, window
-                ):
+                ) and not _is_protected(dataset, source_period, protected_periods):
                     deleted_artifact_candidates.update(artifact_paths)
                     _delete_file(path, root, deleted_paths)
                 continue
@@ -141,6 +150,7 @@ def prune_local_data(
         window,
         deleted_paths,
         rewritten_paths,
+        protected_periods,
     )
 
     return {
@@ -149,6 +159,10 @@ def prune_local_data(
         "current_period": current_period,
         "monthly_cutoff": window.monthly_cutoff,
         "annual_cutoff": str(window.annual_cutoff),
+        "protected_periods": {
+            dataset: sorted(periods)
+            for dataset, periods in (protected_periods or {}).items()
+        },
         "deleted_paths": sorted(set(deleted_paths)),
         "rewritten_paths": sorted(set(rewritten_paths)),
         "deleted_count": len(set(deleted_paths)),
@@ -185,6 +199,20 @@ def _partition_is_stale(
         return not period_is_retained(partition, strategy, window)
     except ValueError:
         return False
+
+
+def _is_protected(
+    dataset: str,
+    period: str,
+    protected_periods: Mapping[str, set[str]] | None,
+) -> bool:
+    if not protected_periods:
+        return False
+    if period in protected_periods.get(dataset, set()):
+        return True
+    return dataset == "__collection__" and any(
+        period in periods for periods in protected_periods.values()
+    )
 
 
 def _read_json(path: Path) -> Mapping[str, Any] | None:
@@ -355,6 +383,7 @@ def _prune_dataset_index(
     window: RetentionWindow,
     deleted_paths: list[str],
     rewritten_paths: list[str],
+    protected_periods: Mapping[str, set[str]] | None,
 ) -> None:
     path = root / "quality" / "dataset_index.json"
     payload = _read_json(path)
@@ -362,9 +391,13 @@ def _prune_dataset_index(
         return
     datasets = payload["datasets"]
     changed = False
-    kept_datasets: dict[str, list[dict[str, Any]]] = {}
+    kept_datasets: dict[str, Any] = {}
     for dataset, entries in datasets.items():
         if not isinstance(dataset, str) or not isinstance(entries, list):
+            # Retention only knows how to expire period partitions.  Anything it
+            # does not recognise is carried over untouched so that a rewrite
+            # triggered by another dataset cannot silently drop it.
+            kept_datasets[dataset] = entries
             continue
         strategy = period_strategies.get(dataset)
         kept_entries: list[dict[str, Any]] = []
@@ -378,6 +411,7 @@ def _prune_dataset_index(
                 strategy in (PeriodStrategy.MONTHLY, PeriodStrategy.ANNUAL)
                 and isinstance(output_key, str)
                 and _partition_is_stale(output_key, strategy, window)
+                and not _is_protected(dataset, output_key, protected_periods)
             )
             if stale:
                 changed = True

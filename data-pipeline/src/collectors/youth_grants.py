@@ -41,6 +41,12 @@ _WORK_PLAN_MARKERS = (
     "青年事務",
     "經濟發展及輔導",
 )
+# Each PDF states the period it accumulates to ("至111年12月止" is a full year,
+# "至112年3月止" only the first quarter).  Without it a year-on-year chart would
+# compare a full year against a single quarter.
+_COVERAGE_PATTERN = re.compile(
+    r"至\s*(?P<year>\d{3})\s*年\s*(?P<month>\d{1,2})\s*月止"
+)
 OpenURL = Callable[..., Any]
 
 
@@ -187,6 +193,7 @@ def _parse_grant_pages(
     source_pdf_url: str | None = None,
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
+    coverage_end_month = _coverage_end_month(pages)
     for page_number, page in enumerate(pages, start=1):
         lines = _normalized_lines(page)
         if not any("補" in line and "助" in line for line in lines):
@@ -204,6 +211,7 @@ def _parse_grant_pages(
                         current, document=document, page_number=page_number,
                         source_pdf_sha256=source_pdf_sha256, source_pdf_url=source_pdf_url,
                         row_number=len(records) + 1,
+                        coverage_end_month=coverage_end_month,
                     )
                     if parsed is not None:
                         records.append(parsed)
@@ -219,6 +227,7 @@ def _parse_grant_pages(
                 current, document=document, page_number=page_number,
                 source_pdf_sha256=source_pdf_sha256, source_pdf_url=source_pdf_url,
                 row_number=len(records) + 1,
+                coverage_end_month=coverage_end_month,
             )
             if parsed is not None:
                 records.append(parsed)
@@ -269,9 +278,21 @@ def _split_grant_fields(fields: list[str]) -> tuple[str, str, str, str] | None:
     return work_plan, purpose, recipient, agency
 
 
+def _coverage_end_month(pages: Sequence[str]) -> int | None:
+    """Return the month each PDF accumulates to, or None when unstated."""
+
+    for page in pages:
+        match = _COVERAGE_PATTERN.search(_compact(page))
+        if match is not None:
+            month = int(match.group("month"))
+            return month if 1 <= month <= 12 else None
+    return None
+
+
 def _parse_current_grant(
     current: list[str], *, document: GrantDocument, page_number: int,
     source_pdf_sha256: str, source_pdf_url: str | None, row_number: int,
+    coverage_end_month: int | None = None,
 ) -> dict[str, Any] | None:
     if not current:
         return None
@@ -299,6 +320,8 @@ def _parse_current_grant(
         "agency": agency,
         "amount_twd_thousand": amount,
         "purchase_involved": _purchase_flag(amount_line),
+        "coverage_end_month": coverage_end_month,
+        "document_title": document.title,
         "source_page_number": page_number,
         "source_document_url": document.detail_url,
         "source_pdf_url": source_pdf_url,
@@ -323,7 +346,13 @@ def _recipient_token_index(tokens: list[str]) -> int | None:
         "商行",
         "公司",
     )
+    # Token 0 is always part of the purpose, which precedes the recipient on
+    # every row.  Skipping it stops loose markers such as 社區 from matching
+    # inside the purpose text ("辦理「...永安社區青銀共學活動」") and swallowing
+    # the whole row.
     for index, value in enumerate(tokens):
+        if index == 0:
+            continue
         if any(marker in value for marker in markers):
             return index
     return None
@@ -358,14 +387,9 @@ def _extract_address(value: str) -> str | None:
 
 
 def _is_work_plan(line: str) -> bool:
-    is_start = line == "青年發展業" or any(
-        line.startswith(marker) for marker in _WORK_PLAN_MARKERS
-    )
-    if is_start:
-        return True
-    if _AMOUNT_PATTERN.search(line) or _GENERIC_AMOUNT_PATTERN.search(line):
-        return False
-    return False
+    # Wrapped markers are rejoined in _normalized_lines, so a row start is
+    # always a complete marker by the time it reaches here.
+    return any(line.startswith(marker) for marker in _WORK_PLAN_MARKERS)
 
 
 def _is_header_line(line: str) -> bool:
@@ -456,13 +480,37 @@ def _normalized_lines(page: str) -> list[str]:
     merged: list[str] = []
     index = 0
     while index < len(lines):
-        if lines[index] == "青年發展業" and index + 1 < len(lines) and lines[index + 1] == "務":
-            merged.append("青年發展業務")
+        joined = _join_wrapped_work_plan(lines, index)
+        if joined is not None:
+            merged.append(joined)
             index += 2
             continue
         merged.append(lines[index])
         index += 1
     return merged
+
+
+def _join_wrapped_work_plan(lines: list[str], index: int) -> str | None:
+    """Rejoin a work-plan marker that the PDF wrapped across two lines.
+
+    The extractor splits these column headings at arbitrary points (``青年發展業``
+    + ``務``, ``經濟發展及`` + ``輔導``).  A row whose marker stays split is never
+    recognised as a row start and would be dropped entirely, so match every
+    marker rather than special-casing one of them.
+    """
+
+    if index + 1 >= len(lines):
+        return None
+    current = lines[index]
+    if not current:
+        return None
+    for marker in _WORK_PLAN_MARKERS:
+        if current == marker or not marker.startswith(current):
+            continue
+        joined = current + lines[index + 1]
+        if joined.startswith(marker):
+            return joined
+    return None
 
 
 def _visible_text(value: str) -> str:

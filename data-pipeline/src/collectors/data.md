@@ -72,6 +72,31 @@ API 回傳 envelope，collector 最後只回傳 `responseData`：
 | 11507 | 65000010004 | 新北市板橋區 | 黃石里 | 551 | 1267 | 2 | 5 |
 | 11507 | 65000010005 | 新北市板橋區 | 挹秀里 | 875 | 1911 | 9 | 8 |
 
+### 4. ROC 10312 歷史人口來源
+
+ODRP014 實測 `10301`～`10612` 查無資料，因此 `population` 的選舉分母對
+`10312` 使用內政部戶政司資料集「各村（里）戶籍人口統計月報表」的歷史
+resource，而不是用新北市民政局五歲年齡組 ODS 估算單歲人口：
+
+```python
+from collectors.population_collector import fetch_population_for_period
+
+payload = fetch_population_for_period("10312")
+records = payload.records
+```
+
+`10312` ZIP 內的 `opendata-10312_age-65000.csv` 有新北市 1,032 個村里與
+`0歲`～`100歲以上`男女單一年齡欄位。adapter 只把來源欄位轉成既有
+`population` raw contract（`statistic_yyymm`、`site_id`、`village`、
+`people_total` 與 `people_age_018_m/f`～`people_age_035_m/f`），完整 ZIP
+以 SHA-256 `SourceArtifact` 保存；後續仍由 `transform_population` 彙總 29 區。
+歷史 CSV 沒有 ODRP014 的數字 `district_code`，所以以 `site_id` 的新北市行政區
+名稱解析，不自行編造村里代碼。
+
+實測 `10312` 產出 29 區、總人口 `3,966,818`、18–35 歲總人口
+`1,086,392`，與新北市 103 年人口年報的總人口交叉核對一致。`10712`、
+`11112` 仍由 ODRP014 提供；三個選舉年末 anchor 均由 pipeline 固定保留。
+
 ## 2. moving_in.py
 
 ### 1. 怎麼 call API

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import calendar
 from copy import deepcopy
 import re
 from typing import Any, Iterable, Mapping
@@ -55,6 +56,14 @@ def transform_youth_grants(
             quality.record_unmapped_district()
 
         year = int(year_roc) + 1911
+        coverage_end_month = _coverage_end_month(raw.get("coverage_end_month"))
+        coverage_scope = (
+            "unknown"
+            if coverage_end_month is None
+            else "full_year"
+            if coverage_end_month == 12
+            else f"ytd_month_{coverage_end_month:02d}"
+        )
         curated = build_common_metadata(
             dataset="youth_grants",
             source="ntpc_youth_bureau_grant_detail",
@@ -63,7 +72,7 @@ def transform_youth_grants(
             district_id=district_id,
             district_name=district_name,
             period_start=f"{year}-01-01",
-            period_end=f"{year}-12-31",
+            period_end=_period_end(year, coverage_end_month),
             period_type="year",
             metric_id="grant_amount",
             value=amount,
@@ -86,6 +95,8 @@ def transform_youth_grants(
                 "project_location": project_location,
                 "agency": clean_text(raw.get("agency")),
                 "amount_twd_thousand": amount,
+                "coverage_scope": coverage_scope,
+                "coverage_end_month": coverage_end_month,
                 "geo_basis": geo_basis,
                 "purchase_involved": raw.get("purchase_involved"),
                 "source_page_number": raw.get("source_page_number"),
@@ -141,6 +152,30 @@ def _required_text(raw: Mapping[str, Any], field: str) -> str:
     if value is None:
         raise TransformValueError(f"{field} is required")
     return value
+
+
+def _coverage_end_month(value: Any) -> int | None:
+    """Return the month a grant PDF accumulates to, when the source states it."""
+
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        month = int(value)
+    except (TypeError, ValueError):
+        return None
+    return month if 1 <= month <= 12 else None
+
+
+def _period_end(year: int, coverage_end_month: int | None) -> str:
+    """Close the period at the month the source actually reports.
+
+    A first-quarter PDF must not claim to cover the whole year; that is what
+    made a full-year total look comparable to a quarterly one.
+    """
+
+    month = coverage_end_month or 12
+    last_day = calendar.monthrange(year, month)[1]
+    return f"{year}-{month:02d}-{last_day:02d}"
 
 
 def _required_year(value: Any) -> str:

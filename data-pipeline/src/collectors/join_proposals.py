@@ -10,7 +10,7 @@ import re
 import ssl
 import unicodedata
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from html import unescape
 from typing import Any, Callable, Mapping, Sequence
 from urllib.parse import parse_qs, urljoin, urlparse
@@ -21,9 +21,17 @@ from .contracts import CollectedPayload
 
 DATA_GOV_DATASET_URL = "https://data.gov.tw/dataset/58036"
 JOIN_LIST_URL = "https://join.gov.tw/idea/"
+# The data.gov dataset page only links the year resources it has catalogued
+# (2020-2024 as of 2026-09), while the platform serves the same shape for the
+# current and preceding years.  Construct those directly so recent proposals
+# are not silently missing from the topic corpus.
+JOIN_OPENDATA_YEAR_URL = "https://join.gov.tw/toOpenData/v2/ey/idea?year={year}"
+DEFAULT_LOOKBACK_YEARS = 7
 REQUEST_TIMEOUT_SECONDS = 60
 MAX_RESPONSE_BYTES = 50 * 1024 * 1024
 OpenURL = Callable[..., Any]
+# The source writes this sentinel instead of omitting an empty field.
+_EMPTY_SOURCE_VALUES = frozenset({"", "無"})
 
 _ANCHOR_PATTERN = re.compile(
     r"<a\b(?P<attributes>[^>]*)>(?P<body>.*?)</a>", re.IGNORECASE | re.DOTALL
@@ -104,6 +112,9 @@ def fetch_join_proposals(
     resource_urls: Sequence[str] | None = None,
     listing_url: str = JOIN_LIST_URL,
     open_url: OpenURL = _open_url,
+    years: Sequence[int] | None = None,
+    lookback_years: int = DEFAULT_LOOKBACK_YEARS,
+    today: date | None = None,
 ) -> CollectedPayload:
     """Fetch open-data rows first, then fall back to join listing/detail pages."""
 
@@ -111,14 +122,28 @@ def fetch_join_proposals(
     configured_resources = tuple(resource_urls) if resource_urls is not None else None
     discovered_resources = configured_resources
     if discovered_resources is None:
+        # Year resources come first so the newest proposals win de-duplication;
+        # whatever data.gov catalogues is appended as a backstop.
+        year_resources = tuple(
+            JOIN_OPENDATA_YEAR_URL.format(year=year)
+            for year in _resource_years(years, lookback_years, today)
+        )
+        catalogued: tuple[str, ...] = ()
         try:
             dataset_html = _request_bytes(DATA_GOV_DATASET_URL, open_url=open_url, accept="text/html")
-            discovered_resources = tuple(
+            catalogued = tuple(
                 _discover_resource_urls(_decode_text(dataset_html), page_url=DATA_GOV_DATASET_URL)
             )
         except Exception as exc:  # pragma: no cover - live-source failure varies
             failures.append({"url": DATA_GOV_DATASET_URL, "reason": str(exc)})
-            discovered_resources = ()
+        seen_resources: set[str] = set()
+        ordered: list[str] = []
+        for candidate in year_resources + catalogued:
+            if candidate in seen_resources:
+                continue
+            seen_resources.add(candidate)
+            ordered.append(candidate)
+        discovered_resources = tuple(ordered)
 
     records: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
@@ -355,10 +380,36 @@ def _payload(records: list[dict[str, Any]], *, metadata: dict[str, Any]) -> Coll
     return CollectedPayload(records=records, metadata=metadata, artifacts=())
 
 
+def _resource_years(
+    years: Sequence[int] | None, lookback_years: int, today: date | None
+) -> tuple[int, ...]:
+    """Return the Gregorian years whose open-data resources should be fetched."""
+
+    if years is not None:
+        return tuple(dict.fromkeys(int(year) for year in years))
+    if lookback_years <= 0:
+        return ()
+    current_year = (today or datetime.now(timezone.utc).date()).year
+    return tuple(range(current_year, current_year - lookback_years, -1))
+
+
 def _first_value(row: Mapping[str, Any], aliases: Sequence[str]) -> Any:
+    """Return the first alias holding a real value.
+
+    The platform writes the literal ``無`` instead of omitting a field, so a
+    present-but-empty alias must not shadow a later one that does carry data
+    (``提送日期`` precedes ``publishDate`` for ``submitted_at``).
+    """
+
     for key in aliases:
-        if key in row:
-            return row[key]
+        if key not in row:
+            continue
+        value = row[key]
+        if value is None:
+            continue
+        if isinstance(value, str) and unicodedata.normalize("NFKC", value).strip() in _EMPTY_SOURCE_VALUES:
+            continue
+        return value
     return None
 
 

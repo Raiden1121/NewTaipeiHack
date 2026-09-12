@@ -21,7 +21,7 @@ from collectors.job_vacancy import fetch_new_taipei_job_vacancies
 from collectors.job_vacancy_salary import fetch_job_posted_salaries
 from collectors.marriage_nums import fetch_marriage_numbers
 from collectors.moving_in import fetch_moving
-from collectors.population_collector import fetch_population
+from collectors.population_collector import fetch_population, fetch_population_for_period
 from collectors.railway_stop import fetch_railway_stops
 from collectors.rental_price import fetch_rental_prices
 from collectors.talent_demand import fetch_talent_demand
@@ -71,6 +71,7 @@ from transform.pipeline import canonicalize_dataset, dataset_requires_resolver, 
 
 
 LOGGER = logging.getLogger("data_pipeline")
+POPULATION_ELECTION_ANCHOR_PERIODS = frozenset({"10312", "10712", "11112"})
 
 
 def _collect_college(period: str) -> dict[str, Any]:
@@ -101,6 +102,12 @@ def _collect_graduate_majors(period: str) -> Any:
 
 def _collect_wages(period: str) -> Any:
     return fetch_wage(county="新北市", year=period[:3])
+
+
+def _collect_population(period: str) -> Any:
+    """Use the historical source adapter when the period has one registered."""
+
+    return fetch_population_for_period(period, county="新北市")
 
 
 def _collect_youth_budgets(_period: str) -> CollectedPayload:
@@ -140,7 +147,7 @@ def _collect_youth_council_minutes(_period: str) -> CollectedPayload:
 
 
 DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
-    CollectorSpec("population", lambda period: fetch_population(period, county="新北市")),
+    CollectorSpec("population", _collect_population),
     CollectorSpec(
         "population_villages", lambda period: fetch_population(period, county="新北市")
     ),
@@ -815,11 +822,18 @@ def _run_retention(
         _canonical_dataset_or_name(spec.dataset): spec.period_strategy
         for spec in specs
     }
+    protected_periods = {"population": set(POPULATION_ELECTION_ANCHOR_PERIODS)}
+    protected_periods = {
+        dataset: periods
+        for dataset, periods in protected_periods.items()
+        if dataset in strategies
+    }
     return prune_local_data(
         output_dir,
         current_period=current_period,
         period_strategies=strategies,
         retention_years=retention_years,
+        protected_periods=protected_periods,
     )
 
 

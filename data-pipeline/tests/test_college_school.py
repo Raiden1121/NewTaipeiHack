@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from urllib.error import HTTPError
 
 
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
@@ -72,6 +73,67 @@ class TestFetchCollegeSchoolLocations(unittest.TestCase):
         self.assertIn("1084", aliases)
         self.assertEqual(aliases["1084"]["school_code_alias_of"], "1166")
         self.assertEqual(aliases["1084"]["district_name"], "板橋區")
+
+    def _directory_payload(self) -> str:
+        return (
+            '序號,"學校\n代碼",公私立,體制,學校名稱,學校英文名稱,職稱,姓名,'
+            '縣市別,"第三級\n行政區","郵遞\n區號",學校地址,學校總機,學校傳真,網址\n'
+            '1,0001,公立,一般大學,測試大學,Test University,校長,測試校長,'
+            '新北市,板橋區,220,新北市板橋區測試路1號,02-1234-5678,02-1234-5679,'
+            'https://example.edu.tw\n'
+        )
+
+    def _http_error(self, code: int, reason: str) -> HTTPError:
+        return HTTPError(
+            college_school.SCHOOL_DIRECTORY_URL, code, reason, {}, None
+        )
+
+    def test_retries_transient_http_status_then_succeeds(self):
+        attempts = []
+        slept = []
+
+        def open_url(request, timeout):
+            attempts.append(request)
+            if len(attempts) == 1:
+                raise self._http_error(406, "Not Acceptable")
+            return FakeResponse(self._directory_payload())
+
+        records = college_school.fetch_college_school_locations(
+            open_url=open_url, sleep=slept.append
+        )
+
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(slept, [1.0])
+        self.assertEqual(records[0]["school_code"], "0001")
+
+    def test_raises_after_exhausting_attempts_on_transient_status(self):
+        attempts = []
+
+        def open_url(request, timeout):
+            attempts.append(request)
+            raise self._http_error(503, "Service Unavailable")
+
+        with self.assertRaises(college_school.CollegeSchoolCollectorError) as ctx:
+            college_school.fetch_college_school_locations(
+                open_url=open_url, sleep=lambda _seconds: None
+            )
+
+        self.assertEqual(len(attempts), college_school.MAX_DIRECTORY_ATTEMPTS)
+        self.assertIn("503", str(ctx.exception))
+
+    def test_does_not_retry_permanent_http_status(self):
+        attempts = []
+
+        def open_url(request, timeout):
+            attempts.append(request)
+            raise self._http_error(404, "Not Found")
+
+        with self.assertRaises(college_school.CollegeSchoolCollectorError):
+            college_school.fetch_college_school_locations(
+                open_url=open_url, sleep=lambda _seconds: None
+            )
+
+        self.assertEqual(len(attempts), 1)
 
 
 if __name__ == "__main__":

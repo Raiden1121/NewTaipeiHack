@@ -181,7 +181,7 @@ ROC 114 的前 10 筆實際欄位如下；`weight` 是前端文字大小使用�
 
 | Dataset | 統計內容 | 實際可用期間 | 地理粒度 | 18–35 歲用途 |
 |---|---|---|---|---|
-| `population` | 總人口與 18–35 歲人口 | 2018-01～2026-07，缺 2024-08 | 新北市 29 區 | 青年人口可直接使用 |
+| `population` | 總人口與 18–35 歲人口 | 2014-12、2018-12、2022-12；另有 2021-01～2026-07（缺 2024-08） | 新北市 29 區 | 青年人口可直接使用 |
 | `movement` | 遷入、遷出與淨遷徙 | 2018-01～2026-07，缺 2024-08 | 新北市 29 區 | 背景指標 |
 | `births` | 生母 18–35 歲出生數 | 2019～2025 | 新北市 29 區 | 可直接使用 |
 | `marriages` | 全年結婚對數 | 2017 | 新北市 29 區 | 背景指標 |
@@ -210,7 +210,7 @@ ROC 114 的前 10 筆實際欄位如下；`weight` 是前端文字大小使用�
 
 ### 資料名稱與統計內容
 
-內政部戶政 ODRP014 村里戶數及單一年齡人口。transform 將村里資料彙總成行政區月份，保留全體人口，並加總 18～35 歲男性、女性及總人口。
+人口主來源是內政部戶政 ODRP014 村里戶數及單一年齡人口；ODRP014 沒有 ROC 103 月份時，`10312` 使用內政部歷史「各村（里）戶籍人口統計月報表」單一年齡 CSV archive。兩個來源都先轉成同一份村里 raw contract，再由 transform 彙總成行政區月份，保留全體人口，並加總 18～35 歲男性、女性及總人口。
 
 ### 處理後 Keys
 
@@ -233,8 +233,10 @@ ROC 114 的前 10 筆實際欄位如下；`weight` 是前端文字大小使用�
 ### 其他說明
 
 - 代表檔：`data/curated/population.json`；歷史檔在 `data/curated/population/{yyyMM}.json`。
-- 可用民國年月為 10701～11507，共 102 個月，11308 缺資料；10501～10612 來源查無資料。
+- 選舉分母的必要年末 anchor 為 `10312`、`10712`、`11112`，三者都註冊在 `data/quality/dataset_index.json`；其中 `10312` 的完整 ZIP artifact 保存在 `data/raw/population/artifacts/`。
+- ODRP014 的可用民國年月從 10701 起；本地目前保留 2021-01～2026-07 的月 partition（11308 缺資料），另保留上述歷史選舉 anchor。10301～10612 不是 ODRP014 可用期，沒有用估算補齊。
 - 每月 29 區，最新檔 116 筆，即 29 區 × 4 個指標。
+- `10312` 實測 1,032 筆村里、29 區，總人口 `3,966,818`，18–35 歲總人口 `1,086,392`；transform 0 筆拒絕。
 
 ### 1.1 `population_villages`：里級青年人口
 
@@ -960,7 +962,7 @@ analytics 只讀 `data/quality/dataset_index.json` 指向的兩份 curated all-a
 
 - 年度序列使用 ROC 110–114；選舉使用 2014／ROC 103、2018／ROC 107、2022／ROC 111。
 - V1 村里長是 29 區主要指標；T1 直轄市議員保留 `election_district_code`／`election_district_name` 的選舉區粒度，不寫入單一 `district_id`。
-- `source_period` 保留各子指標實際來源期間；人口分母缺少對應歷史年度時輸出 `null`／`unavailable`，不改用錯年度人口。
+- `source_period` 保留各子指標實際來源期間；選舉分母使用同年度年末 anchor（10312／10712／11112）。若缺少對應歷史 partition，才輸出 `null`／`unavailable`，不改用錯年度人口。
 
 ### 公開輸出結構與公式
 
@@ -977,7 +979,7 @@ analytics 只讀 `data/quality/dataset_index.json` 指向的兩份 curated all-a
 
 V1 的 YRR 目前使用 `population` 的 18–35 歲人口比例作為選舉人年齡比例 proxy，資料列會標記 `denominator_type=population_proxy`、`proxy=true`；這不是年齡別選舉人名冊。所有子指標都帶有 `status`、`source_period`、`blocking_reasons` 或品質欄位，`observed`、`partial`、`unavailable` 的意義由實際輸入覆蓋率決定。
 
-目前真實輸出可由品質報告確認：V1 最新一屆為 ROC 111、29 區；服務涵蓋率因里級人口未完整接合為 `partial`；提案第 4–5 階因沒有列管表為 `null`；補助年度趨勢可算，但因官方 PDF 未提供地址，行政區分布為 `partial`；預算只有已解析決算年度能計算執行率。
+目前真實輸出可由品質報告確認：V1 最新一屆為 ROC 111、29 區；103／107／111 三屆的青年參選率與 YRR 都已由同年度人口 anchor 計算；服務涵蓋率因里級人口未完整接合為 `partial`；提案第 4–5 階因沒有列管表為 `null`；補助年度趨勢可算，但因官方 PDF 未提供地址，行政區分布為 `partial`；預算只有已解析決算年度能計算執行率。
 
 ## 25.2 `fertility` analytics
 
@@ -1137,73 +1139,60 @@ proxy／latest available。公開 analytics 不包含 `raw_record` 或 `raw_reco
 
 ## 28. 開發用 published snapshot
 
-首頁、青年就業或青年參政 analytics 可用 `run_analytics.py --metric ... --publish` 發布為
-Backend 可讀的版本化本機 snapshot。發布層只讀已產生的 analytics，
-不重新抓政府 API，也不重新計算指標。使用目前真實資料產生開發 snapshot 的指令為：
+完整開發版使用 `run_analytics.py --metric all --publish`。它會用同一次
+homepage 計算與同一個 snapshot id，產生首頁及六個分析，再由 publisher
+先寫完所有 artifact 與 `manifest.json`，最後才更新 `current.json`：
 
 ```bash
 cd data-pipeline
-.venv/bin/python src/run_analytics.py \
-  --metric homepage \
+PYTHONPATH=src .venv/bin/python src/run_analytics.py \
+  --metric all \
   --publish \
-  --snapshot-id dev-homepage-20260911
+  --snapshot-id dev-full-20260912 \
+  --output-dir data \
+  --config-dir config
 ```
 
-本次輸出為：
+目前完整開發版的結構為：
 
 ```text
-data/analytics/published/dev-homepage-20260911/manifest.json
-data/analytics/published/dev-homepage-20260911/dashboard_overview.json
-data/analytics/published/dev-homepage-20260911/district_details.json
-data/analytics/published/current.json
+data/analytics/published/
+├── current.json
+└── dev-full-20260912/
+    ├── manifest.json
+    ├── dashboard_overview.json
+    ├── district_details.json
+    └── analyses/
+        ├── employment.json
+        ├── fertility.json
+        ├── participation.json
+        ├── policy_support.json
+        ├── keyword_frequency.json
+        └── topic_weight.json
 ```
 
-青年參政 snapshot 使用：
+`current.json` 只保存目前 snapshot id：
 
-```bash
-cd data-pipeline
-.venv/bin/python src/run_analytics.py \
-  --metric youth_participation \
-  --annual-start-roc 110 \
-  --annual-end-roc 114 \
-  --population-reference-roc 114 \
-  --publish \
-  --snapshot-id dev-youth-participation-20260911
+```json
+{"snapshot_id": "dev-full-20260912"}
 ```
 
-輸出除既有首頁檔案外，另包含：
+Backend 先讀取此 id，再讀同一個 snapshot 的 `manifest.json`，依
+`artifacts.dashboard_overview`、`artifacts.district_details` 與
+`artifacts.analyses` 的相對路徑取得資料。manifest 會列出 homepage、
+employment、fertility、participation、policy_support、topic_weight、
+keyword_frequency 共 7 個 dataset，並記錄各自的 `source_period`、
+`coverage` 與品質旗標。
 
-```text
-data/analytics/published/dev-youth-participation-20260911/manifest.json
-data/analytics/published/dev-youth-participation-20260911/dashboard_overview.json
-data/analytics/published/dev-youth-participation-20260911/district_details.json
-data/analytics/published/dev-youth-participation-20260911/analyses/participation.json
-data/analytics/published/current.json
-```
+個別 `--metric homepage`、`employment`、`fertility`、
+`youth_participation` 或 `policy_support` 的 `--publish` 仍可用來產生
+歷史／除錯用候選 snapshot，但不會替換完整 release 的 `current.json`。
+舊的 `dev-*` 目錄保留，不在讀取時拼接；需要更新前端或 Backend 使用的版本時，
+應重新執行 `--metric all --publish`。
 
-青年就業 snapshot 另包含：
-
-```text
-data/analytics/published/dev-employment-20260911/manifest.json
-data/analytics/published/dev-employment-20260911/dashboard_overview.json
-data/analytics/published/dev-employment-20260911/district_details.json
-data/analytics/published/dev-employment-20260911/analyses/employment.json
-data/analytics/published/current.json
-```
-
-`manifest.json` 的 `artifacts.analyses.employment` 指向就業 analytics，
-`datasets` 同時記錄其 `source_period`、`coverage` 與品質旗標。
-
-青年參政 snapshot 的 `manifest.json.artifacts.analyses.participation` 指向
-`analyses/participation.json`；T1 選舉區結果仍只存在 participation artifact
-的選舉區欄位，不會被拆入 29 區 `district_details`。
-
-`current.json` 只保存目前 snapshot id；Backend 先讀取此指標，再依
-`manifest.json` 的相對 artifact 路徑讀取同一個 snapshot。overview 保留首頁
-KPI、29 區、年度資料、選舉、預算與服務涵蓋率；district details 將 29 區列
-拆成行政區與 metrics。`null`、`partial`、`unavailable` 會保留，不轉成 0。
-發布 artifact 不包含 `raw_record`、`raw_records` 或原始 PDF；完整缺值與來源
-品質仍保留在 `data/quality/analytics_homepage.json`。
+所有公開 artifact 保留 `null`、`partial`、`unavailable`，不把缺值轉成 0，
+也不包含 `raw_record`、`raw_records`、原始 PDF 或本機檔案路徑；完整品質細節
+仍保留在 `data/quality/analytics_*.json`。
 
 ## 使用建議
 

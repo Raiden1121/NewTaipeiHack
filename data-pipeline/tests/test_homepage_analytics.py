@@ -249,7 +249,87 @@ class FakeHomepageResolver:
         raise AssertionError(f"unexpected all dataset: {dataset}")
 
 
+class RecordingHomepageResolver(FakeHomepageResolver):
+    """Records requested periods and can withhold a year the source lacks."""
+
+    def __init__(self, unavailable_years=()):
+        super().__init__()
+        self.requested_population_periods = []
+        self._unavailable_years = {f"{year:03d}" for year in unavailable_years}
+
+    def available_periods(self, dataset, periods):
+        if dataset == "population":
+            self.requested_population_periods.extend(periods)
+            periods = [
+                period for period in periods if period[:3] not in self._unavailable_years
+            ]
+            if not periods:
+                raise ValueError("dataset 'population' has no available requested periods")
+        return super().available_periods(dataset, periods)
+
+    def _all_records(self, dataset):
+        records = super()._all_records(dataset)
+        if dataset != "elections":
+            return records
+        # The shared fixture only covers ROC 111; earlier elections are what
+        # make the out-of-window denominator observable.
+        return records + [
+            {
+                "source_code": "T1",
+                "election_type": "city_councilor",
+                "election_roc_year": str(year),
+                "election_district_code": "01",
+                "election_district_name": "第一選區",
+                "election_date": f"{year + 1911}-11-29",
+                "birth_date": f"{year + 1911 - 30}-01-01",
+            }
+            for year in (103, 107)
+        ]
+
+
 class TestHomepageAnalytics(unittest.TestCase):
+    def test_loads_population_for_election_years_outside_the_annual_window(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+        resolver = RecordingHomepageResolver()
+
+        result = generate_homepage_data(resolver=resolver, config=config)
+
+        requested = set(resolver.requested_population_periods)
+        # 103 and 107 are election years well outside annual_years_roc 110-114.
+        for year in config.election_years_roc:
+            self.assertIn(f"{year:03d}01", requested)
+        by_year = {
+            row["election_year_roc"]: row
+            for row in result["elections"]["city_councilor_t1_citywide"]
+        }
+        for year in config.election_years_roc:
+            self.assertIsNotNone(by_year[year]["youth_population_18_35"], year)
+
+    def test_election_year_without_published_population_stays_unavailable(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+        # ODRP014 publishes nothing before ROC 107, so 103 must degrade rather
+        # than fail the run.
+        resolver = RecordingHomepageResolver(unavailable_years=(103,))
+
+        result = generate_homepage_data(resolver=resolver, config=config)
+
+        by_year = {
+            row["election_year_roc"]: row
+            for row in result["elections"]["city_councilor_t1_citywide"]
+        }
+        # 103 keeps the counts it can prove and reports the missing denominator
+        # instead of disappearing or borrowing another year's population.
+        self.assertEqual(by_year[103]["quality_status"], "unavailable")
+        self.assertIsNone(by_year[103]["youth_population_18_35"])
+        self.assertIsNone(by_year[103]["youth_candidacy_rate"])
+        self.assertEqual(by_year[103]["youth_candidate_count"], 1)
+        # 107 is published, so it must be fully observed.
+        self.assertEqual(by_year[107]["quality_status"], "observed")
+        self.assertIsNotNone(by_year[107]["youth_population_18_35"])
+        self.assertIsNotNone(by_year[107]["youth_candidacy_rate"])
+
     def test_high_salary_ratio_uses_all_vacancy_positions_as_denominator(self):
         config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
         config = load_homepage_analytics_config(config_path)

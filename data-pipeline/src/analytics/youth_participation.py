@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .annual_metrics import calculate_budget_series
+from .data_gaps import explain_reason_codes
 from .config import (
     HomepageAnalyticsConfig,
     load_keyword_config,
@@ -231,6 +232,7 @@ def calculate_grant_metrics(
     input_rows = 0
     source_years: set[int] = set()
     annual_rows = 0
+    year_scopes: dict[int, str] = {}
     for raw in records:
         input_rows += 1
         year = _row_year(raw)
@@ -240,6 +242,7 @@ def calculate_grant_metrics(
         if year not in years or amount is None:
             continue
         annual_rows += 1
+        year_scopes.setdefault(year, str(raw.get("coverage_scope") or "unknown"))
         trend_amounts[year] += amount
         district_id = raw.get("district_id")
         if district_id is None:
@@ -261,17 +264,32 @@ def calculate_grant_metrics(
                 "grant_row_count": item["grant_row_count"],
             }
         )
-    trend = [
+    comparable_scope = _comparable_grant_scope(year_scopes)
+    all_years = [
         {
             "year_roc": year,
             "amount_twd_thousand": _round(trend_amounts[year]) if year in trend_amounts else None,
+            "coverage_scope": year_scopes.get(year),
             "status": "observed" if year in trend_amounts else "unavailable",
         }
         for year in years
     ]
+    # Each source PDF accumulates to a different month, so only one reporting
+    # scope may be plotted as a series; the rest stay visible in coverage.
+    trend = [
+        row
+        for row in all_years
+        if row["coverage_scope"] == comparable_scope or row["status"] == "unavailable"
+    ]
+    excluded_years = [
+        row for row in all_years if row not in trend
+    ]
+    blocking_reasons = ["grant_district_unresolved"] if unresolved else []
+    if excluded_years:
+        blocking_reasons.append("grant_coverage_scope_mixed")
     if not input_rows:
         status = "unavailable"
-    elif unresolved:
+    elif unresolved or excluded_years:
         status = "partial"
     else:
         status = "observed"
@@ -280,6 +298,7 @@ def calculate_grant_metrics(
         "source_datasets": ["youth_grants"],
         "source_period": [str(year) for year in sorted(source_years)],
         "trend": trend,
+        "trend_coverage_scope": comparable_scope,
         "by_district": dict(by_district),
         "unresolved_district_row_count": unresolved,
         "input_row_count": input_rows,
@@ -287,11 +306,32 @@ def calculate_grant_metrics(
             "annual_year_count": len(years),
             "annual_row_count": annual_rows,
             "district_resolved_row_count": annual_rows - unresolved,
+            "coverage_scope_by_year": {
+                str(year): scope for year, scope in sorted(year_scopes.items())
+            },
+            "excluded_years": excluded_years,
         },
         "status": status,
         "proxy_usage": [],
-        "blocking_reasons": ["grant_district_unresolved"] if unresolved else [],
+        "blocking_reasons": blocking_reasons,
     }
+
+
+def _comparable_grant_scope(year_scopes: Mapping[int, str]) -> str | None:
+    """Pick the reporting scope that forms the longest comparable series.
+
+    Ties are broken towards the scope covering the most recent year so the
+    trend keeps tracking how the bureau currently publishes.
+    """
+
+    if not year_scopes:
+        return None
+    counts: dict[str, int] = defaultdict(int)
+    latest: dict[str, int] = {}
+    for year, scope in year_scopes.items():
+        counts[scope] += 1
+        latest[scope] = max(latest.get(scope, year), year)
+    return max(counts, key=lambda scope: (counts[scope], latest[scope]))
 
 
 def generate_youth_participation_data(
@@ -535,6 +575,9 @@ def generate_youth_participation_data(
     if any(row.get("execution_rate") is None for row in budget.get("execution", [])):
         quality["warnings"].append("budget_execution_rate_missing_without_final_settlement")
     quality["blocking_reasons"] = sorted(set(quality["blocking_reasons"]))
+    quality["source_limitations"] = explain_reason_codes(
+        quality["blocking_reasons"], config_dir=rules_path
+    )
     quality["source_periods"] = source_periods
     quality["coverage"] = {
         "expected_district_count": len(resolver.districts),
@@ -630,11 +673,19 @@ def _finalize_borough_group(
     yrr = None
     if population_share not in (None, 0) and ratio is not None:
         yrr = (ratio / 100) / (population_share / 100)
+    # Candidate and seat counts come from the election records alone, so they
+    # stay observable in years whose population was never published.  Only the
+    # population-derived rates degrade.
+    has_counts = int(group.get("candidate_count", 0)) > 0 or elected_seats > 0
+    counts_status = "observed" if has_counts else "unavailable"
     status = "observed" if youth_population is not None and people_total is not None else "unavailable"
+    denominator_reason = None if status == "observed" else "population_denominator_unpublished"
     return {
         "election_year_roc": group.get("election_year_roc"),
         "district_id": group.get("district_id"),
         "district_name": district_name,
+        "counts_status": counts_status,
+        "denominator_unavailable_reason": denominator_reason,
         "candidate_count": group.get("candidate_count", 0),
         "age_known_candidate_count": group.get("age_known_candidate_count", 0),
         "youth_candidate_count": youth_candidates,
@@ -699,6 +750,10 @@ def _borough_rows(result: Mapping[str, Any], *, latest: bool = False) -> list[di
 
 def _collection_status(rows: list[Mapping[str, Any]]) -> str:
     if not rows:
+        return "unavailable"
+    # A year the elections source never covered has nothing to show; a year with
+    # counts but no published population is partial, not empty.
+    if all(row.get("counts_status", "unavailable") == "unavailable" for row in rows):
         return "unavailable"
     if any(row.get("status") != "observed" for row in rows):
         return "partial"

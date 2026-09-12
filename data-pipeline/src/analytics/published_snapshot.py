@@ -34,11 +34,14 @@ def publish_homepage_snapshot(
     snapshot_id: str | None = None,
     analyses: Mapping[str, Mapping[str, Any]] | None = None,
     analysis_quality: Mapping[str, Mapping[str, Any]] | None = None,
+    update_current: bool = True,
 ) -> PublishedSnapshot:
     """Write a homepage payload as an atomic, versioned published snapshot.
 
     Snapshot artifacts are written before ``current.json``.  A failed write
-    therefore leaves the previous current pointer unchanged.
+    therefore leaves the previous current pointer unchanged.  Set
+    ``update_current=False`` when creating a candidate snapshot that should
+    not become the active frontend release.
     """
 
     _validate_public_payload(homepage_payload)
@@ -91,9 +94,11 @@ def publish_homepage_snapshot(
     for name, payload in named_analyses.items():
         atomic_json_write(snapshot_dir / "analyses" / f"{name}.json", payload)
     manifest_path = atomic_json_write(snapshot_dir / "manifest.json", manifest)
-    current_path = atomic_json_write(
-        published_root / "current.json", {"snapshot_id": resolved_snapshot_id}
-    )
+    current_path = published_root / "current.json"
+    if update_current:
+        current_path = atomic_json_write(
+            current_path, {"snapshot_id": resolved_snapshot_id}
+        )
     return PublishedSnapshot(
         snapshot_id=resolved_snapshot_id,
         snapshot_dir=snapshot_dir,

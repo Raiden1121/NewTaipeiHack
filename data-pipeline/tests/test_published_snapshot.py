@@ -36,6 +36,15 @@ class TestPublishedSnapshot(unittest.TestCase):
             "coverage": {"district_count": 29, "plot1_regression_sample_size": 29},
             "warnings": ["wage_proxy"],
         }
+        fertility = {
+            "metric_id": "fertility",
+            "generated_at": "2026-09-11T09:39:13.190552+00:00",
+            "districts": [],
+        }
+        fertility_quality = {
+            "source_periods": {"births": ["114"]},
+            "coverage": {"district_count": 29},
+        }
 
         with tempfile.TemporaryDirectory() as tempdir:
             result = publish_homepage_snapshot(
@@ -43,22 +52,37 @@ class TestPublishedSnapshot(unittest.TestCase):
                 {},
                 output_dir=tempdir,
                 snapshot_id="dev-employment",
-                analyses={"employment": analysis},
-                analysis_quality={"employment": analysis_quality},
+                analyses={"employment": analysis, "fertility": fertility},
+                analysis_quality={
+                    "employment": analysis_quality,
+                    "fertility": fertility_quality,
+                },
             )
 
             analysis_path = result.snapshot_dir / "analyses" / "employment.json"
             self.assertTrue(analysis_path.is_file())
             self.assertEqual(json.loads(analysis_path.read_text(encoding="utf-8")), analysis)
+            fertility_path = result.snapshot_dir / "analyses" / "fertility.json"
+            self.assertTrue(fertility_path.is_file())
+            self.assertEqual(
+                json.loads(fertility_path.read_text(encoding="utf-8")), fertility
+            )
             manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(
                 manifest["artifacts"]["analyses"],
-                {"employment": "analyses/employment.json"},
+                {
+                    "employment": "analyses/employment.json",
+                    "fertility": "analyses/fertility.json",
+                },
             )
             entry = next(item for item in manifest["datasets"] if item["dataset"] == "employment")
             self.assertEqual(entry["source_period"], {"job_vacancies": ["11509"]})
             self.assertEqual(entry["coverage"]["district_count"], 29)
             self.assertEqual(entry["quality_flags"], ["wage_proxy"])
+            fertility_entry = next(
+                item for item in manifest["datasets"] if item["dataset"] == "fertility"
+            )
+            self.assertEqual(fertility_entry["source_period"], {"births": ["114"]})
 
     def test_publishes_homepage_artifacts_and_switches_current_pointer_last(self):
         homepage = {
@@ -133,6 +157,24 @@ class TestPublishedSnapshot(unittest.TestCase):
             )
             self.assertEqual(details["districts"][0]["district_id"], "65000010")
             self.assertEqual(details["districts"][0]["metrics"]["fertilityRate"], None)
+
+    def test_can_write_candidate_without_switching_current_pointer(self):
+        homepage = {
+            "metric_id": "homepage",
+            "generated_at": "2026-09-11T09:39:13.190552+00:00",
+            "districts": [],
+        }
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            result = publish_homepage_snapshot(
+                homepage,
+                output_dir=tempdir,
+                snapshot_id="dev-candidate",
+                update_current=False,
+            )
+
+            self.assertTrue(result.manifest_path.is_file())
+            self.assertFalse(result.current_path.exists())
 
     def test_rejects_unsafe_snapshot_id(self):
         with self.assertRaises(ValueError):

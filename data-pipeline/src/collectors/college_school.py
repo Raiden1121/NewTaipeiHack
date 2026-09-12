@@ -8,6 +8,7 @@ from functools import lru_cache
 import io
 import re
 import ssl
+import time
 from collections.abc import Callable
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -23,6 +24,13 @@ SCHOOL_DIRECTORY_URL = (
 )
 SOURCE_NAME = "moe_33207_108"
 REQUEST_TIMEOUT_SECONDS = 120
+# The MOE endpoint intermittently answers an otherwise identical request with
+# 406 Not Acceptable; the same URL and headers return 200 moments later.  This
+# directory is a frozen reference table shared by every academic-year snapshot,
+# so one transient rejection must not fail the whole college_majors unit (a
+# failed unit also makes the pipeline skip retention for the entire run).
+TRANSIENT_HTTP_STATUSES = frozenset({406, 408, 425, 429, 500, 502, 503, 504})
+MAX_DIRECTORY_ATTEMPTS = 3
 # The Ministry of Education's school-change records changed these codes after
 # the 108 directory.  Keep the historical location row and expose the newer
 # codes used by later 9621/9622 snapshots.
@@ -53,6 +61,7 @@ def _open_url(request: Request, *, timeout: int) -> Any:
 def fetch_college_school_locations(
     *,
     open_url: OpenURL = _open_url,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> list[dict[str, Any]]:
     """Fetch school-code-to-location records from the official directory.
 
@@ -64,7 +73,7 @@ def fetch_college_school_locations(
 
     if open_url is _open_url:
         return [deepcopy(record) for record in _cached_default_locations()]
-    return _fetch_locations(open_url=open_url)
+    return _fetch_locations(open_url=open_url, sleep=sleep)
 
 
 @lru_cache(maxsize=1)
@@ -72,28 +81,10 @@ def _cached_default_locations() -> tuple[dict[str, Any], ...]:
     return tuple(_fetch_locations(open_url=_open_url))
 
 
-def _fetch_locations(*, open_url: OpenURL) -> list[dict[str, Any]]:
-    # The MOE IIS endpoint returns 406 for ``Accept: text/csv`` even though
-    # the response body is CSV. Use a generic Accept value and identify the
-    # pipeline explicitly instead of negotiating an unsupported media type.
-    request = Request(
-        SCHOOL_DIRECTORY_URL,
-        headers={
-            "Accept": "*/*",
-            "User-Agent": "NewTaipeiHack-data-pipeline/1.0",
-        },
-    )
-    try:
-        with open_url(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-            payload = response.read()
-    except HTTPError as exc:
-        raise CollegeSchoolCollectorError(
-            f"MOE school directory HTTP error: {exc.code} {exc.reason}"
-        ) from exc
-    except (URLError, TimeoutError, OSError) as exc:
-        raise CollegeSchoolCollectorError(
-            f"MOE school directory request failed: {exc}"
-        ) from exc
+def _fetch_locations(
+    *, open_url: OpenURL, sleep: Callable[[float], None] = time.sleep
+) -> list[dict[str, Any]]:
+    payload = _download_directory(open_url=open_url, sleep=sleep)
 
     if not isinstance(payload, (bytes, str)):
         raise CollegeSchoolCollectorError("MOE school directory response must be CSV")
@@ -104,6 +95,43 @@ def _fetch_locations(*, open_url: OpenURL) -> list[dict[str, Any]]:
             "MOE school directory returned invalid text encoding"
         ) from exc
     return _parse_csv(text)
+
+
+def _download_directory(
+    *, open_url: OpenURL, sleep: Callable[[float], None]
+) -> bytes | str:
+    """Download the directory, retrying statuses this endpoint serves flakily.
+
+    A genuine content-negotiation failure would be permanent, so a status that
+    stays in ``TRANSIENT_HTTP_STATUSES`` for every attempt still raises.
+    """
+
+    # The MOE IIS endpoint returns 406 for ``Accept: text/csv`` even though
+    # the response body is CSV. Use a generic Accept value and identify the
+    # pipeline explicitly instead of negotiating an unsupported media type.
+    request = Request(
+        SCHOOL_DIRECTORY_URL,
+        headers={
+            "Accept": "*/*",
+            "User-Agent": "NewTaipeiHack-data-pipeline/1.0",
+        },
+    )
+    for attempt in range(1, MAX_DIRECTORY_ATTEMPTS + 1):
+        try:
+            with open_url(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+                return response.read()
+        except HTTPError as exc:
+            if exc.code not in TRANSIENT_HTTP_STATUSES or attempt == MAX_DIRECTORY_ATTEMPTS:
+                raise CollegeSchoolCollectorError(
+                    f"MOE school directory HTTP error: {exc.code} {exc.reason}"
+                ) from exc
+        except (URLError, TimeoutError, OSError) as exc:
+            if attempt == MAX_DIRECTORY_ATTEMPTS:
+                raise CollegeSchoolCollectorError(
+                    f"MOE school directory request failed: {exc}"
+                ) from exc
+        sleep(float(2 ** (attempt - 1)))
+    raise AssertionError("unreachable")
 
 
 def _decode_payload(payload: bytes | str) -> str:

@@ -98,6 +98,117 @@ class LocalRetentionTests(unittest.TestCase):
                 ["11001"],
             )
 
+    def test_preserves_protected_historical_population_partition(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategies = {"population": PeriodStrategy.MONTHLY}
+            for category in ("raw", "curated", "quality", "quarantine"):
+                if category == "raw":
+                    protected_path = root / category / "population" / "10312_20260912T000000Z.json"
+                    self._write_json(protected_path, {"period": "10312", "records": []})
+                else:
+                    protected_path = root / category / "population" / "10312.json"
+                    self._write_json(protected_path, {"period": "10312"})
+            self._write_json(
+                root / "quality" / "collection" / "10312.json",
+                {"period": "10312"},
+            )
+            self._write_json(
+                root / "quality" / "dataset_index.json",
+                {
+                    "schema_version": 1,
+                    "datasets": {
+                        "population": [
+                            {
+                                "output_key": "10312",
+                                "path": "curated/population/10312.json",
+                                "period_strategy": "monthly",
+                            }
+                        ]
+                    },
+                },
+            )
+
+            report = prune_local_data(
+                root,
+                current_period="11509",
+                period_strategies=strategies,
+                protected_periods={"population": {"10312"}},
+            )
+
+            self.assertTrue((root / "curated/population/10312.json").exists())
+            self.assertTrue((root / "quality/population/10312.json").exists())
+            self.assertTrue((root / "quarantine/population/10312.json").exists())
+            self.assertTrue(
+                (root / "raw/population/10312_20260912T000000Z.json").exists()
+            )
+            self.assertTrue((root / "quality/collection/10312.json").exists())
+            self.assertNotIn("curated/population/10312.json", report["deleted_paths"])
+            index = json.loads(
+                (root / "quality/dataset_index.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                index["datasets"]["population"][0]["output_key"], "10312"
+            )
+
+    def test_keeps_unknown_index_shapes_when_rewriting(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategies = {"population": PeriodStrategy.MONTHLY}
+            self._write_json(
+                root / "curated" / "population" / "10912.json", {"period": "10912"}
+            )
+            self._write_json(
+                root / "quality" / "dataset_index.json",
+                {
+                    "schema_version": 2,
+                    "datasets": {
+                        # Stale partition: forces the index to be rewritten.
+                        "population": [
+                            {
+                                "output_key": "10912",
+                                "path": "curated/population/10912.json",
+                                "period_strategy": "monthly",
+                            },
+                            {
+                                "output_key": "11001",
+                                "path": "curated/population/11001.json",
+                                "period_strategy": "monthly",
+                            },
+                        ],
+                        # Shapes retention does not understand must survive.
+                        "join_proposals": {
+                            "output_key": "all",
+                            "path": "curated/join_proposals/all.json",
+                        },
+                        "youth_council_minutes": None,
+                    },
+                },
+            )
+
+            prune_local_data(
+                root,
+                current_period="11509",
+                period_strategies=strategies,
+            )
+
+            index = json.loads(
+                (root / "quality/dataset_index.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                [entry["output_key"] for entry in index["datasets"]["population"]],
+                ["11001"],
+            )
+            self.assertEqual(
+                index["datasets"]["join_proposals"],
+                {
+                    "output_key": "all",
+                    "path": "curated/join_proposals/all.json",
+                },
+            )
+            self.assertIn("youth_council_minutes", index["datasets"])
+            self.assertIsNone(index["datasets"]["youth_council_minutes"])
+
     def test_filters_old_records_inside_all_available_json(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)

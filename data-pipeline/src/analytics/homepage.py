@@ -14,6 +14,7 @@ from shapely.geometry import shape
 
 from .annual_metrics import calculate_annual_fertility, calculate_annual_population, calculate_budget_series
 from .config import HomepageAnalyticsConfig
+from .data_gaps import explain_reason_codes
 from .elections import calculate_youth_candidacy
 from .homepage_math import calculate_quartile_risk, normalize_p5_p95, shannon_entropy, weighted_score
 from .input_resolver import HomepageInputResolver
@@ -73,9 +74,13 @@ def generate_homepage_data(
         return [dict(row) for row in item.records]
 
     annual_years = list(config.annual_years_roc)
+    # Election events fall outside the annual window, so their denominators must
+    # be requested explicitly; available_periods() skips the years the source
+    # never published instead of failing the whole run.
+    population_years = set(annual_years) | {min(annual_years) - 1} | set(config.election_years_roc)
     population_periods = [
         f"{year:03d}{month:02d}"
-        for year in sorted(set(annual_years + [min(annual_years) - 1]))
+        for year in sorted(population_years)
         for month in range(1, 13)
     ]
     population_records = load_periods("population", population_periods)
@@ -203,6 +208,11 @@ def generate_homepage_data(
         "service_coverage": service_coverage,
         "_quality": {
             **quality,
+            "source_limitations": explain_reason_codes(
+                list(quality["blocking_reasons"])
+                + [str(item.get("reason")) for item in quality["proxy_usage"] if isinstance(item, Mapping)],
+                config_dir=Path(__file__).resolve().parents[2] / "config",
+            ),
             "source_periods": _source_periods(loaded),
             "election_quality": elections.get("_quality", {}),
             "service_coverage": {

@@ -10,6 +10,7 @@ from typing import Any, Iterable, Mapping
 
 from .annual_metrics import calculate_annual_fertility
 from .config import HomepageAnalyticsConfig
+from .data_gaps import explain_reason_codes
 from .homepage import _source_periods
 from .homepage_math import calculate_ols_regression, normalize_p5_p95
 from .input_resolver import HomepageInputResolver
@@ -343,6 +344,11 @@ def generate_fertility_data(
         "scatter_regression_sample_size": regression["sample_size"],
     }
     quality["source_periods"] = _source_periods(loaded)
+    quality["source_limitations"] = explain_reason_codes(
+        list(quality["blocking_reasons"])
+        + [str(item.get("reason")) for item in quality["proxy_usage"] if isinstance(item, Mapping)],
+        config_dir=Path(__file__).resolve().parents[2] / "config",
+    )
     if isinstance(homepage.get("_quality"), Mapping):
         quality["homepage_source_periods"] = dict(
             homepage["_quality"].get("source_periods") or {}
