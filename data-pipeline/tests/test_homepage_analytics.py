@@ -256,6 +256,7 @@ class RecordingHomepageResolver(FakeHomepageResolver):
         super().__init__()
         self.requested_population_periods = []
         self.requested_village_population_periods = []
+        self.requested_college_periods = []
         self._unavailable_years = {f"{year:03d}" for year in unavailable_years}
 
     def available_periods(self, dataset, periods):
@@ -268,6 +269,8 @@ class RecordingHomepageResolver(FakeHomepageResolver):
                 raise ValueError("dataset 'population' has no available requested periods")
         if dataset == "population_villages":
             self.requested_village_population_periods.extend(periods)
+        if dataset == "college_majors":
+            self.requested_college_periods.extend(periods)
         return super().available_periods(dataset, periods)
 
     def _all_records(self, dataset):
@@ -291,6 +294,82 @@ class RecordingHomepageResolver(FakeHomepageResolver):
 
 
 class TestHomepageAnalytics(unittest.TestCase):
+    def test_uses_refactored_yoi_weights(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+
+        config = load_homepage_analytics_config(config_path)
+
+        self.assertEqual(
+            config.yoi_weights,
+            {
+                "job": 0.25,
+                "salary": 0.25,
+                "talent": 0.15,
+                "housing": 0.20,
+                "transport": 0.15,
+            },
+        )
+
+    def test_refactored_yoi_uses_area_salary_and_population_components(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+        resolver = RecordingHomepageResolver()
+
+        result = generate_homepage_data(resolver=resolver, config=config)
+        first = result["current_yoi"]["districts"][0]
+        normalized = first["normalizedInputs"]
+
+        self.assertEqual(resolver.requested_college_periods, ["114"])
+        self.assertIn("vacancies_per_km2", normalized)
+        self.assertIn("youth_ratio", normalized)
+        self.assertIn("youth_yoy", normalized)
+
+        expected_job = (
+            0.60 * normalized["vacancies_per_km2"]
+            + 0.40 * normalized["occupation_shannon_index"]
+        )
+        expected_salary = (
+            0.60 * normalized["salary_median"]
+            + 0.40 * normalized["high_salary_ratio"]
+        )
+        expected_talent = (
+            0.40 * normalized["youth_ratio"]
+            + 0.40 * normalized["youth_yoy"]
+            + 0.20 * normalized["college_student_density"]
+        )
+        self.assertAlmostEqual(first["yoiComponents"]["job"], expected_job)
+        self.assertAlmostEqual(first["yoiComponents"]["salary"], expected_salary)
+        self.assertAlmostEqual(first["yoiComponents"]["talent"], expected_talent)
+
+    def test_opportunity_index_is_normalized_from_yoi_raw(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+
+        result = generate_homepage_data(resolver=FakeHomepageResolver(), config=config)
+        rows = result["current_yoi"]["districts"]
+        self.assertTrue(all("yoiRaw" in row for row in rows))
+        first = rows[0]
+        components = first["yoiComponents"]
+        expected_raw = (
+            0.25 * components["job"]
+            + 0.25 * components["salary"]
+            + 0.15 * components["talent"]
+            + 0.20 * components["housing"]
+            + 0.15 * components["transport"]
+        )
+        self.assertAlmostEqual(first["yoiRaw"], expected_raw)
+
+        self.assertAlmostEqual(
+            min(row["opportunityIndex"] for row in rows),
+            0.0,
+            places=6,
+        )
+        self.assertAlmostEqual(
+            max(row["opportunityIndex"] for row in rows),
+            100.0,
+            places=6,
+        )
+
     def test_uses_explicit_village_population_reference_period(self):
         config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
         config = load_homepage_analytics_config(config_path)

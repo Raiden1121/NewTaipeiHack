@@ -111,7 +111,7 @@ ValueError: dataset 'join_proposals' is not present in dataset index
   "election_years_roc": [103,107,111],
   "service_radius_m": 2500,
   "normalization": { "method": "p5_p95", "constant_value": 50 },
-  "yoi_weights": { "job":0.25, "salary":0.25, "talent":0.05, "housing":0.25, "transport":0.20 } }
+  "yoi_weights": { "job":0.25, "salary":0.25, "talent":0.15, "housing":0.20, "transport":0.15 } }
 ```
 
 ### 2.1 共用數學工具（`homepage_math.py`）
@@ -128,21 +128,25 @@ ValueError: dataset 'join_proposals' is not present in dataset index
 
 ### 2.2 `homepage` —— 青年機會指數 YOI（29 區）
 
-輸入 19 個資料集。核心是把 15 個原始欄位正規化後，兩層加權合成。
+輸入 19 個資料集。核心是把目前使用的原始欄位正規化後，兩層加權合成；舊版
+全區相同或房價推算欄位仍保留在 payload 供相容性與散點圖使用，但不再參與 YOI。
 
-**第 1 層：15 個原始指標**
+**第 1 層：目前使用的原始指標與相容性欄位**
 
 | 欄位 | 算法 | 方向 |
 |---|---|---|
-| `vacancies_per_10k_youth` | 區內 `position_count` 加總 ÷ 該區 18–35 人口 × 10,000 | 正 |
+| `vacancies_per_km2` | 區內 `position_count` 加總 ÷ 該區面積(km²) | 正；S_job 使用 |
+| `vacancies_per_10k_youth` | 區內 `position_count` 加總 ÷ 該區 18–35 人口 × 10,000 | 正；相容性欄位，不進 S_job |
 | `occupation_shannon_index` | 區內職類 position_count 分布的 Shannon 熵 | 正 |
-| `talent_demand_yoy` | 全國 `new_demand_count` 年度總和的 YoY %（**29 區同值**） | 正 |
+| `talent_demand_yoy` | 全國 `new_demand_count` 年度總和的 YoY %（**29 區同值**） | 相容性／背景欄位，不進 S_job |
 | `salary_median` | 區內職缺薪資中位數（用上下界中點） | 正 |
 | `high_salary_ratio` | 中點 > 全市中位數 ×1.5 的職缺 `position_count` ÷ 區內總 position_count | 正 |
-| `adjusted_youth_wage` | 官方 25–29 歲平均薪資（萬元/年） × (該區全類型房價中位數 ÷ 全市房價中位數) | 正 |
-| `college_student_density` | 區內大專學生數 ÷ 行政區面積(km²) | 正 |
-| `vt_course_count` | 職訓課程數；**缺區用觀測最小值補**並記 proxy | 正 |
-| `training_people_per_10k_youth` | 全市受訓人次 ÷ 全市青年 × 10,000（**29 區同值**） | 正 |
+| `adjusted_youth_wage` | 官方 25–29 歲平均薪資 × 房價比例的代理值 | 相容性／散點圖欄位，不進 S_salary |
+| `youth_ratio` | 區內 18–35 歲人口 ÷ 區內總人口 × 100% | 正；S_talent 使用 |
+| `youth_yoy` | ROC 114 對 ROC 113 的青年人口 YoY（各年取最新月份） | 正；S_talent 使用 |
+| `college_student_density` | 區內大專學生數 ÷ 行政區面積(km²) | 正；S_talent 使用，學校所在地 proxy |
+| `vt_course_count` | 職訓課程數；**缺區用觀測最小值補**並記 proxy | 相容性／背景欄位，不進 S_talent |
+| `training_people_per_10k_youth` | 全市受訓人次 ÷ 全市青年 × 10,000（**29 區同值**） | 相容性／背景欄位，不進 S_talent |
 | `rent_median` | 區內租金總額中位數；缺區用全市最小值補 | **逆** |
 | `house_price_median` | 區內**住宅用**每坪房價中位數；平溪區無住宅交易時改用全類型並記 proxy | **逆** |
 | `rent_wage_ratio` | `rent_median ÷ salary_median` | **逆** |
@@ -155,14 +159,17 @@ ValueError: dataset 'join_proposals' is not present in dataset index
 **第 2 層：五大分項（各自 `weighted_score`）**
 
 ```
-job       = 0.50 職缺密度 + 0.30 職業多樣性 + 0.20 人才需求YoY
-salary    = 0.40 薪資中位數 + 0.30 高薪比例 + 0.30 房價調整薪資
-talent    = 0.30 大專生密度 + 0.35 職訓課程數 + 0.35 受訓人次
+job       = 0.60 職缺密度_per_km2 + 0.40 職業多樣性
+salary    = 0.60 職缺刊登薪資中位數 + 0.40 高薪職缺比例
+talent    = 0.40 青年人口佔比 + 0.40 青年人口 YoY + 0.20 大專學生數密度
 housing   = 0.35 租金(逆) + 0.35 房價(逆) + 0.30 租金薪資比(逆)
 transport = 0.35 公車 + 0.40 軌道 + 0.25 YouBike
 ```
 
-**第 3 層：**`opportunityIndex = weighted_score(五大分項, yoi_weights)`，再依四分位切 `retentionRiskLevel`。
+**第 3 層：**先計算
+`YOI_raw = weighted_score(五大分項, yoi_weights)`，再對全部 29 區的
+`YOI_raw` 做 P5/P95 norm 產生 `opportunityIndex`；最後依公開分數四分位切
+`retentionRiskLevel`。輸出另保留 `yoiRaw` 供查核。
 
 **其他 homepage 區塊**
 
@@ -335,9 +342,9 @@ elections.blocking_reasons → []
 | 4 | `youth_budgets` 缺 ROC 110、111 | 只有 112–116（31 筆） | `budgetTrend` 110/111 為 `unavailable`，112 年因無前值而 YoY = null |
 | 5 | 決算（`final_settlement`）只有 113 年 | 114/115 只有 `legal_budget` | `executionRate` 只有 113 算得出；homepage `policy.executionRate = null`、`executionFailure: final_settlement_unavailable` |
 | 6 | `wages` 缺 ROC 114 | 只有 108–113 | 薪資 proxy 停在 113 年；且只有 county 級、只有官方年齡組，非精確 18–35 |
-| 7 | `vt_courses` 只有 **2 個區** | 五股區 32、泰山區 42 | **27 區用觀測最小值 32 補**，29 筆 proxy；`talent` 分項幾乎沒有區辨力 |
-| 8 | `training_numbers` 87 筆全是 `geo_level: county` | `district_id` 全 null | `training_people_per_10k_youth` **29 區同值** |
-| 9 | `talent_demand` 45 筆全是 `geo_level: national` | `district_id` 全 null | `talent_demand_yoy` **29 區同值** |
+| 7 | `vt_courses` 只有 **2 個區** | 五股區 32、泰山區 42 | **27 區用觀測最小值 32 補**；目前只保留作背景欄位，不再影響 `S_talent` |
+| 8 | `training_numbers` 87 筆全是 `geo_level: county` | `district_id` 全 null | `training_people_per_10k_youth` **29 區同值**；目前只保留作背景欄位，不再影響 `S_talent` |
+| 9 | `talent_demand` 45 筆全是 `geo_level: national` | `district_id` 全 null | `talent_demand_yoy` **29 區同值**；目前只保留作背景欄位，不再影響 `S_job` |
 | 10 | `youth_service_points` 只有 **9 點** | 皆 `geocode matched` | `serviceCoverageRate = 49.2%`、`status: partial` |
 | 11 | `population_villages` 114 年缺 **7 個里** | 里界 1,039 / 里人口 1,032 | homepage 與 fertility 都掛 `incomplete_village_population_coverage` blocking |
 | 12 | `babysitting_places` 391 筆只有 220 筆 geocode 成功 | 排除 171 筆（43.7%） | 托育覆蓋率低估，`daycareCoverage` 連帶把 FAFI 壓成 `partial` |
@@ -393,7 +400,7 @@ snapshot 同時包含 homepage、`employment`、`fertility`、`participation`、
 2. **補入 `population/10312` 官方歷史 archive 並保留 10312／10712／11112 anchors** → 已完成；重跑後三個選舉年都有分母。
 3. **修 `youth_grants` 的行政區解析** → 解鎖各區補助分布。
 4. 補 `youth_budgets` 110–111 與 114/115 決算、`wages` 114。
-5. 擴充 `vt_courses`（目前只有 2 區）、把 `training_numbers` / `talent_demand` 找到區級來源，否則 `talent` 分項與 `job` 分項的第三個因子都沒有區辨力。
+5. 若要擴充背景分析，再補 `vt_courses`、`training_numbers`、`talent_demand` 的區級來源；目前 YOI 已改用 `population` 與最新學年度 `college_majors`，不受上述全區常數欄位影響。
 6. 補 7 個新設里的 114 年里人口；改善 `babysitting_places` geocoding（目前只成功 56%）。
 7. 完整 release 已改為由單一 `dev-full-*` snapshot 帶齊所有 analyses；後續由 Backend／DynamoDB loader 讀取該 manifest contract。
 8. 處理 `movement` / `graduate_majors` / `marriages`：補指標或停止抓取。

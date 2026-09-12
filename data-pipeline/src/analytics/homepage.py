@@ -27,9 +27,10 @@ def generate_homepage_data(
 ) -> dict[str, Any]:
     """Read curated inputs and generate the complete homepage payload."""
 
+    calculation_version = config.version
     quality: dict[str, Any] = {
         "metric_id": "homepage",
-        "calculation_version": "1",
+        "calculation_version": calculation_version,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "inputs": {},
         "warnings": [],
@@ -77,7 +78,11 @@ def generate_homepage_data(
     # Election events fall outside the annual window, so their denominators must
     # be requested explicitly; available_periods() skips the years the source
     # never published instead of failing the whole run.
-    population_years = set(annual_years) | {min(annual_years) - 1} | set(config.election_years_roc)
+    population_years = (
+        set(annual_years)
+        | {min(annual_years) - 1, config.population_reference_year_roc - 1}
+        | set(config.election_years_roc)
+    )
     population_periods = [
         f"{year:03d}{month:02d}"
         for year in sorted(population_years)
@@ -87,8 +92,10 @@ def generate_homepage_data(
     births_records = load_periods("births", [f"{year:03d}" for year in annual_years])
     wage_records: list[dict[str, Any]] = []
     college_records: list[dict[str, Any]] = []
-    for dataset, target in (("wages", wage_records), ("college_majors", college_records)):
-        target.extend(load_periods(dataset, [f"{year:03d}" for year in annual_years]))
+    wage_records.extend(load_periods("wages", [f"{year:03d}" for year in annual_years]))
+    college_records.extend(
+        load_periods("college_majors", [f"{config.population_reference_year_roc:03d}"])
+    )
     budget_records = load_all("youth_budgets")
     election_records = load_all("elections")
     snapshot_datasets = (
@@ -176,11 +183,12 @@ def generate_homepage_data(
 
     result = {
         "metric_id": "homepage",
-        "calculation_version": "1",
+        "calculation_version": calculation_version,
         "generated_at": quality["generated_at"],
         "time_policy": {
             "annual_years_roc": annual_years,
             "current_yoi": "latest_available_snapshot",
+            "college_reference_year_roc": config.population_reference_year_roc,
             "election_years_roc": list(config.election_years_roc),
         },
         "current_yoi": {
@@ -351,6 +359,7 @@ def _calculate_current_yoi(
     district_ids = [str(row["district_id"]) for row in districts]
     names = {str(row["district_id"]): row["district_name"] for row in districts}
     population = _population_anchor(population_records, population_reference_year_roc)
+    previous_population = _population_anchor(population_records, population_reference_year_roc - 1)
     youth_city = sum(
         value.get("youth_18_35_total", 0) or 0 for value in population.values()
     )
@@ -421,7 +430,11 @@ def _calculate_current_yoi(
     training_per_10k = None if youth_city <= 0 else train_people / youth_city * 10000
     raw: dict[str, dict[str, Any]] = {}
     for district_id in district_ids:
-        youth = _number(population.get(district_id, {}).get("youth_18_35_total"))
+        district_population = population.get(district_id, {})
+        previous_district_population = previous_population.get(district_id, {})
+        youth = _number(district_population.get("youth_18_35_total"))
+        total_population = _number(district_population.get("people_total"))
+        previous_youth = _number(previous_district_population.get("youth_18_35_total"))
         district_vacancies = [row for row in vacancies if str(row.get("district_id")) == district_id and row.get("geo_level") == "district"]
         vacancy_positions = sum(_number(row.get("position_count")) or 0 for row in district_vacancies)
         occupation_counts: dict[str, float] = defaultdict(float)
@@ -476,18 +489,31 @@ def _calculate_current_yoi(
             "district_id": district_id,
             "district_name": names[district_id],
             "youth_18_35_total": youth,
+            "youth_ratio": (
+                None
+                if youth is None or total_population in (None, 0)
+                else youth / total_population * 100
+            ),
+            "youth_yoy": _yoy(youth, previous_youth),
             "vacancies_per_10k_youth": None if not youth else vacancy_positions / youth * 10000,
+            "vacancies_per_km2": None if not area else vacancy_positions / area,
             "occupation_shannon_index": shannon_entropy(occupation_counts),
             "talent_demand_yoy": talent_yoy,
             "salary_median": _median(valid_salaries),
             "high_salary_ratio": None if vacancy_positions <= 0 else high_count / vacancy_positions,
             "adjusted_youth_wage": adjusted_wage,
-            "college_student_density": None if area is None else college_by_district.get(district_id, 0.0) / area,
+            "college_student_density": (
+                None if not area else college_by_district.get(district_id, 0.0) / area
+            ),
             "vt_course_count": vt_value,
             "training_people_per_10k_youth": training_per_10k,
             "rent_median": rent_median,
             "house_price_median": house_median,
-            "rent_wage_ratio": None if rent_median is None or _median(valid_salaries) in (None, 0) else rent_median / _median(valid_salaries),
+            "rent_wage_ratio": (
+                None
+                if rent_median is None or _median(valid_salaries) in (None, 0)
+                else rent_median / _median(valid_salaries)
+            ),
             "bus_stops_per_10k_youth": None if not youth else sum(str(row.get("district_id")) == district_id for row in buses) / youth * 10000,
             "railway_stop_density": None if area is None else sum(str(row.get("district_id")) == district_id for row in rails) / area,
             "bike_stop_density": None if area is None else sum(str(row.get("district_id")) == district_id for row in bikes) / area,
@@ -495,7 +521,10 @@ def _calculate_current_yoi(
         }
     normalized: dict[str, dict[str, float | None]] = {}
     columns = (
+        ("youth_ratio", False),
+        ("youth_yoy", False),
         ("vacancies_per_10k_youth", False),
+        ("vacancies_per_km2", False),
         ("occupation_shannon_index", False),
         ("talent_demand_yoy", False),
         ("salary_median", False),
@@ -518,26 +547,26 @@ def _calculate_current_yoi(
             inverse=inverse,
             constant_value=float(config.normalization.get("constant_value", 50)),
         )
-    scores: dict[str, float | None] = {}
+    raw_yoi_scores: dict[str, float | None] = {}
+    component_scores: dict[str, dict[str, float | None]] = {}
     output: list[dict[str, Any]] = []
     for district_id in district_ids:
         norm = {column: normalized[column].get(district_id) for column, _ in columns}
         components = {
             "job": weighted_score(
                 {
-                    "vacancies_per_10k_youth": norm["vacancies_per_10k_youth"],
+                    "vacancies_per_km2": norm["vacancies_per_km2"],
                     "occupation_shannon_index": norm["occupation_shannon_index"],
-                    "talent_demand_yoy": norm["talent_demand_yoy"],
                 },
-                {"vacancies_per_10k_youth": 0.5, "occupation_shannon_index": 0.3, "talent_demand_yoy": 0.2},
+                {"vacancies_per_km2": 0.6, "occupation_shannon_index": 0.4},
             ),
             "salary": weighted_score(
-                {"salary_median": norm["salary_median"], "high_salary_ratio": norm["high_salary_ratio"], "adjusted_youth_wage": norm["adjusted_youth_wage"]},
-                {"salary_median": 0.4, "high_salary_ratio": 0.3, "adjusted_youth_wage": 0.3},
+                {"salary_median": norm["salary_median"], "high_salary_ratio": norm["high_salary_ratio"]},
+                {"salary_median": 0.6, "high_salary_ratio": 0.4},
             ),
             "talent": weighted_score(
-                {"college_student_density": norm["college_student_density"], "vt_course_count": norm["vt_course_count"], "training_people_per_10k_youth": norm["training_people_per_10k_youth"]},
-                {"college_student_density": 0.3, "vt_course_count": 0.35, "training_people_per_10k_youth": 0.35},
+                {"youth_ratio": norm["youth_ratio"], "youth_yoy": norm["youth_yoy"], "college_student_density": norm["college_student_density"]},
+                {"youth_ratio": 0.4, "youth_yoy": 0.4, "college_student_density": 0.2},
             ),
             "housing": weighted_score(
                 {"rent_median": norm["rent_median"], "house_price_median": norm["house_price_median"], "rent_wage_ratio": norm["rent_wage_ratio"]},
@@ -548,13 +577,23 @@ def _calculate_current_yoi(
                 {"bus_stops_per_10k_youth": 0.35, "railway_stop_density": 0.4, "bike_stop_density": 0.25},
             ),
         }
-        score = weighted_score(components, config.yoi_weights)
-        scores[district_id] = score
+        raw_yoi_scores[district_id] = weighted_score(components, config.yoi_weights)
+        component_scores[district_id] = components
+
+    normalized_yoi = normalize_p5_p95(
+        raw_yoi_scores,
+        constant_value=float(config.normalization.get("constant_value", 50)),
+    )
+    scores = {district_id: normalized_yoi.get(district_id) for district_id in district_ids}
+    for district_id in district_ids:
+        norm = {column: normalized[column].get(district_id) for column, _ in columns}
+        score = scores[district_id]
         output.append(
             {
                 **raw[district_id],
                 "opportunityIndex": None if score is None else round(score, 6),
-                "yoiComponents": components,
+                "yoiRaw": raw_yoi_scores[district_id],
+                "yoiComponents": component_scores[district_id],
                 "normalizedInputs": norm,
                 "sourcePeriods": dict(source_periods),
                 "qualityStatus": "observed" if score is not None else "unavailable",

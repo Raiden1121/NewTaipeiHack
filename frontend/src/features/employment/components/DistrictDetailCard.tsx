@@ -16,13 +16,13 @@ const RADIUS = 74;
 const LABEL_RATIO = 1.2;
 const GRID_LEVELS = [0.25, 0.5, 0.75, 1];
 
-// 五個頂點順序固定：工作機會 → 薪資水準 → 人才資源 → 居住友善度 → 交通可及（順時針），
+// 五個頂點順序固定：工作機會 → 薪資水準 → 青年活力與發展 → 居住友善度 → 交通可及（順時針），
 // 見 api_contract.md §5.2。housing 分數方向已是「越高越好」，不得再反轉。
 function toDimensions(components: YoiComponents): DimensionScore[] {
   return [
     { label: "工作機會", value: components.job },
     { label: "薪資水準", value: components.salary },
-    { label: "人才資源", value: components.talent },
+    { label: "青年活力與發展", value: components.talent },
     { label: "居住友善度", value: components.housing },
     { label: "交通可及", value: components.transport },
   ];
