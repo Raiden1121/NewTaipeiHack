@@ -1,8 +1,9 @@
 # One Lambda serves all 5 read endpoints from api_contract.md (health,
 # catalog, dashboard/overview, districts/{id}, analyses/{id}) — routing is
 # done inside handler.py, so API Gateway just proxies everything to it.
-# Returns mock data for now; swap the builders in handler.py for DynamoDB
-# reads once data-pipeline publishes analytics there.
+# handler.py reads pre-computed analytics from the DynamoDB table below;
+# whatever loads data-pipeline's published snapshot into that table is a
+# separate program, not part of this Lambda.
 
 data "archive_file" "lambda" {
   type        = "zip"
