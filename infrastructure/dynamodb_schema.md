@@ -41,7 +41,7 @@ DynamoDB 存的是 **api_contract.md 實際要用的形狀**，不是每個 pipe
 | `ANALYSIS#fertility-overlay` | `DATA` | `fertility.json` 的 `scatter`（`points[]`/`regression`） | ~3KB | §7.3 |
 | `ANALYSIS#fertility-family-friendliness` | `DATA` | `fertility.json` 的 `fafi`（逐區 `fafi_score`/`fafi_level` + normalization 門檻） | ~5KB | §7.4 |
 | `ANALYSIS#youth-topic-weight` | `DATA` | `topic_weight.json` 原樣（完整歷史年份，不只 114 年） | ~49KB | §6.4——**backend 讀取時**才挑 `year_roc === 114`，這只是挑一筆既有資料、不含計算，年份選擇邏輯不搬進 storage 層，未來要做「議題歷年變化」可直接復用 |
-| `ANALYSIS#politics-resource-io` | `DATA` | `budget_by_department[]` | 小 / placeholder | §6.3——⚠️ pipeline 目前沒有對應資料源（`youth_budgets.business_plan` 只有 3 類，對不上前端 4 個新科別），這個 item 現在只能放空陣列或 null，等青年局科別拆分確認後再補。`budgetTrend`/`executionRate` 不重複存在這裡，backend 組 response 時去讀 `DASHBOARD/POLICY`。|
+| `ANALYSIS#politics-resource-io` | `DATA` | `budget_by_department[]`，以及 `snapshot_id`、`analysis_id`、`budget_year_roc`、`document_status`、`sourceRefs` | 小 | §6.3——由 published `analyses/participation.json` 的 `budget_allocation.items[]` 投影而來：`name → label`、`amount ÷ 1000 → amount_thousand`、`share_percent` 原值保留。缺少 allocation 時寫入空陣列，不以 0 偽造資料。`budgetTrend`/`executionRate` 不重複存在這裡，backend 組 response 時去讀 `DASHBOARD/POLICY`。|
 | `ANALYSIS#policy-outcomes` | `DATA` | `policy_support.json` 的 `policyOutcomes`：`wageTrend[]`、`currentWageGrowth`、`currentPopGrowth`、`desiredDirection{wageGrowth, populationChange}` | 數 KB | §8.1——**不存 `populationTrend[]`**，該陣列 Lambda 讀取時從 `DASHBOARD/POPULATION_TREND` 的 `annual.population.years[]` 重新組裝（純整形，非計算），跟 §6.3 重用 `DASHBOARD/POLICY` 是同一個作法 |
 
 ＊ 以 `dev-full-20260912` snapshot 實測。

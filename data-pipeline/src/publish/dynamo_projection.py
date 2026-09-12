@@ -37,6 +37,52 @@ def project_metric_source(
     return projected
 
 
+def project_budget_allocation(
+    allocation: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Convert published TWD budget allocations to the API's thousand-TWD shape."""
+
+    if not isinstance(allocation, Mapping):
+        raise ValueError("budget_allocation must be an object")
+    if allocation.get("unit") != "TWD":
+        raise ValueError("budget_allocation.unit must be TWD")
+
+    rows = allocation.get("items")
+    if not isinstance(rows, list):
+        raise ValueError("budget_allocation.items must be an array")
+
+    projected: list[dict[str, Any]] = []
+    for index, row in enumerate(rows):
+        if not isinstance(row, Mapping):
+            raise ValueError(f"budget_allocation.items[{index}] must be an object")
+
+        label = row.get("name")
+        if not isinstance(label, str) or not label:
+            raise ValueError(f"budget_allocation.items[{index}].name must be non-empty")
+
+        amount = row.get("amount")
+        if isinstance(amount, bool) or not isinstance(amount, (int, float)):
+            raise ValueError(f"budget_allocation.items[{index}].amount must be numeric")
+
+        share_percent = row.get("share_percent")
+        if isinstance(share_percent, bool) or not isinstance(share_percent, (int, float)):
+            raise ValueError(
+                f"budget_allocation.items[{index}].share_percent must be numeric"
+            )
+
+        amount_thousand = amount / 1000
+        if isinstance(amount, int) and amount % 1000 == 0:
+            amount_thousand = amount // 1000
+        projected.append(
+            {
+                "label": label,
+                "amount_thousand": amount_thousand,
+                "share_percent": share_percent,
+            }
+        )
+    return projected
+
+
 def project_snapshot_items(
     snapshot_dir: str | Path,
     manifest: Mapping[str, Any],
@@ -87,6 +133,9 @@ def project_snapshot_items(
     for analysis_id, relative_path in analyses.items():
         if not isinstance(analysis_id, str) or not isinstance(relative_path, str):
             raise ValueError("analysis artifact names and paths must be strings")
+        default_sources = _dataset_sources(datasets, analysis_id)
+        if analysis_id == "participation" and not default_sources:
+            default_sources = _dataset_sources(datasets, "homepage")
         items.extend(
             _project_analysis(
                 snapshot_path,
@@ -94,7 +143,7 @@ def project_snapshot_items(
                 analysis_id=analysis_id,
                 relative_path=relative_path,
                 source_catalog=source_catalog,
-                default_sources=_dataset_sources(datasets, analysis_id),
+                default_sources=default_sources,
             )
         )
     return items
@@ -158,6 +207,12 @@ def _project_analysis(
     payload = _read_json_if_exists(snapshot_dir / relative_path)
     if payload is None:
         return []
+    if analysis_id == "participation":
+        return _project_budget_analysis(
+            payload,
+            snapshot_id=snapshot_id,
+            source_refs=default_sources,
+        )
     rows = payload.get("data")
     if not isinstance(rows, list):
         rows = payload.get("districts", [])
@@ -183,6 +238,32 @@ def _project_analysis(
             }
         )
     return items
+
+
+def _project_budget_analysis(
+    payload: Mapping[str, Any],
+    *,
+    snapshot_id: str,
+    source_refs: Sequence[str],
+) -> list[dict[str, Any]]:
+    allocation = payload.get("budget_allocation")
+    budget_by_department = (
+        project_budget_allocation(allocation)
+        if isinstance(allocation, Mapping)
+        else []
+    )
+    return [
+        {
+            "PK": f"SNAPSHOT#{snapshot_id}#ANALYSIS#politics-resource-io",
+            "SK": "DATA",
+            "snapshot_id": snapshot_id,
+            "analysis_id": "politics-resource-io",
+            "budget_by_department": budget_by_department,
+            "budget_year_roc": allocation.get("budget_year_roc") if isinstance(allocation, Mapping) else None,
+            "document_status": allocation.get("document_status") if isinstance(allocation, Mapping) else None,
+            "sourceRefs": list(source_refs),
+        }
+    ]
 
 
 def _project_nested_row(

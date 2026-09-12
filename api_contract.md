@@ -438,7 +438,7 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 
 | 圖 | 需要欄位 | 現況 |
 |---|---|---|
-| 青年局各科別預算比例（長條）| `budget_by_department[]`（`label`、`amount_thousand`、`share_percent`）| ❌ **無對應資料源**。`youth_budgets` 現有 `business_plan` 只有 3 類（一般行政／青年發展業務／第一預備金），**對不上前端這 4 個科別名稱**（綜合規劃／職涯發展／創業資源／資本門設備與投資）。需向青年局確認決算是否有更細的科別／計畫別拆分，或前端這 4 類本身需要重新對齊既有 3 類 |
+| 青年局各科別預算比例（長條）| `budget_by_department[]`（`label`、`amount_thousand`、`share_percent`）| ✅ **Pipeline 已有對應資料源**。`participation.json.budget_allocation.items[]` 的 01～04 明細會由 DynamoDB projection 轉成 API shape：`name → label`、`amount ÷ 1000 → amount_thousand`、`share_percent` 原值保留。資料為民國 116 年預算案；DynamoDB writer 尚需部署／執行後 API 才會讀到這批資料。|
 | 年度總預算趨勢（折線）| `data.policy.budgetTrend[]` | ⚠️ 圖表軸標籤已明確標「億元」，確認就是總預算（原本「補助金額 vs 預算」的概念疑慮已解除）。但**佔位數值量級對不上**：前端寫死 110–114 為 52／60／68／82／96 億，實際 `policy.budgetTrend` 只有 112–114 有值且為 **1.49／1.59／1.96 億**，差了 40–50 倍，接上真資料後折線會幾乎貼底 |
 | 青年局預算執行率（環圈）| `data.policy.executionRate` | ❌ `null`。111/112 決算 PDF 為**影像型待 OCR**；113 年決算欄位已解析但執行率未計算 |
 
