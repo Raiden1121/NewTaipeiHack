@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NewTaipeiHack Group9 Demo Slide</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #111;
+    overflow: hidden;
+    font-family: -apple-system, "Segoe UI", "Noto Sans TC", sans-serif;
+  }
+  #stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #stage canvas {
+    max-width: 100vw;
+    max-height: 100vh;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    background: #fff;
+  }
+  #nav-left, #nav-right {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    cursor: pointer;
+  }
+  #nav-left { left: 0; }
+  #nav-right { right: 0; }
+
+  /* Live demo button, top-right: quarter-circle badge that blooms into a
+     full circle with a bigger logo on hover. The hotzone is bigger than the
+     badge itself so it's easy to trigger. */
+  #live-demo-hotzone {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 6;
+    width: 160px;
+    height: 160px;
+  }
+  #btn-live-demo {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: 0 0 0 56px;
+    background: #18233d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: width 0.25s ease, height 0.25s ease, border-radius 0.25s ease,
+                top 0.25s ease, right 0.25s ease, background 0.25s ease;
+  }
+  #btn-live-demo img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    transition: width 0.25s ease, height 0.25s ease;
+  }
+  #live-demo-hotzone:hover #btn-live-demo {
+    top: 12px;
+    right: 12px;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: #18233d;
+  }
+  #live-demo-hotzone:hover #btn-live-demo img {
+    width: 50px;
+    height: 50px;
+  }
+
+  /* Bottom toolbar: collapsed to a small semicircle tab until hovered. */
+  #hud-hotzone {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 200px;
+    z-index: 4;
+    pointer-events: auto;
+  }
+  #hud-handle {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 16px;
+    border-radius: 24px 24px 0 0;
+    background: #18233d;
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
+  }
+  #hud {
+    position: absolute;
+    left: 50%;
+    bottom: 26px;
+    transform: translateX(-50%) translateY(140%);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 12px 26px;
+    border-radius: 999px;
+    background: #18233d;
+    color: #eee;
+    font-size: 18px;
+    letter-spacing: 0.02em;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+  }
+  #hud-hotzone:hover #hud-handle {
+    opacity: 0;
+  }
+  #hud-hotzone:hover #hud {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+  #hud button {
+    background: none;
+    border: none;
+    color: #eee;
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 8px;
+  }
+  #hud button:hover { color: #4ea1ff; }
+  #hud button.active { color: #ff5555; background: rgba(255,255,255,0.12); }
+  #page-indicator { min-width: 4em; text-align: center; }
+
+  /* Laser pointer */
+  #laser-dot {
+    position: fixed;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,0,0,1) 0%, rgba(255,0,0,0.85) 45%, rgba(255,0,0,0) 75%);
+    box-shadow: 0 0 18px 6px rgba(255,0,0,0.85);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    display: none;
+    z-index: 20;
+  }
+  body.laser-active #laser-dot { display: block; }
+  body.laser-active, body.laser-active #nav-left, body.laser-active #nav-right {
+    cursor: none;
+  }
+
+  #loading {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 14px;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+  <div id="loading">投影片載入中...</div>
+  <div id="stage"><canvas id="page-canvas"></canvas></div>
+  <div id="nav-left" title="上一頁"></div>
+  <div id="nav-right" title="下一頁"></div>
+
+  <div id="live-demo-hotzone">
+    <a id="btn-live-demo" href="https://d3ejcsgg9liiha.cloudfront.net/" target="_blank" rel="noopener noreferrer" title="Live Demo">
+      <img src="/slides/logo.png" alt="Live Demo" />
+    </a>
+  </div>
+
+  <div id="hud-hotzone">
+    <div id="hud-handle"></div>
+    <div id="hud">
+      <button id="btn-prev" title="上一頁 (←)">&#8249;</button>
+      <span id="page-indicator">- / -</span>
+      <button id="btn-next" title="下一頁 (→)">&#8250;</button>
+      <button id="btn-laser" title="雷射筆 (L)">&#128308;</button>
+    </div>
+  </div>
+  <div id="laser-dot"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs" type="module"></script>
+  <script type="module">
+    import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs";
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs";
+
+    const PDF_URL = "/slides/NewTaipeiHack_Group9_DemoSlide.pdf";
+
+    const canvas = document.getElementById("page-canvas");
+    const ctx = canvas.getContext("2d");
+    const indicator = document.getElementById("page-indicator");
+    const loading = document.getElementById("loading");
+    const laserDot = document.getElementById("laser-dot");
+    const btnLaser = document.getElementById("btn-laser");
+
+    let pdfDoc = null;
+    let currentPage = 1;
+    let renderToken = 0;
+    let laserActive = false;
+
+    async function renderPage(num) {
+      if (!pdfDoc || num < 1 || num > pdfDoc.numPages) return;
+      currentPage = num;
+      indicator.textContent = `${currentPage} / ${pdfDoc.numPages}`;
+
+      const myToken = ++renderToken;
+      const page = await pdfDoc.getPage(num);
+
+      const scale = Math.min(
+        (window.innerWidth * window.devicePixelRatio) / page.getViewport({ scale: 1 }).width,
+        (window.innerHeight * window.devicePixelRatio) / page.getViewport({ scale: 1 }).height
+      );
+      const viewport = page.getViewport({ scale });
+      if (myToken !== renderToken) return;
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: ctx, viewport }).promise;
+    }
+
+    function next() { renderPage(currentPage + 1); }
+    function prev() { renderPage(currentPage - 1); }
+
+    function setLaser(active) {
+      laserActive = active;
+      document.body.classList.toggle("laser-active", active);
+      btnLaser.classList.toggle("active", active);
+    }
+
+    document.getElementById("nav-left").addEventListener("click", () => { if (!laserActive) prev(); });
+    document.getElementById("nav-right").addEventListener("click", () => { if (!laserActive) next(); });
+    document.getElementById("btn-prev").addEventListener("click", (e) => { e.stopPropagation(); prev(); });
+    document.getElementById("btn-next").addEventListener("click", (e) => { e.stopPropagation(); next(); });
+    btnLaser.addEventListener("click", (e) => { e.stopPropagation(); setLaser(!laserActive); });
+
+    window.addEventListener("mousemove", (e) => {
+      laserDot.style.left = e.clientX + "px";
+      laserDot.style.top = e.clientY + "px";
+    });
+
+    window.addEventListener("keydown", (e) => {
+      switch (e.key) {
+        case "ArrowRight":
+        case "ArrowDown":
+        case " ":
+        case "PageDown":
+          e.preventDefault();
+          next();
+          break;
+        case "ArrowLeft":
+        case "ArrowUp":
+        case "Backspace":
+        case "PageUp":
+          e.preventDefault();
+          prev();
+          break;
+        case "Home":
+          e.preventDefault();
+          renderPage(1);
+          break;
+        case "End":
+          e.preventDefault();
+          renderPage(pdfDoc ? pdfDoc.numPages : 1);
+          break;
+        case "l":
+        case "L":
+          setLaser(!laserActive);
+          break;
+      }
+    });
+
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => renderPage(currentPage), 120);
+    });
+
+    pdfjsLib.getDocument(PDF_URL).promise.then((doc) => {
+      pdfDoc = doc;
+      loading.remove();
+      renderPage(1);
+    }).catch((err) => {
+      loading.textContent = "投影片載入失敗：" + err.message;
+    });
+  </script>
+</body>
+</html>
