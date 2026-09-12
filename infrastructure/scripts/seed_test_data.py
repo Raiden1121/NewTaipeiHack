@@ -17,17 +17,18 @@ from __future__ import annotations
 
 import argparse
 import os
-from datetime import date
 from decimal import Decimal
 from typing import Any
 
 SNAPSHOT_ID = "local-test-data"
 GENERATED_AT = "2026-09-12T00:00:00Z"
 
-# "This year" per api_contract.md's ROC convention, minus one -- the latest
-# *completed* year (this year's own annual stats aren't final yet).
-CURRENT_YEAR_ROC = date.today().year - 1911 - 1
-ANNUAL_YEARS_ROC = [CURRENT_YEAR_ROC - offset for offset in (4, 3, 2, 1, 0)]
+# Keep the fixture aligned with the published contract's current five-year
+# window.  The seed must stay deterministic when it is run in a later year.
+CURRENT_YEAR_ROC = 114
+ANNUAL_YEARS_ROC = [110, 111, 112, 113, 114]
+YRR_YEAR_ROC = 111
+EXECUTION_RATE_YEAR_ROC = 114
 
 DISTRICTS = [
     ("65000010", "板橋區"), ("65000020", "三重區"), ("65000030", "中和區"),
@@ -54,6 +55,24 @@ def _frac(i):
     return i / (len(DISTRICTS) - 1)
 
 
+def _district_youth_population(i):
+    return int(30000 + _frac(i) * 80000)
+
+
+def _district_population_total(i):
+    return int(150000 + _frac(i) * 300000)
+
+
+def _yrr(youth_elected_count, elected_count, youth_population, population_total):
+    if not elected_count or not population_total or not youth_population:
+        return None
+    return round(
+        (youth_elected_count / elected_count)
+        / (youth_population / population_total),
+        6,
+    )
+
+
 def _retention_risk(i):
     if i < 8:
         return "low"
@@ -65,23 +84,34 @@ def _retention_risk(i):
 def _build_borough_chief_rows():
     """3 屆（103/107/111）× 29 區里長選舉明細。僅民國 111 年屆的比例會被拿去併入
     districts[].youthBoroughChiefRatioPercent，其餘兩屆只保留在 elections.borough_chief_v1
-    供未來歷年趨勢使用，不進 KPI 卡，見 api_contract.md §6.2。"""
+    供未來歷年趨勢使用，不進 KPI 卡；YRR 與占比的 111 年 Scalar 見
+    api_contract.md §6.2。"""
     rows = []
     for i, (did, name) in enumerate(DISTRICTS):
         frac = _frac(i)
         elected_count = 20 + (i * 7) % 100
+        youth_population = _district_youth_population(i)
+        population_total = _district_population_total(i)
         for yr in (103, 107, 111):
             youth_elected = max(0, round(elected_count * (0.02 + 0.1 * frac)))
+            ratio_percent = round(youth_elected / elected_count * 100, 6) if elected_count else None
             rows.append({
                 "district_id": did, "district_name": name, "year_roc": yr,
                 "elected_count": elected_count, "youth_elected_count": youth_elected,
+                "ratio_percent": ratio_percent,
+                "youth_population_18_35": youth_population,
+                "population_total": population_total,
+                "youth_population_share": round(youth_population / population_total * 100, 6),
+                "yrr": _yrr(youth_elected, elected_count, youth_population, population_total),
+                "denominator_type": "population_proxy",
+                "proxy": True,
             })
     return rows
 
 
 BOROUGH_CHIEF_ROWS = _build_borough_chief_rows()
 BOROUGH_CHIEF_LATEST_BY_DISTRICT = {
-    row["district_id"]: row for row in BOROUGH_CHIEF_ROWS if row["year_roc"] == 111
+    row["district_id"]: row for row in BOROUGH_CHIEF_ROWS if row["year_roc"] == YRR_YEAR_ROC
 }
 
 
@@ -97,14 +127,11 @@ def _build_district(i, district_id, district_name):
     )
     candidacy_rate = round((frac ** 2) * 64.68, 2)
     borough_latest = BOROUGH_CHIEF_LATEST_BY_DISTRICT[district_id]
-    borough_chief_ratio = (
-        round(borough_latest["youth_elected_count"] / borough_latest["elected_count"] * 100, 2)
-        if borough_latest["elected_count"] else None
-    )
+    borough_chief_ratio = borough_latest["ratio_percent"]
     return {
         "district_id": district_id,
         "district_name": district_name,
-        "youth_18_35_total": int(30000 + frac * 80000),
+        "youth_18_35_total": _district_youth_population(i),
         "vacancies_per_10k_youth": round(50 + frac * 150, 2),
         "occupation_shannon_index": round(2.5 + frac * 1.5, 2),
         "talent_demand_yoy": round(-10 + frac * 20, 2),
@@ -154,6 +181,7 @@ def _build_district(i, district_id, district_name):
         "youthCandidacyRatePer100k": candidacy_rate,
         "youthParticipationIndex": candidacy_rate,
         "youthBoroughChiefRatioPercent": borough_chief_ratio,
+        "yrr": borough_latest["yrr"],
         "qualityStatus": "observed",
         "sourcePeriods": {},
     }
@@ -234,14 +262,29 @@ def _build_fertility_years():
 
 
 def _build_borough_chief_citywide():
-    latest = [row for row in BOROUGH_CHIEF_ROWS if row["year_roc"] == 111]
+    latest = [row for row in BOROUGH_CHIEF_ROWS if row["year_roc"] == YRR_YEAR_ROC]
     elected_count = sum(row["elected_count"] for row in latest)
     youth_elected_count = sum(row["youth_elected_count"] for row in latest)
+    youth_population = sum(row["youth_population_18_35"] for row in latest)
+    population_total = sum(row["population_total"] for row in latest)
+    ratio_percent = (
+        round(youth_elected_count / elected_count * 100, 6)
+        if elected_count
+        else None
+    )
     return {
-        "year_roc": 111,
+        "year_roc": YRR_YEAR_ROC,
         "elected_count": elected_count,
         "youth_elected_count": youth_elected_count,
-        "ratio_percent": round(youth_elected_count / elected_count * 100, 2) if elected_count else None,
+        "ratio_percent": ratio_percent,
+        "yrr": _yrr(
+            youth_elected_count,
+            elected_count,
+            youth_population,
+            population_total,
+        ),
+        "denominator_type": "population_proxy",
+        "proxy": True,
     }
 
 
@@ -272,9 +315,14 @@ def _build_policy():
     trend_values = [None, None, 149029, 158650, 196153]
     return {
         "currentBudget": 196153,
+        "budgetUnit": "TWD_thousand",
         "budgetYoY": 23.639,
-        "executionRate": None,
-        "executionFailure": "final_settlement_unavailable",
+        # Contract decision: latest legal budget and latest usable settlement
+        # year are selected independently. The fixture uses the 114-year
+        # reported prior-year settlement ratio (93.20%).
+        "executionRate": 93.20,
+        "executionRateYearRoc": EXECUTION_RATE_YEAR_ROC,
+        "executionFailure": None,
         "budgetTrend": [
             {"year_roc": yr, "value_thousand": val}
             for yr, val in zip(ANNUAL_YEARS_ROC, trend_values)
@@ -342,21 +390,47 @@ DEPARTMENT_BUDGET = [
     {"label": "資本門設備與投資", "amount_thousand": 29423, "share_percent": 15.0},
 ]
 
-TOPIC_LABELS = ["社會住宅", "青年就業", "青年創業", "托育資源", "交通建設"]
-LATEST_TOPIC_YEAR_ROC = CURRENT_YEAR_ROC
+KEYWORD_TERMS = ["社會住宅", "青年就業", "青年創業", "托育資源", "交通建設"]
+KEYWORD_SOURCE_PERIODS = [str(year) for year in range(109, 116)]
 
 
-def _analysis_youth_topic_weight():
-    topics = []
-    for idx, label in enumerate(TOPIC_LABELS):
-        weight = 1 + (idx + LATEST_TOPIC_YEAR_ROC) % 5
-        topics.append({
-            "label": label, "weight": weight, "signal": "minutes",
-            "join_mentions": 0, "minutes_mentions": weight,
-            "resolved": weight >= 3, "escalated": False,
-            "join_support_score": 0.0, "raw_score": float(weight),
+def _analysis_youth_keyword_frequency():
+    keywords = []
+    for idx, term in enumerate(KEYWORD_TERMS):
+        weight = 1 + (idx + CURRENT_YEAR_ROC) % 5
+        term_frequency = weight * 3
+        keywords.append({
+            "term": term,
+            "weight": weight,
+            "signal": "minutes",
+            "term_frequency": term_frequency,
+            "document_count": max(1, (weight + 1) // 2),
+            "join_mentions": 0,
+            "minutes_mentions": term_frequency,
+            "join_support_score": 0.0,
+            "resolved": weight >= 3,
+            "escalated": False,
+            "frequency_score": round(weight / 5, 6),
+            "raw_score": float(weight),
+            "ranking_score": float(weight),
+            "policy_relevance": 1.0,
+            "topic_mentions": term_frequency,
         })
-    return {"analysis_id": "youth-topic-weight", "year_roc": LATEST_TOPIC_YEAR_ROC, "topics": topics}
+    return {
+        "analysis_id": "youth-keyword-frequency",
+        "calculation_version": "test",
+        "config_version": "test",
+        "source_datasets": ["join_proposals", "youth_council_minutes"],
+        "period_scope": "all_available",
+        "source_periods": {
+            "join_proposals": KEYWORD_SOURCE_PERIODS,
+            "youth_council_minutes": KEYWORD_SOURCE_PERIODS,
+        },
+        "normalization": "global_max",
+        "weight_normalization": "selected_min_max",
+        "candidate_mode": "policy_relevant",
+        "keywords": keywords,
+    }
 
 
 def _analysis_fertility_overlay():
@@ -419,6 +493,7 @@ def build_items() -> list[dict]:
     manifest = {
         "pk": "META",
         "sk": "MANIFEST",
+        "schema_version": 1,
         "snapshot_id": SNAPSHOT_ID,
         "generated_at": GENERATED_AT,
         "calculation_version": "test",
@@ -450,7 +525,10 @@ def build_items() -> list[dict]:
     analysis_items = [
         {"pk": "ANALYSIS#employment-scatter", "sk": "DATA", **_analysis_employment_scatter()},
         {"pk": "ANALYSIS#politics-resource-io", "sk": "DATA", "budget_by_department": DEPARTMENT_BUDGET},
-        {"pk": "ANALYSIS#youth-topic-weight", "sk": "DATA", **_analysis_youth_topic_weight()},
+        # Canonical keyword item. The legacy youth-topic-weight URL must be
+        # resolved by the read route to this same item; do not seed a second
+        # topics[]/label copy.
+        {"pk": "ANALYSIS#youth-keyword-frequency", "sk": "DATA", **_analysis_youth_keyword_frequency()},
         {"pk": "ANALYSIS#fertility-overlay", "sk": "DATA", **_analysis_fertility_overlay()},
         {"pk": "ANALYSIS#fertility-family-friendliness", "sk": "DATA", **_analysis_fertility_family_friendliness()},
         {"pk": "ANALYSIS#policy-outcomes", "sk": "DATA", **_analysis_policy_outcomes()},
@@ -488,9 +566,51 @@ def _demo() -> None:
         ("META", "MANIFEST"),
         ("DASHBOARD", "DISTRICTS"),
         ("DISTRICT#65000010", "SUMMARY"),
+        ("ANALYSIS#youth-keyword-frequency", "DATA"),
         ("ANALYSIS#policy-outcomes", "DATA"),
     ]:
         assert expected in keys, expected
+
+    manifest = next(i for i in items if i["pk"] == "META" and i["sk"] == "MANIFEST")
+    assert manifest["schema_version"] == 1
+    assert manifest["calculation_version"] == "test"
+
+    districts_item = next(i for i in items if i["pk"] == "DASHBOARD" and i["sk"] == "DISTRICTS")
+    assert len(districts_item["districts"]) == len(DISTRICTS)
+    assert all(
+        "youthBoroughChiefRatioPercent" in district and "yrr" in district
+        for district in districts_item["districts"]
+    )
+
+    elections_item = next(i for i in items if i["pk"] == "DASHBOARD" and i["sk"] == "ELECTIONS")
+    citywide = elections_item["borough_chief_v1_citywide"]
+    latest_rows = [row for row in BOROUGH_CHIEF_ROWS if row["year_roc"] == YRR_YEAR_ROC]
+    elected_count = sum(row["elected_count"] for row in latest_rows)
+    youth_elected_count = sum(row["youth_elected_count"] for row in latest_rows)
+    youth_population = sum(row["youth_population_18_35"] for row in latest_rows)
+    population_total = sum(row["population_total"] for row in latest_rows)
+    assert citywide["year_roc"] == YRR_YEAR_ROC
+    assert citywide["elected_count"] == elected_count
+    assert citywide["youth_elected_count"] == youth_elected_count
+    assert citywide["ratio_percent"] == round(youth_elected_count / elected_count * 100, 6)
+    assert citywide["yrr"] == _yrr(
+        youth_elected_count, elected_count, youth_population, population_total
+    )
+    assert citywide["proxy"] is True
+
+    policy_item = next(i for i in items if i["pk"] == "DASHBOARD" and i["sk"] == "POLICY")
+    assert policy_item["executionRate"] == 93.20
+    assert policy_item["executionRateYearRoc"] == EXECUTION_RATE_YEAR_ROC
+    assert policy_item["executionFailure"] is None
+
+    keyword_item = next(i for i in items if i["pk"] == "ANALYSIS#youth-keyword-frequency")
+    assert keyword_item["analysis_id"] == "youth-keyword-frequency"
+    assert keyword_item["period_scope"] == "all_available"
+    assert keyword_item["keywords"]
+    assert all("term" in keyword for keyword in keyword_item["keywords"])
+    assert "topics" not in keyword_item
+    assert "year_roc" not in keyword_item
+    assert ("ANALYSIS#youth-topic-weight", "DATA") not in keys
 
     def _has_float(value: Any) -> bool:
         if isinstance(value, float):
