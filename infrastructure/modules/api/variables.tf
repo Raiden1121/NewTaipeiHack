@@ -9,7 +9,7 @@ variable "environment" {
 }
 
 variable "dynamodb_table_name" {
-  description = "Analytics DynamoDB table name, passed to the Lambda as an env var (not read yet — handler.py still serves mock data)."
+  description = "Analytics DynamoDB table name, passed to the Lambda as an env var (ANALYTICS_TABLE_NAME) that handler.py reads from."
   type        = string
 }
 
