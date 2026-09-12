@@ -88,9 +88,13 @@ class TestAnalyticsInputResolver(unittest.TestCase):
 
         self.assertEqual(config.annual_years_roc, (110, 111, 112, 113, 114))
         self.assertEqual(config.population_reference_year_roc, 114)
+        self.assertEqual(config.village_population_reference_period, "11507")
+        self.assertEqual(config.budget_allocation_reference_year_roc, 116)
         self.assertEqual(config.election_years_roc, (103, 107, 111))
         self.assertEqual(config.service_radius_m, 2500)
-        self.assertEqual(config.yoi_weights["transport"], 0.2)
+        self.assertEqual(config.yoi_weights["talent"], 0.15)
+        self.assertEqual(config.yoi_weights["housing"], 0.2)
+        self.assertEqual(config.yoi_weights["transport"], 0.15)
 
 
 if __name__ == "__main__":

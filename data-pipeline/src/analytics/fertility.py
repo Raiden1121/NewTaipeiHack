@@ -217,10 +217,7 @@ def generate_fertility_data(
     birth_records = load_periods("births", [f"{year:03d}" for year in annual_years])
     village_population = load_periods(
         "population_villages",
-        [
-            f"{config.population_reference_year_roc:03d}{month:02d}"
-            for month in range(1, 13)
-        ],
+        [config.village_population_reference_period],
     )
     boundaries = load_latest("village_boundaries")
     daycare_points = load_latest("babysitting_places")

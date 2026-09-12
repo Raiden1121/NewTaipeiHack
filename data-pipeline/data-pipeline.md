@@ -38,6 +38,10 @@ Analytics 可能計算青年人口、YoY、Cohort Retention Signal、職缺／�
 - 本地輸出：`data/raw/`、`data/curated/`、`data/quality/`、`data/quarantine/`。
 - 未來輸出：S3 Raw／Curated Data、DynamoDB 指標與 AI Evidence。
 
+### Source provenance
+
+`config/sources.json` 是 source ID、中文名稱與官方查證網址的 versioned registry。新 Raw envelope 會保存 `source`、`source_url` 與 `source_url_type`；既有 Raw 維持 immutable，replay／transform 會以 dataset default 與 registry 補入 curated、published snapshot 與未來 DynamoDB projection。Frontend 不維護來源對照表；無法確認的來源保留 `null` 並寫入 quality warning。
+
 ### 青年局預算 PDF
 
 `youth_budgets` 是 `all_available` source strategy：一次抓取官方列表頁上目前可發現的年度文件，輸出固定為 `curated/youth_budgets/all.json`。raw 會保留列表／文件 metadata 與 PDF artifact：

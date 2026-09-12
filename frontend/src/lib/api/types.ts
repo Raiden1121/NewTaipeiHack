@@ -36,6 +36,9 @@ export interface DistrictSummary {
   district_id: string;
   district_name: string;
   youth_18_35_total: number;
+  youth_ratio: number | null;
+  youth_yoy: number | null;
+  vacancies_per_km2: number | null;
   vacancies_per_10k_youth: number;
   occupation_shannon_index: number;
   talent_demand_yoy: number;
@@ -52,6 +55,7 @@ export interface DistrictSummary {
   railway_stop_density: number;
   bike_stop_density: number;
   opportunityIndex: number;
+  yoiRaw: number | null;
   yoiComponents: YoiComponents;
   retentionRiskLevel: RetentionRiskLevel;
   fertilityRate: number;

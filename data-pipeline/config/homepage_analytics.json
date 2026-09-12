@@ -1,7 +1,9 @@
 {
-  "version": "1",
+  "version": "2",
   "annual_years_roc": [110, 111, 112, 113, 114],
   "population_reference_year_roc": 114,
+  "village_population_reference_period": "11507",
+  "budget_allocation_reference_year_roc": 116,
   "election_years_roc": [103, 107, 111],
   "service_radius_m": 2500,
   "normalization": {
@@ -11,8 +13,8 @@
   "yoi_weights": {
     "job": 0.25,
     "salary": 0.25,
-    "talent": 0.05,
-    "housing": 0.25,
-    "transport": 0.20
+    "talent": 0.15,
+    "housing": 0.20,
+    "transport": 0.15
   }
 }

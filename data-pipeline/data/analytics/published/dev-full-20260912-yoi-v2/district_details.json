@@ -1,0 +1,5459 @@
+{
+  "metric_id": "homepage",
+  "calculation_version": "2",
+  "generated_at": "2026-09-12T12:19:43.224220+00:00",
+  "districts": [
+    {
+      "district_id": "65000010",
+      "district_name": "板橋區",
+      "metrics": {
+        "youth_18_35_total": 107970.0,
+        "youth_ratio": 19.639407598197035,
+        "youth_yoy": -2.6042559333195014,
+        "vacancies_per_10k_youth": 99.37945725664537,
+        "vacancies_per_km2": 50.42171876351644,
+        "occupation_shannon_index": 3.5914334023681076,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 35000.0,
+        "high_salary_ratio": 0.02516309412861137,
+        "adjusted_youth_wage": 77.61169390585283,
+        "college_student_density": 967.5519005972074,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 20000.0,
+        "house_price_median": 574657.82969,
+        "rent_wage_ratio": 0.5714285714285714,
+        "bus_stops_per_10k_youth": 142.35435769195146,
+        "railway_stop_density": 0.5169048521888917,
+        "bike_stop_density": 10.385088393976824,
+        "opportunityIndex": 100.0,
+        "yoiRaw": 52.444816899892324,
+        "yoiComponents": {
+          "job": 77.5932308295051,
+          "salary": 49.86643620364552,
+          "talent": 60.77098519923827,
+          "housing": 9.823120744386028,
+          "transport": 63.33085475227816
+        },
+        "normalizedInputs": {
+          "youth_ratio": 45.00027995081291,
+          "youth_yoy": 56.92718304728276,
+          "vacancies_per_10k_youth": 4.448757709078543,
+          "vacancies_per_km2": 62.65538471584185,
+          "occupation_shannon_index": 100.0,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 41.66666666666667,
+          "high_salary_ratio": 62.1660905091138,
+          "adjusted_youth_wage": 100.0,
+          "college_student_density": 100.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 13.944223107569726,
+          "house_price_median": 0.0,
+          "rent_wage_ratio": 16.47547552245541,
+          "bus_stops_per_10k_youth": 0.5253173522921317,
+          "railway_stop_density": 100.0,
+          "bike_stop_density": 92.58797471590363
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "low",
+        "fertilityRate": 24.438494251063158,
+        "fertilityVsCityAvg": 95.74170578028769,
+        "serviceCoverageRate": 90.72826719533106,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 8.622250579846352,
+        "youthCandidacyRatePer100k": 8.622250579846352
+      }
+    },
+    {
+      "district_id": "65000020",
+      "district_name": "三重區",
+      "metrics": {
+        "youth_18_35_total": 79539.0,
+        "youth_ratio": 20.779407384959427,
+        "youth_yoy": -2.102231467008013,
+        "vacancies_per_10k_youth": 127.10745671934522,
+        "vacancies_per_km2": 85.59556222049035,
+        "occupation_shannon_index": 3.077959285863811,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 33500.0,
+        "high_salary_ratio": 0.00791295746785361,
+        "adjusted_youth_wage": 78.33771845606601,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 22000.0,
+        "house_price_median": 592783.448845,
+        "rent_wage_ratio": 0.6567164179104478,
+        "bus_stops_per_10k_youth": 116.7980487559562,
+        "railway_stop_density": 0.5926497878767878,
+        "bike_stop_density": 11.768331502124786,
+        "opportunityIndex": 79.776879,
+        "yoiRaw": 44.68692581555654,
+        "yoiComponents": {
+          "job": 93.69259815152944,
+          "salary": 14.069668402098882,
+          "talent": 50.58194820753556,
+          "housing": 2.0453347300956537,
+          "transport": 65.0
+        },
+        "normalizedInputs": {
+          "youth_ratio": 61.48788580251055,
+          "youth_yoy": 64.96698471632835,
+          "vacancies_per_10k_youth": 14.36387314760433,
+          "vacancies_per_km2": 100.0,
+          "occupation_shannon_index": 84.23149537882361,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 10.416666666666668,
+          "high_salary_ratio": 19.549171005247203,
+          "adjusted_youth_wage": 100.0,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 3.9840637450199097,
+          "house_price_median": 0.0,
+          "rent_wage_ratio": 2.1697080644622844,
+          "bus_stops_per_10k_youth": 0.0,
+          "railway_stop_density": 100.0,
+          "bike_stop_density": 100.0
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "low",
+        "fertilityRate": 23.92694617519582,
+        "fertilityVsCityAvg": 93.73763446275828,
+        "serviceCoverageRate": 85.88188269097606,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 8.235487893832797,
+        "youthCandidacyRatePer100k": 8.235487893832797
+      }
+    },
+    {
+      "district_id": "65000030",
+      "district_name": "中和區",
+      "metrics": {
+        "youth_18_35_total": 79820.0,
+        "youth_ratio": 19.7676520774361,
+        "youth_yoy": -2.3190356727650983,
+        "vacancies_per_10k_youth": 146.57980456026058,
+        "vacancies_per_km2": 60.21921644362707,
+        "occupation_shannon_index": 3.2003477125810864,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 33931.25,
+        "high_salary_ratio": 0.011965811965811967,
+        "adjusted_youth_wage": 70.27521031741652,
+        "college_student_density": 18.940745001072447,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 21500.0,
+        "house_price_median": 543975.1862125001,
+        "rent_wage_ratio": 0.6336341867747283,
+        "bus_stops_per_10k_youth": 155.3495364570283,
+        "railway_stop_density": 0.4632247418740544,
+        "bike_stop_density": 5.970452228598923,
+        "opportunityIndex": 65.533148,
+        "yoiRaw": 41.40326133098416,
+        "yoiComponents": {
+          "job": 80.6046235786298,
+          "salary": 23.465367154199527,
+          "talent": 43.81651904195747,
+          "housing": 6.246294727842338,
+          "transport": 50.42684563943154
+        },
+        "normalizedInputs": {
+          "youth_ratio": 46.85505611033743,
+          "youth_yoy": 61.49491725294618,
+          "vacancies_per_10k_youth": 21.326891772930175,
+          "vacancies_per_km2": 74.84629754068358,
+          "occupation_shannon_index": 89.24211263554913,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 19.401041666666664,
+          "high_salary_ratio": 29.56185538549882,
+          "adjusted_youth_wage": 91.33885354861943,
+          "college_student_density": 2.3826484832201356,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 6.4741035856573745,
+          "house_price_median": 6.194102248122874,
+          "rent_wage_ratio": 6.041408953397507,
+          "bus_stops_per_10k_youth": 0.9705168082940416,
+          "railway_stop_density": 91.99163944497326,
+          "bike_stop_density": 53.16203591415728
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 22.519797800600614,
+        "fertilityVsCityAvg": 88.2249058844072,
+        "serviceCoverageRate": 90.76922321444356,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 7.040766035344645,
+        "youthCandidacyRatePer100k": 7.040766035344645
+      }
+    },
+    {
+      "district_id": "65000040",
+      "district_name": "永和區",
+      "metrics": {
+        "youth_18_35_total": 38761.0,
+        "youth_ratio": 18.323595038196807,
+        "youth_yoy": -2.7083333333333335,
+        "vacancies_per_10k_youth": 83.84716596579035,
+        "vacancies_per_km2": 73.81296263768571,
+        "occupation_shannon_index": 2.753204304477113,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 33950.0,
+        "high_salary_ratio": 0.021538461538461538,
+        "adjusted_youth_wage": 75.85777723826655,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 22000.0,
+        "house_price_median": 572142.1273050001,
+        "rent_wage_ratio": 0.6480117820324006,
+        "bus_stops_per_10k_youth": 106.2924073166327,
+        "railway_stop_density": 0.22711680811595605,
+        "bike_stop_density": 12.945658062609496,
+        "opportunityIndex": 63.767983,
+        "yoiRaw": 40.99633078318916,
+        "yoiComponents": {
+          "job": 83.43087639573443,
+          "salary": 33.159535877559144,
+          "talent": 32.49213396293351,
+          "housing": 2.5936238597866605,
+          "transport": 43.0412189897894
+        },
+        "normalizedInputs": {
+          "youth_ratio": 25.969926510476004,
+          "youth_yoy": 55.260408396857756,
+          "vacancies_per_10k_youth": 0.0,
+          "vacancies_per_km2": 91.76083839852043,
+          "occupation_shannon_index": 70.93593339155544,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 19.791666666666664,
+          "high_salary_ratio": 53.21133969389786,
+          "adjusted_youth_wage": 98.62627406177626,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 3.9840637450199097,
+          "house_price_median": 0.3150490789333844,
+          "rent_wage_ratio": 3.6297812380100254,
+          "bus_stops_per_10k_youth": 0.0,
+          "railway_stop_density": 45.1030474744735,
+          "bike_stop_density": 100.0
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 17.18700725323242,
+        "fertilityVsCityAvg": 67.33284689219605,
+        "serviceCoverageRate": 55.26870696974214,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 19.141961572512145,
+        "youthCandidacyRatePer100k": 19.141961572512145
+      }
+    },
+    {
+      "district_id": "65000050",
+      "district_name": "新莊區",
+      "metrics": {
+        "youth_18_35_total": 91029.0,
+        "youth_ratio": 21.609822452337035,
+        "youth_yoy": -2.7156139788393716,
+        "vacancies_per_10k_youth": 129.84872952575552,
+        "vacancies_per_km2": 57.15206500119815,
+        "occupation_shannon_index": 3.176884843174305,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 34965.0,
+        "high_salary_ratio": 0.012690355329949238,
+        "adjusted_youth_wage": 68.55676859750378,
+        "college_student_density": 1230.7518295604889,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 21600.0,
+        "house_price_median": 518355.3524625,
+        "rent_wage_ratio": 0.6177606177606177,
+        "bus_stops_per_10k_youth": 198.17860242340353,
+        "railway_stop_density": 0.4835200084703736,
+        "bike_stop_density": 6.962688121973379,
+        "opportunityIndex": 100.0,
+        "yoiRaw": 49.440613737255894,
+        "yoiComponents": {
+          "job": 77.93054034254044,
+          "salary": 37.10324358268079,
+          "talent": 71.45673431089025,
+          "housing": 8.742354222100092,
+          "transport": 54.76791176598017
+        },
+        "normalizedInputs": {
+          "youth_ratio": 73.49802517553364,
+          "youth_yoy": 55.14381060169201,
+          "vacancies_per_10k_youth": 15.344111060570704,
+          "vacancies_per_km2": 71.02987654462204,
+          "occupation_shannon_index": 88.28153603941806,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 40.9375,
+          "high_salary_ratio": 31.35185895670197,
+          "adjusted_youth_wage": 89.09561891876034,
+          "college_student_density": 100.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 5.976095617529879,
+          "house_price_median": 11.541518721477601,
+          "rent_wage_ratio": 8.703964011491578,
+          "bus_stops_per_10k_youth": 2.4377899573592914,
+          "railway_stop_density": 96.02206933871115,
+          "bike_stop_density": 62.023430181679814
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "low",
+        "fertilityRate": 26.835331695881152,
+        "fertilityVsCityAvg": 105.13169941440685,
+        "serviceCoverageRate": 41.73993701304121,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 5.090509254545825,
+        "youthCandidacyRatePer100k": 5.090509254545825
+      }
+    },
+    {
+      "district_id": "65000060",
+      "district_name": "新店區",
+      "metrics": {
+        "youth_18_35_total": 61287.0,
+        "youth_ratio": 19.970738129065055,
+        "youth_yoy": -1.7474389598730302,
+        "vacancies_per_10k_youth": 134.93889405583565,
+        "vacancies_per_km2": 6.8257696511978025,
+        "occupation_shannon_index": 3.560767197930686,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 34825.0,
+        "high_salary_ratio": 0.007255139056831923,
+        "adjusted_youth_wage": 61.008096346895904,
+        "college_student_density": 64.6756118340822,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 22500.0,
+        "house_price_median": 481497.50260500005,
+        "rent_wage_ratio": 0.6460875807609476,
+        "bus_stops_per_10k_youth": 447.8927015517157,
+        "railway_stop_density": 0.13205842130491516,
+        "bike_stop_density": 1.0399600677762069,
+        "opportunityIndex": 17.841118,
+        "yoiRaw": 30.40862663392456,
+        "yoiComponents": {
+          "job": 45.04567026880621,
+          "salary": 29.982105279191625,
+          "talent": 49.80363353699403,
+          "housing": 8.440763323972623,
+          "transport": 16.619900343876473
+        },
+        "normalizedInputs": {
+          "youth_ratio": 49.792252074860556,
+          "youth_yoy": 70.6489017989489,
+          "vacancies_per_10k_youth": 17.164277314711264,
+          "vacancies_per_km2": 8.40945044801035,
+          "occupation_shannon_index": 100.0,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 38.02083333333333,
+          "high_salary_ratio": 17.924013197979072,
+          "adjusted_youth_wage": 79.24166646532493,
+          "college_student_density": 8.135859937351194,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 1.4940239043824732,
+          "house_price_median": 19.234553556273454,
+          "rent_wage_ratio": 3.9525373758101665,
+          "bus_stops_per_10k_youth": 10.992699674084085,
+          "railway_stop_density": 26.22543569068923,
+          "bike_stop_density": 9.129124726685403
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "high",
+        "fertilityRate": 21.854233150568916,
+        "fertilityVsCityAvg": 85.61745003027565,
+        "serviceCoverageRate": 48.211690557768726,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 6.266351260319897,
+        "youthCandidacyRatePer100k": 6.266351260319897
+      }
+    },
+    {
+      "district_id": "65000070",
+      "district_name": "樹林區",
+      "metrics": {
+        "youth_18_35_total": 39464.0,
+        "youth_ratio": 22.244267580546975,
+        "youth_yoy": -3.08923923186484,
+        "vacancies_per_10k_youth": 534.6645043584026,
+        "vacancies_per_km2": 66.11286610675585,
+        "occupation_shannon_index": 2.6450628828525558,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 35000.0,
+        "high_salary_ratio": 0.03222748815165877,
+        "adjusted_youth_wage": 45.028505320929476,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 19300.0,
+        "house_price_median": 364664.449135,
+        "rent_wage_ratio": 0.5514285714285714,
+        "bus_stops_per_10k_youth": 288.36407865396313,
+        "railway_stop_density": 0.1253324475957457,
+        "bike_stop_density": 2.600648287611723,
+        "opportunityIndex": 99.404182,
+        "yoiRaw": 49.2116864976925,
+        "yoiComponents": {
+          "job": 75.9112555528545,
+          "salary": 56.84754521963827,
+          "talent": 52.733671680913844,
+          "housing": 27.31670443559364,
+          "transport": 17.657297768756674
+        },
+        "normalizedInputs": {
+          "youth_ratio": 82.6738876010549,
+          "youth_yoy": 49.1602916012297,
+          "vacancies_per_10k_youth": 100.0,
+          "vacancies_per_km2": 82.17969751782441,
+          "occupation_shannon_index": 66.50859260539961,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 41.66666666666667,
+          "high_salary_ratio": 79.61886304909567,
+          "adjusted_youth_wage": 58.38208679784944,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 17.43027888446214,
+          "house_price_median": 43.62015265321557,
+          "rent_wage_ratio": 19.8301779913548,
+          "bus_stops_per_10k_youth": 5.5274377169590725,
+          "railway_stop_density": 24.88972692464384,
+          "bike_stop_density": 23.067215191853848
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "low",
+        "fertilityRate": 30.649668180230528,
+        "fertilityVsCityAvg": 120.07497201049604,
+        "serviceCoverageRate": 37.80920818538871,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 6.961687513053165,
+        "youthCandidacyRatePer100k": 6.961687513053165
+      }
+    },
+    {
+      "district_id": "65000080",
+      "district_name": "鶯歌區",
+      "metrics": {
+        "youth_18_35_total": 20666.0,
+        "youth_ratio": 23.09024480173406,
+        "youth_yoy": -1.5717279481806057,
+        "vacancies_per_10k_youth": 123.39107713152038,
+        "vacancies_per_km2": 11.675819005819283,
+        "occupation_shannon_index": 2.4005140616349485,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 34020.0,
+        "high_salary_ratio": 0.0196078431372549,
+        "adjusted_youth_wage": 43.52930318446502,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 18000.0,
+        "house_price_median": 347213.21012,
+        "rent_wage_ratio": 0.5291005291005291,
+        "bus_stops_per_10k_youth": 224.52337172166844,
+        "railway_stop_density": 0.3205126785911176,
+        "bike_stop_density": 2.8388265818070417,
+        "opportunityIndex": 47.672176,
+        "yoiRaw": 37.28569997296191,
+        "yoiComponents": {
+          "job": 31.265263911535143,
+          "salary": 32.12667831990679,
+          "talent": 67.34878844734953,
+          "housing": 31.981058358136202,
+          "transport": 32.92789650914503
+        },
+        "normalizedInputs": {
+          "youth_ratio": 94.90909952338332,
+          "youth_yoy": 73.46287159499052,
+          "vacancies_per_10k_youth": 13.034951720141336,
+          "vacancies_per_km2": 14.444310655060969,
+          "occupation_shannon_index": 56.4966937962464,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 21.25,
+          "high_salary_ratio": 48.44169579976697,
+          "adjusted_youth_wage": 56.42504507178696,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 23.90438247011953,
+          "house_price_median": 47.26260575809806,
+          "rent_wage_ratio": 23.57537492753349,
+          "bus_stops_per_10k_youth": 3.340330597400575,
+          "railway_stop_density": 63.650500720691625,
+          "bike_stop_density": 25.194322047112692
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 32.30148048452221,
+        "fertilityVsCityAvg": 126.54621062352447,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 4.607445632141541,
+        "youthCandidacyRatePer100k": 4.607445632141541
+      }
+    },
+    {
+      "district_id": "65000090",
+      "district_name": "三峽區",
+      "metrics": {
+        "youth_18_35_total": 25922.0,
+        "youth_ratio": 22.539105635211158,
+        "youth_yoy": -1.724987678659438,
+        "vacancies_per_10k_youth": 152.38021757580432,
+        "vacancies_per_km2": 2.083501100172792,
+        "occupation_shannon_index": 2.864805115949186,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 34657.0,
+        "high_salary_ratio": 0.020253164556962026,
+        "adjusted_youth_wage": 45.13713357684908,
+        "college_student_density": 52.95257606236622,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 15000.0,
+        "house_price_median": 386852.878055,
+        "rent_wage_ratio": 0.43281299593155786,
+        "bus_stops_per_10k_youth": 539.3102384075303,
+        "railway_stop_density": 0.026373431647756858,
+        "bike_stop_density": 0.3956014747163529,
+        "opportunityIndex": 45.562721,
+        "yoiRaw": 36.79939867932995,
+        "yoiComponents": {
+          "job": 31.70718142321605,
+          "salary": 40.726891783599925,
+          "talent": 64.51084424100065,
+          "housing": 39.15960113427094,
+          "transport": 7.8822234308111
+        },
+        "normalizedInputs": {
+          "youth_ratio": 86.93807579813351,
+          "youth_yoy": 71.0084536938983,
+          "vacancies_per_10k_youth": 23.40103219974349,
+          "vacancies_per_km2": 2.50870064585458,
+          "occupation_shannon_index": 75.50490258925825,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 34.520833333333336,
+          "high_salary_ratio": 50.035979458999805,
+          "adjusted_youth_wage": 58.523888909981835,
+          "college_student_density": 6.661162220939672,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 38.84462151394422,
+          "house_price_median": 38.98894499267923,
+          "rent_wage_ratio": 39.726176189842455,
+          "bus_stops_per_10k_youth": 14.124556373633116,
+          "railway_stop_density": 5.237490565058667,
+          "bike_stop_density": 3.374529896064176
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 30.869310491121034,
+        "fertilityVsCityAvg": 120.93545585578312,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 14.502211587267059,
+        "youthCandidacyRatePer100k": 14.502211587267059
+      }
+    },
+    {
+      "district_id": "65000100",
+      "district_name": "淡水區",
+      "metrics": {
+        "youth_18_35_total": 43000.0,
+        "youth_ratio": 20.672679371550547,
+        "youth_yoy": 2.1280638419152575,
+        "vacancies_per_10k_youth": 110.93023255813954,
+        "vacancies_per_km2": 6.65631990627681,
+        "occupation_shannon_index": 3.2721712623537735,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 33500.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 43.11418019429761,
+        "college_student_density": 388.53650974940297,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 16200.0,
+        "house_price_median": 328548.74801,
+        "rent_wage_ratio": 0.4835820895522388,
+        "bus_stops_per_10k_youth": 897.6744186046512,
+        "railway_stop_density": 0.23722733418596595,
+        "bike_stop_density": 1.2559094162786433,
+        "opportunityIndex": 39.732753,
+        "yoiRaw": 35.45539285645825,
+        "yoiComponents": {
+          "job": 41.792199393341136,
+          "salary": 6.250000000000001,
+          "talent": 73.7528989737407,
+          "housing": 38.77250858265793,
+          "transport": 30.849376303535195
+        },
+        "normalizedInputs": {
+          "youth_ratio": 59.944298304641066,
+          "youth_yoy": 100.0,
+          "vacancies_per_10k_youth": 8.579141174818691,
+          "vacancies_per_km2": 8.1986060940773,
+          "occupation_shannon_index": 92.18258934223688,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 10.416666666666668,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 55.88314815645749,
+          "college_student_density": 48.87589825942135,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 32.86852589641434,
+          "house_price_median": 51.15828490758976,
+          "rent_wage_ratio": 31.210416004188318,
+          "bus_stops_per_10k_youth": 26.40168937491855,
+          "railway_stop_density": 47.11089330988492,
+          "bike_stop_density": 11.057710793438934
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 25.288097348698525,
+        "fertilityVsCityAvg": 99.07016165683122,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 17.057361469857206,
+        "youthCandidacyRatePer100k": 17.057361469857206
+      }
+    },
+    {
+      "district_id": "65000110",
+      "district_name": "汐止區",
+      "metrics": {
+        "youth_18_35_total": 45869.0,
+        "youth_ratio": 21.559236315438195,
+        "youth_yoy": -0.6992552822999654,
+        "vacancies_per_10k_youth": 257.03634262791866,
+        "vacancies_per_km2": 16.42164258187576,
+        "occupation_shannon_index": 3.3166439898771825,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 35000.0,
+        "high_salary_ratio": 0.006785411365564037,
+        "adjusted_youth_wage": 54.63141941725431,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 20000.0,
+        "house_price_median": 419492.54625250003,
+        "rent_wage_ratio": 0.5714285714285714,
+        "bus_stops_per_10k_youth": 313.93751771348843,
+        "railway_stop_density": 0.041785350081108806,
+        "bike_stop_density": 1.1142760021629015,
+        "opportunityIndex": 39.533614,
+        "yoiRaw": 35.40948448882084,
+        "yoiComponents": {
+          "job": 49.811016579975345,
+          "salary": 31.705415398237466,
+          "talent": 64.08068790284416,
+          "housing": 21.084838486354897,
+          "transport": 8.008704077133544
+        },
+        "normalizedInputs": {
+          "youth_ratio": 72.76640724329107,
+          "youth_yoy": 87.43531251381933,
+          "vacancies_per_10k_youth": 60.82448796100043,
+          "vacancies_per_km2": 20.3494839336659,
+          "occupation_shannon_index": 94.00331554943952,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 41.66666666666667,
+          "high_salary_ratio": 16.763538495593657,
+          "adjusted_youth_wage": 70.91762361520027,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 13.944223107569726,
+          "house_price_median": 32.17633640562535,
+          "rent_wage_ratio": 16.47547552245541,
+          "bus_stops_per_10k_youth": 6.403553495219498,
+          "railway_stop_density": 8.298138055390098,
+          "bike_stop_density": 9.792820526602723
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 21.324563032119457,
+        "fertilityVsCityAvg": 83.54238271556203,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 8.517524807291002,
+        "youthCandidacyRatePer100k": 8.517524807291002
+      }
+    },
+    {
+      "district_id": "65000120",
+      "district_name": "瑞芳區",
+      "metrics": {
+        "youth_18_35_total": 7329.0,
+        "youth_ratio": 20.573786598545883,
+        "youth_yoy": -4.070680628272251,
+        "vacancies_per_10k_youth": 377.9506071769682,
+        "vacancies_per_km2": 3.840700355175047,
+        "occupation_shannon_index": 3.1613809053123934,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 35500.0,
+        "high_salary_ratio": 0.01444043321299639,
+        "adjusted_youth_wage": 13.270274525383389,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 11000.0,
+        "house_price_median": 112771.89659750002,
+        "rent_wage_ratio": 0.30985915492957744,
+        "bus_stops_per_10k_youth": 1592.3045435939418,
+        "railway_stop_density": 0.05546137697003679,
+        "bike_stop_density": 0.13865344242509195,
+        "opportunityIndex": 77.540722,
+        "yoiRaw": 44.17141538311259,
+        "yoiComponents": {
+          "job": 37.87581814176244,
+          "salary": 45.52018908758478,
+          "talent": 36.78270919305368,
+          "housing": 72.34114749878783,
+          "transport": 22.24518464706776
+        },
+        "normalizedInputs": {
+          "youth_ratio": 58.51403043808913,
+          "youth_yoy": 33.44274254454505,
+          "vacancies_per_10k_youth": 100.0,
+          "vacancies_per_km2": 4.69516331551121,
+          "occupation_shannon_index": 87.64680038113929,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 52.083333333333336,
+          "high_salary_ratio": 35.675472718961956,
+          "adjusted_youth_wage": 16.925246988790445,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 58.764940239043824,
+          "house_price_median": 96.19560642462764,
+          "rent_wage_ratio": 60.34985388834277,
+          "bus_stops_per_10k_youth": 50.19889596655425,
+          "railway_stop_density": 11.014055451158391,
+          "bike_stop_density": 1.0797955132416648
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "low",
+        "fertilityRate": 26.264452586001806,
+        "fertilityVsCityAvg": 102.89518929178327,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 35.96259889714697,
+        "youthCandidacyRatePer100k": 35.96259889714697
+      }
+    },
+    {
+      "district_id": "65000130",
+      "district_name": "土城區",
+      "metrics": {
+        "youth_18_35_total": 53655.0,
+        "youth_ratio": 22.106356066630134,
+        "youth_yoy": -1.964187831171204,
+        "vacancies_per_10k_youth": 236.3246668530426,
+        "vacancies_per_km2": 42.35607115178593,
+        "occupation_shannon_index": 3.0538182849688957,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 33500.0,
+        "high_salary_ratio": 0.008675078864353312,
+        "adjusted_youth_wage": 72.98496750057936,
+        "college_student_density": 139.6280578978432,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 22500.0,
+        "house_price_median": 552373.533005,
+        "rent_wage_ratio": 0.6716417910447762,
+        "bus_stops_per_10k_youth": 188.98518311434162,
+        "railway_stop_density": 0.20042304961412902,
+        "bike_stop_density": 3.440595685042548,
+        "opportunityIndex": 30.741628,
+        "yoiRaw": 33.382632730485156,
+        "yoiComponents": {
+          "job": 64.86889807100908,
+          "salary": 14.82280484027422,
+          "talent": 62.65570633731065,
+          "housing": 2.077322986577508,
+          "transport": 24.30590969834821
+        },
+        "normalizedInputs": {
+          "youth_ratio": 80.67929890878024,
+          "youth_yoy": 67.17772050368195,
+          "vacancies_per_10k_youth": 53.418304312249795,
+          "vacancies_per_km2": 52.61939286150245,
+          "occupation_shannon_index": 83.24315588526906,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 10.416666666666668,
+          "high_salary_ratio": 21.432012100685544,
+          "adjusted_youth_wage": 94.87614031333376,
+          "college_student_density": 17.564492861628853,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 1.4940239043824732,
+          "house_price_median": 4.441184628696121,
+          "rent_wage_ratio": 0.0,
+          "bus_stops_per_10k_youth": 2.1228342842452697,
+          "railway_stop_density": 39.80194331152075,
+          "bike_stop_density": 30.568561497016244
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 28.205465772294808,
+        "fertilityVsCityAvg": 110.4994185658368,
+        "serviceCoverageRate": 86.62317771013666,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 3.468007629616785,
+        "youthCandidacyRatePer100k": 3.468007629616785
+      }
+    },
+    {
+      "district_id": "65000140",
+      "district_name": "蘆洲區",
+      "metrics": {
+        "youth_18_35_total": 45673.0,
+        "youth_ratio": 23.258525953424893,
+        "youth_yoy": -2.9204837715476013,
+        "vacancies_per_10k_youth": 125.23810566417797,
+        "vacancies_per_km2": 84.84893779890872,
+        "occupation_shannon_index": 2.1653878197259577,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 33750.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 63.00152399660108,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 23000.0,
+        "house_price_median": 485246.26279500005,
+        "rent_wage_ratio": 0.6814814814814815,
+        "bus_stops_per_10k_youth": 147.57077485604185,
+        "railway_stop_density": 0.4450119115327381,
+        "bike_stop_density": 8.158551711433532,
+        "opportunityIndex": 60.923687,
+        "yoiRaw": 40.34062380536514,
+        "yoiComponents": {
+          "job": 78.74822323350395,
+          "salary": 9.375,
+          "talent": 59.682315428329595,
+          "housing": 6.458237022337713,
+          "transport": 53.772155188481186
+        },
+        "normalizedInputs": {
+          "youth_ratio": 97.34291866402367,
+          "youth_yoy": 51.86286990680031,
+          "vacancies_per_10k_youth": 13.695421334769916,
+          "vacancies_per_km2": 100.0,
+          "occupation_shannon_index": 46.87055808375985,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 15.625,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 81.84386465693093,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 0.0,
+          "house_price_median": 18.45210577810775,
+          "rent_wage_ratio": 0.0,
+          "bus_stops_per_10k_youth": 0.7040256352418918,
+          "railway_stop_density": 88.37475983864522,
+          "bike_stop_density": 72.70336912275374
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 23.62453699521185,
+        "fertilityVsCityAvg": 92.55289818408909,
+        "serviceCoverageRate": 25.38053313933673,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 1.9988806268489645,
+        "youthCandidacyRatePer100k": 1.9988806268489645
+      }
+    },
+    {
+      "district_id": "65000150",
+      "district_name": "五股區",
+      "metrics": {
+        "youth_18_35_total": 22892.0,
+        "youth_ratio": 24.168839807004023,
+        "youth_yoy": -1.446530049939728,
+        "vacancies_per_10k_youth": 162.06535034073036,
+        "vacancies_per_km2": 10.807978501361271,
+        "occupation_shannon_index": 2.5490186811440427,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 34500.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 58.50193451559862,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 20600.0,
+        "house_price_median": 456704.11510500003,
+        "rent_wage_ratio": 0.5971014492753624,
+        "bus_stops_per_10k_youth": 511.9692468984798,
+        "railway_stop_density": 0.0,
+        "bike_stop_density": 0.9613565782881993,
+        "opportunityIndex": 6.05717,
+        "yoiRaw": 27.692025718346375,
+        "yoiComponents": {
+          "job": 33.0492862509,
+          "salary": 18.75,
+          "talent": 70.18715438774265,
+          "housing": 16.028746464285184,
+          "transport": 6.72254469735295
+        },
+        "normalizedInputs": {
+          "youth_ratio": 100.0,
+          "youth_yoy": 75.46788596935664,
+          "vacancies_per_10k_youth": 26.8642899631054,
+          "vacancies_per_km2": 13.364466772352865,
+          "occupation_shannon_index": 62.57651546872071,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 31.25,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 75.97015079921167,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 10.95617529880478,
+          "house_price_median": 24.40947272403605,
+          "rent_wage_ratio": 12.169232187636311,
+          "bus_stops_per_10k_youth": 13.187886338812696,
+          "railway_stop_density": 0.0,
+          "bike_stop_density": 8.427137915074027
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "high",
+        "fertilityRate": 35.55015382278097,
+        "fertilityVsCityAvg": 139.27340746848984,
+        "serviceCoverageRate": 34.27638845750562,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 8.526239502067613,
+        "youthCandidacyRatePer100k": 8.526239502067613
+      }
+    },
+    {
+      "district_id": "65000160",
+      "district_name": "泰山區",
+      "metrics": {
+        "youth_18_35_total": 17289.0,
+        "youth_ratio": 22.14182344428365,
+        "youth_yoy": 0.21446788778112683,
+        "vacancies_per_10k_youth": 220.37133437445775,
+        "vacancies_per_km2": 21.0697618852619,
+        "occupation_shannon_index": 2.9238623615579766,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 36000.0,
+        "high_salary_ratio": 0.007874015748031496,
+        "adjusted_youth_wage": 66.56686640843697,
+        "college_student_density": 536.0346507974898,
+        "vt_course_count": 42.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 20200.0,
+        "house_price_median": 507829.73302250006,
+        "rent_wage_ratio": 0.5611111111111111,
+        "bus_stops_per_10k_youth": 488.7500723003065,
+        "railway_stop_density": 0.11060242459455066,
+        "bike_stop_density": 1.327229095134608,
+        "opportunityIndex": 65.061067,
+        "yoiRaw": 41.29443071352878,
+        "yoiComponents": {
+          "job": 46.84894020908317,
+          "salary": 45.281185782009814,
+          "talent": 85.96298424567318,
+          "housing": 14.80215085261755,
+          "transport": 16.046809389207024
+        },
+        "normalizedInputs": {
+          "youth_ratio": 81.19225702520693,
+          "youth_yoy": 100.0,
+          "vacancies_per_10k_youth": 47.713632636706215,
+          "vacancies_per_km2": 26.133084918035284,
+          "occupation_shannon_index": 77.922723145655,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 62.5,
+          "high_salary_ratio": 19.452964455024528,
+          "adjusted_youth_wage": 86.49802282409979,
+          "college_student_density": 67.430407177952,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 12.948207171314735,
+          "house_price_median": 13.738444405498385,
+          "rent_wage_ratio": 18.206076002443197,
+          "bus_stops_per_10k_youth": 12.392424876774163,
+          "railway_stop_density": 21.964496809645976,
+          "bike_stop_density": 11.694647833910707
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 26.697679122212673,
+        "fertilityVsCityAvg": 104.59242346423274,
+        "serviceCoverageRate": 50.069332174769684,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 5.7198421323571464,
+        "youthCandidacyRatePer100k": 5.7198421323571464
+      }
+    },
+    {
+      "district_id": "65000170",
+      "district_name": "林口區",
+      "metrics": {
+        "youth_18_35_total": 27645.0,
+        "youth_ratio": 19.965910978542695,
+        "youth_yoy": -0.5074497948607213,
+        "vacancies_per_10k_youth": 239.8263700488334,
+        "vacancies_per_km2": 12.220591924636945,
+        "occupation_shannon_index": 3.15835275102826,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 37500.0,
+        "high_salary_ratio": 0.049773755656108594,
+        "adjusted_youth_wage": 61.87580034651335,
+        "college_student_density": 100.78762691389866,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 25000.0,
+        "house_price_median": 470395.0236825,
+        "rent_wage_ratio": 0.6666666666666666,
+        "bus_stops_per_10k_youth": 597.2146862000362,
+        "railway_stop_density": 0.0184322653463604,
+        "bike_stop_density": 1.7326329425578777,
+        "opportunityIndex": 90.051345,
+        "yoiRaw": 47.05553943560105,
+        "yoiComponents": {
+          "job": 44.0824299217458,
+          "salary": 96.25,
+          "talent": 58.62750095946811,
+          "housing": 7.693369384168074,
+          "transport": 10.93088622940515
+        },
+        "normalizedInputs": {
+          "youth_ratio": 49.722437890574156,
+          "youth_yoy": 90.50703148675348,
+          "vacancies_per_10k_youth": 54.67046069174,
+          "vacancies_per_km2": 15.12216528483269,
+          "occupation_shannon_index": 87.52282687711545,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 93.75,
+          "high_salary_ratio": 100.0,
+          "adjusted_youth_wage": 80.37435757602952,
+          "college_student_density": 12.678566042685253,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 0.0,
+          "house_price_median": 21.551882359597556,
+          "rent_wage_ratio": 0.5007018610297678,
+          "bus_stops_per_10k_youth": 16.108294275461216,
+          "railway_stop_density": 3.6604571272176987,
+          "bike_stop_density": 15.31520152842658
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "low",
+        "fertilityRate": 35.4730664044495,
+        "fertilityVsCityAvg": 138.9714051908768,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 10.903143739778303,
+        "youthCandidacyRatePer100k": 10.903143739778303
+      }
+    },
+    {
+      "district_id": "65000180",
+      "district_name": "深坑區",
+      "metrics": {
+        "youth_18_35_total": 5435.0,
+        "youth_ratio": 22.991666314141884,
+        "youth_yoy": -1.9307109346806208,
+        "vacancies_per_10k_youth": 137.99448022079116,
+        "vacancies_per_km2": 3.5810296464487754,
+        "occupation_shannon_index": 2.4909138126051307,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 34500.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 40.51503433866346,
+        "college_student_density": 179.62444706587058,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 15000.0,
+        "house_price_median": 315494.20304500003,
+        "rent_wage_ratio": 0.43478260869565216,
+        "bus_stops_per_10k_youth": 612.6954921803128,
+        "railway_stop_density": 0.0,
+        "bike_stop_density": 0.286482371715902,
+        "opportunityIndex": 22.709701,
+        "yoiRaw": 31.531000581395862,
+        "yoiComponents": {
+          "job": 26.702309038082277,
+          "salary": 18.75,
+          "talent": 68.99805549589105,
+          "housing": 44.27342673614879,
+          "transport": 6.423531001745813
+        },
+        "normalizedInputs": {
+          "youth_ratio": 93.48337710856413,
+          "youth_yoy": 67.71384498832502,
+          "vacancies_per_10k_youth": 18.256908955830976,
+          "vacancies_per_km2": 4.372058061842898,
+          "occupation_shannon_index": 60.197685502441345,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 31.25,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 52.49025218340737,
+          "college_student_density": 22.59583328567695,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 38.84462151394422,
+          "house_price_median": 53.88305234672235,
+          "rent_wage_ratio": 39.395802949718295,
+          "bus_stops_per_10k_youth": 16.638648380278298,
+          "railway_stop_density": 0.0,
+          "bike_stop_density": 2.4000162745936375
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "high",
+        "fertilityRate": 14.839076234083086,
+        "fertilityVsCityAvg": 58.13445199444054,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 35.28581510232887,
+        "youthCandidacyRatePer100k": 35.28581510232887
+      }
+    },
+    {
+      "district_id": "65000190",
+      "district_name": "石碇區",
+      "metrics": {
+        "youth_18_35_total": 1368.0,
+        "youth_ratio": 19.777360127222785,
+        "youth_yoy": -3.5260930888575457,
+        "vacancies_per_10k_youth": 102.3391812865497,
+        "vacancies_per_km2": 0.09864794883023727,
+        "occupation_shannon_index": 1.0949143184120975,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 32425.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 0.8738735557345753,
+        "college_student_density": 7.525429239335242,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 17500.0,
+        "house_price_median": 198347.1,
+        "rent_wage_ratio": 0.5397070161912105,
+        "bus_stops_per_10k_youth": 1951.7543859649122,
+        "railway_stop_density": 0.0,
+        "bike_stop_density": 0.035231410296513305,
+        "opportunityIndex": 0.0,
+        "yoiRaw": 17.61491214837994,
+        "yoiComponents": {
+          "job": 1.2414090131949347,
+          "salary": 0.0,
+          "talent": 35.85318946443204,
+          "housing": 43.19390630750941,
+          "transport": 21.918668092763465
+        },
+        "normalizedInputs": {
+          "youth_ratio": 46.995461837014005,
+          "youth_yoy": 42.16418164191996,
+          "vacancies_per_10k_youth": 5.507110492955251,
+          "vacancies_per_km2": 0.03897087115395986,
+          "occupation_shannon_index": 3.045066226256397,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 0.0,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 0.7431236042702859,
+          "college_student_density": 0.9466603642922878,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 26.394422310756966,
+          "house_price_median": 78.33420041978945,
+          "rent_wage_ratio": 21.796294506060548,
+          "bus_stops_per_10k_youth": 62.513222469979,
+          "railway_stop_density": 0.0,
+          "bike_stop_density": 0.15616091308327465
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "high",
+        "fertilityRate": 22.874571101791844,
+        "fertilityVsCityAvg": 89.61478697415048,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 0.0,
+        "youthCandidacyRatePer100k": 0.0
+      }
+    },
+    {
+      "district_id": "65000200",
+      "district_name": "坪林區",
+      "metrics": {
+        "youth_18_35_total": 1126.0,
+        "youth_ratio": 18.270322894694143,
+        "youth_yoy": -6.400665004156276,
+        "vacancies_per_10k_youth": 97.69094138543518,
+        "vacancies_per_km2": 0.06537035773991061,
+        "occupation_shannon_index": 1.617189572592715,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 38000.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 1.159876550021887,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 1400.0,
+        "house_price_median": 148704.126655,
+        "rent_wage_ratio": 0.03684210526315789,
+        "bus_stops_per_10k_youth": 1145.6483126110124,
+        "railway_stop_density": 0.0,
+        "bike_stop_density": 0.023771039178149312,
+        "opportunityIndex": 59.435289,
+        "yoiRaw": 39.99749742699338,
+        "yoiComponents": {
+          "job": 9.770865910207993,
+          "salary": 60.0,
+          "talent": 10.079784544808247,
+          "housing": 96.04351900023322,
+          "transport": 12.227396451156679
+        },
+        "normalizedInputs": {
+          "youth_ratio": 25.199461362020614,
+          "youth_yoy": 0.0,
+          "vacancies_per_10k_youth": 3.8449698373515075,
+          "vacancies_per_km2": 0.0,
+          "occupation_shannon_index": 24.42716477551998,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 100.0,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 1.1164687189717997,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 100.0,
+          "house_price_median": 88.6957685720949,
+          "rent_wage_ratio": 100.0,
+          "bus_stops_per_10k_youth": 34.89698172218427,
+          "railway_stop_density": 0.0,
+          "bike_stop_density": 0.05381139356873902
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 12.667772583320765,
+        "fertilityVsCityAvg": 49.62802303219354,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 0.0,
+        "youthCandidacyRatePer100k": 0.0
+      }
+    },
+    {
+      "district_id": "65000210",
+      "district_name": "三芝區",
+      "metrics": {
+        "youth_18_35_total": 4675.0,
+        "youth_ratio": 21.19124246407688,
+        "youth_yoy": -2.135231316725979,
+        "vacancies_per_10k_youth": 119.78609625668449,
+        "vacancies_per_km2": 0.8294422527586568,
+        "occupation_shannon_index": 2.6860955150267207,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 34314.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 15.913708980286996,
+        "college_student_density": 15.611288114421862,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 8000.0,
+        "house_price_median": 135009.91229250003,
+        "rent_wage_ratio": 0.23314099201492103,
+        "bus_stops_per_10k_youth": 1745.4545454545455,
+        "railway_stop_density": 0.0,
+        "bike_stop_density": 0.1481146879926173,
+        "opportunityIndex": 50.575482,
+        "yoiRaw": 37.95501065839899,
+        "yoiComponents": {
+          "job": 27.84436598216075,
+          "salary": 16.425,
+          "talent": 53.14583610973216,
+          "housing": 79.80618519760968,
+          "transport": 19.6970447125136
+        },
+        "normalizedInputs": {
+          "youth_ratio": 67.44418030294675,
+          "youth_yoy": 64.4385000215682,
+          "vacancies_per_10k_youth": 11.745864796443191,
+          "vacancies_per_km2": 0.9482897547060362,
+          "occupation_shannon_index": 68.18848032334282,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 27.375,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 20.375956804718072,
+          "college_student_density": 1.9638198996308587,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 73.70517928286853,
+          "house_price_median": 91.55404892575578,
+          "rent_wage_ratio": 73.21818441530394,
+          "bus_stops_per_10k_youth": 55.44563391049581,
+          "railway_stop_density": 0.0,
+          "bike_stop_density": 1.1642913753602628
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 24.015406109579732,
+        "fertilityVsCityAvg": 94.08419038899993,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 0.0,
+        "youthCandidacyRatePer100k": 0.0
+      }
+    },
+    {
+      "district_id": "65000220",
+      "district_name": "石門區",
+      "metrics": {
+        "youth_18_35_total": 2174.0,
+        "youth_ratio": 21.75305183109866,
+        "youth_yoy": -7.803223070398643,
+        "vacancies_per_10k_youth": 275.9889604415823,
+        "vacancies_per_km2": 1.1325353874104014,
+        "occupation_shannon_index": 1.1354746459798088,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 33000.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 1.2092329989589887,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 9000.0,
+        "house_price_median": 93180.161795,
+        "rent_wage_ratio": 0.2727272727272727,
+        "bus_stops_per_10k_youth": 2534.498620055198,
+        "railway_stop_density": 0.0,
+        "bike_stop_density": 0.09437794895086679,
+        "opportunityIndex": 0.0,
+        "yoiRaw": 25.364719759124945,
+        "yoiComponents": {
+          "job": 2.677502081165374,
+          "salary": 0.0,
+          "talent": 30.227810064994824,
+          "housing": 79.0272372805449,
+          "transport": 29.038168486502656
+        },
+        "normalizedInputs": {
+          "youth_ratio": 75.56952516248705,
+          "youth_yoy": 0.0,
+          "vacancies_per_10k_youth": 67.601658947949,
+          "vacancies_per_km2": 1.3254250297516652,
+          "occupation_shannon_index": 4.705617658285937,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 0.0,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 1.1808980762084247,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 68.72509960159363,
+          "house_price_median": 100.0,
+          "rent_wage_ratio": 66.57817473329041,
+          "bus_stops_per_10k_youth": 82.47735075903765,
+          "railway_stop_density": 0.0,
+          "bike_stop_density": 0.6843828833579302
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "high",
+        "fertilityRate": 26.819923371647512,
+        "fertilityVsCityAvg": 105.07133484242507,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 0.0,
+        "youthCandidacyRatePer100k": 0.0
+      }
+    },
+    {
+      "district_id": "65000230",
+      "district_name": "八里區",
+      "metrics": {
+        "youth_18_35_total": 10135.0,
+        "youth_ratio": 23.301528911369125,
+        "youth_yoy": -0.10841711019120837,
+        "vacancies_per_10k_youth": 257.52343364578195,
+        "vacancies_per_km2": 6.565820747436724,
+        "occupation_shannon_index": 2.5473612277392634,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 35835.0,
+        "high_salary_ratio": 0.04597701149425287,
+        "adjusted_youth_wage": 35.965647726144105,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 16500.0,
+        "house_price_median": 293332.22040500003,
+        "rent_wage_ratio": 0.46044370029300963,
+        "bus_stops_per_10k_youth": 994.5732609768131,
+        "railway_stop_density": 0.0,
+        "bike_stop_density": 0.805004842597606,
+        "opportunityIndex": 95.172861,
+        "yoiRaw": 48.236223159247814,
+        "yoiComponents": {
+          "job": 29.855062964263638,
+          "salary": 75.4375,
+          "talent": 77.94492276271386,
+          "housing": 41.98659570479993,
+          "transport": 12.160165752098935
+        },
+        "normalizedInputs": {
+          "youth_ratio": 97.96486248302668,
+          "youth_yoy": 96.89744442375795,
+          "vacancies_per_10k_youth": 60.998664380676146,
+          "vacancies_per_km2": 8.085999039484097,
+          "occupation_shannon_index": 62.50865885143294,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 59.06249999999999,
+          "high_salary_ratio": 100.0,
+          "adjusted_youth_wage": 46.551533706333295,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 31.37450199203188,
+          "house_price_median": 58.508740093479744,
+          "rent_wage_ratio": 35.09153658290289,
+          "bus_stops_per_10k_youth": 29.721329119100727,
+          "railway_stop_density": 0.0,
+          "bike_stop_density": 7.030802241654727
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "low",
+        "fertilityRate": 27.70280592758568,
+        "fertilityVsCityAvg": 108.5301683139473,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 9.86679822397632,
+        "youthCandidacyRatePer100k": 9.86679822397632
+      }
+    },
+    {
+      "district_id": "65000240",
+      "district_name": "平溪區",
+      "metrics": {
+        "youth_18_35_total": 546.0,
+        "youth_ratio": 14.000000000000002,
+        "youth_yoy": -4.378283712784588,
+        "vacancies_per_10k_youth": 91.57509157509158,
+        "vacancies_per_km2": 0.0702648214734744,
+        "occupation_shannon_index": 0.9709505944546686,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 35000.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 0.1983071609079974,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 1400.0,
+        "house_price_median": 15304.131657500002,
+        "rent_wage_ratio": 0.04,
+        "bus_stops_per_10k_youth": 4102.5641025641025,
+        "railway_stop_density": 0.08431778576816928,
+        "bike_stop_density": 0.0702648214734744,
+        "opportunityIndex": 34.433819,
+        "yoiRaw": 34.2338084635903,
+        "yoiComponents": {
+          "job": 0.002192444821465751,
+          "salary": 25.000000000000004,
+          "talent": 11.40662110819858,
+          "housing": 100.0,
+          "transport": 41.81511457436764
+        },
+        "normalizedInputs": {
+          "youth_ratio": 0.0,
+          "youth_yoy": 28.51655277049645,
+          "vacancies_per_10k_youth": 1.6580339584823558,
+          "vacancies_per_km2": 0.0036540747024429183,
+          "occupation_shannon_index": 0.0,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 41.66666666666667,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 0.0,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 100.0,
+          "house_price_median": 100.0,
+          "rent_wage_ratio": 100.0,
+          "bus_stops_per_10k_youth": 100.0,
+          "railway_stop_density": 16.744639579923046,
+          "bike_stop_density": 0.4690349695936709
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 30.427892234548334,
+        "fertilityVsCityAvg": 119.2061293100205,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 0.0,
+        "youthCandidacyRatePer100k": 0.0
+      }
+    },
+    {
+      "district_id": "65000250",
+      "district_name": "雙溪區",
+      "metrics": {
+        "youth_18_35_total": 1224.0,
+        "youth_ratio": 16.447191615157216,
+        "youth_yoy": -3.6978756884343036,
+        "vacancies_per_10k_youth": 49.01960784313725,
+        "vacancies_per_km2": 0.04118603224771575,
+        "occupation_shannon_index": -0.0,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 34555.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 0.6270913110490672,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 5000.0,
+        "house_price_median": 101371.89702500001,
+        "rent_wage_ratio": 0.1446968600781363,
+        "bus_stops_per_10k_youth": 2810.4575163398695,
+        "railway_stop_density": 0.01372867741590525,
+        "bike_stop_density": 0.01372867741590525,
+        "opportunityIndex": 18.683291,
+        "yoiRaw": 30.602776099311193,
+        "yoiComponents": {
+          "job": 0.0,
+          "salary": 19.4375,
+          "talent": 15.765249770260068,
+          "housing": 91.94316994574145,
+          "transport": 33.2665309641593
+        },
+        "normalizedInputs": {
+          "youth_ratio": 0.0,
+          "youth_yoy": 39.41312442565017,
+          "vacancies_per_10k_youth": 0.0,
+          "vacancies_per_km2": 0.0,
+          "occupation_shannon_index": 0.0,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 32.395833333333336,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 0.4209768180871613,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 88.64541832669323,
+          "house_price_median": 98.57503425796489,
+          "rent_wage_ratio": 88.05337180370367,
+          "bus_stops_per_10k_youth": 91.9313761884521,
+          "railway_stop_density": 2.7263732455026717,
+          "bike_stop_density": 0.0
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "high",
+        "fertilityRate": 20.06409363243695,
+        "fertilityVsCityAvg": 78.60429245641242,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 0.0,
+        "youthCandidacyRatePer100k": 0.0
+      }
+    },
+    {
+      "district_id": "65000260",
+      "district_name": "貢寮區",
+      "metrics": {
+        "youth_18_35_total": 1739.0,
+        "youth_ratio": 16.649114408808042,
+        "youth_yoy": -5.796316359696641,
+        "vacancies_per_10k_youth": 195.51466359977,
+        "vacancies_per_km2": 0.3345615445084741,
+        "occupation_shannon_index": 1.946671301127678,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 34750.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 0.14189979069416703,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 9000.0,
+        "house_price_median": 101054.54166500001,
+        "rent_wage_ratio": 0.2589928057553957,
+        "bus_stops_per_10k_youth": 3202.99022426682,
+        "railway_stop_density": 0.019680090853439653,
+        "bike_stop_density": 0.02952013628015948,
+        "opportunityIndex": 20.843647,
+        "yoiRaw": 31.100811567816525,
+        "yoiComponents": {
+          "job": 15.366005712761053,
+          "salary": 21.874999999999996,
+          "talent": 3.0237290089629427,
+          "housing": 79.24280866259778,
+          "transport": 36.589593705081754
+        },
+        "normalizedInputs": {
+          "youth_ratio": 1.7522231878534842,
+          "youth_yoy": 5.807099334553873,
+          "vacancies_per_10k_youth": 38.82526113770943,
+          "vacancies_per_km2": 0.3325154243664358,
+          "occupation_shannon_index": 37.91624114535298,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 36.45833333333333,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 0.0,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 68.72509960159363,
+          "house_price_median": 98.64127322331225,
+          "rent_wage_ratio": 68.88192724626907,
+          "bus_stops_per_10k_youth": 100.0,
+          "railway_stop_density": 3.908262358158246,
+          "bike_stop_density": 0.10515504727383375
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "high",
+        "fertilityRate": 29.635483552306628,
+        "fertilityVsCityAvg": 116.10174169376502,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 0.0,
+        "youthCandidacyRatePer100k": 0.0
+      }
+    },
+    {
+      "district_id": "65000270",
+      "district_name": "金山區",
+      "metrics": {
+        "youth_18_35_total": 4262.0,
+        "youth_ratio": 21.607097591888465,
+        "youth_yoy": -3.6182722749886933,
+        "vacancies_per_10k_youth": 267.48005631159083,
+        "vacancies_per_km2": 2.3889301268661445,
+        "occupation_shannon_index": 2.60992078773226,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 33750.0,
+        "high_salary_ratio": 0.017543859649122806,
+        "adjusted_youth_wage": 17.868797245549953,
+        "college_student_density": 8.65463282803261,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 12000.0,
+        "house_price_median": 163008.25835000002,
+        "rent_wage_ratio": 0.35555555555555557,
+        "bus_stops_per_10k_youth": 1159.0802440168934,
+        "railway_stop_density": 0.0,
+        "bike_stop_density": 0.1885997468578535,
+        "opportunityIndex": 39.227786,
+        "yoiRaw": 35.338980807436606,
+        "yoiComponents": {
+          "job": 27.761191531461858,
+          "salary": 26.712027970442914,
+          "talent": 45.87636970067449,
+          "housing": 64.62875476414266,
+          "transport": 12.756463493538043
+        },
+        "normalizedInputs": {
+          "youth_ratio": 73.45861602335785,
+          "youth_yoy": 40.687954039003415,
+          "vacancies_per_10k_youth": 64.55900284801271,
+          "vacancies_per_km2": 2.8887424442980447,
+          "occupation_shannon_index": 65.06986516220758,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 15.625,
+          "high_salary_ratio": 43.34256992610729,
+          "adjusted_youth_wage": 22.928107192042056,
+          "college_student_density": 1.0887083786499163,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 53.78486055776893,
+          "house_price_median": 85.71018520690707,
+          "rent_wage_ratio": 52.68496248835355,
+          "bus_stops_per_10k_youth": 35.35714380714331,
+          "railway_stop_density": 0.0,
+          "bike_stop_density": 1.5258526441515419
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "medium",
+        "fertilityRate": 30.363190470629455,
+        "fertilityVsCityAvg": 118.95264981243166,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 0.0,
+        "youthCandidacyRatePer100k": 0.0
+      }
+    },
+    {
+      "district_id": "65000280",
+      "district_name": "萬里區",
+      "metrics": {
+        "youth_18_35_total": 3985.0,
+        "youth_ratio": 19.718937107229454,
+        "youth_yoy": -4.983309489747258,
+        "vacancies_per_10k_youth": 318.69510664993726,
+        "vacancies_per_km2": 2.0009584066553403,
+        "occupation_shannon_index": 2.668831070167754,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 33000.0,
+        "high_salary_ratio": 0.007874015748031496,
+        "adjusted_youth_wage": 12.494232502363428,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 8500.0,
+        "house_price_median": 96591.73191500001,
+        "rent_wage_ratio": 0.25757575757575757,
+        "bus_stops_per_10k_youth": 1485.5708908406525,
+        "railway_stop_density": 0.0,
+        "bike_stop_density": 0.09453346803096095,
+        "opportunityIndex": 22.681692,
+        "yoiRaw": 31.524543472478165,
+        "yoiComponents": {
+          "job": 28.43626383898776,
+          "salary": 7.781185782009811,
+          "talent": 25.99108411205464,
+          "housing": 80.51164913979164,
+          "transport": 16.46125748308166
+        },
+        "normalizedInputs": {
+          "youth_ratio": 46.150500515528556,
+          "youth_yoy": 18.827209764608043,
+          "vacancies_per_10k_youth": 82.87273431564775,
+          "vacancies_per_km2": 2.405993728858656,
+          "occupation_shannon_index": 67.48166900418141,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 0.0,
+          "high_salary_ratio": 19.452964455024528,
+          "adjusted_youth_wage": 15.912210398668156,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 71.21513944223108,
+          "house_price_median": 99.57275867350953,
+          "rent_wage_ratio": 69.11961599760812,
+          "bus_stops_per_10k_youth": 46.54232724965748,
+          "railway_stop_density": 0.0,
+          "bike_stop_density": 0.6857717828061753
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "high",
+        "fertilityRate": 30.219088390833544,
+        "fertilityVsCityAvg": 118.38810689156216,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 0.0,
+        "youthCandidacyRatePer100k": 0.0
+      }
+    },
+    {
+      "district_id": "65000290",
+      "district_name": "烏來區",
+      "metrics": {
+        "youth_18_35_total": 1459.0,
+        "youth_ratio": 23.536054202290693,
+        "youth_yoy": -3.0564784053156147,
+        "vacancies_per_10k_youth": 349.5544893762851,
+        "vacancies_per_km2": 0.15294366421623365,
+        "occupation_shannon_index": 1.1836815114009664,
+        "talent_demand_yoy": -5.997223330990398,
+        "salary_median": 38000.0,
+        "high_salary_ratio": 0.0,
+        "adjusted_youth_wage": 0.4640387565247139,
+        "college_student_density": 0.0,
+        "vt_course_count": 32.0,
+        "training_people_per_10k_youth": 24.871799115301595,
+        "rent_median": 4700.0,
+        "house_price_median": 182823.13364000001,
+        "rent_wage_ratio": 0.12368421052631579,
+        "bus_stops_per_10k_youth": 274.16038382453735,
+        "railway_stop_density": 0.0,
+        "bike_stop_density": 0.005997790753577791,
+        "opportunityIndex": 70.04886,
+        "yoiRaw": 42.44428651727681,
+        "yoiComponents": {
+          "job": 2.735606456734331,
+          "salary": 60.0,
+          "talent": 59.87397935886095,
+          "housing": 87.57322056474266,
+          "transport": 1.7642925754370167
+        },
+        "normalizedInputs": {
+          "youth_ratio": 100.0,
+          "youth_yoy": 49.684948397152375,
+          "vacancies_per_10k_youth": 93.907585297414,
+          "vacancies_per_km2": 0.10653040060164898,
+          "occupation_shannon_index": 6.679220540933353,
+          "talent_demand_yoy": 50.0,
+          "salary_median": 100.0,
+          "high_salary_ratio": 0.0,
+          "adjusted_youth_wage": 0.20812983435902563,
+          "college_student_density": 0.0,
+          "vt_course_count": 50.0,
+          "training_people_per_10k_youth": 50.0,
+          "rent_median": 90.1394422310757,
+          "house_price_median": 81.5743898080312,
+          "rent_wage_ratio": 91.57793117018417,
+          "bus_stops_per_10k_youth": 5.040835929820048,
+          "railway_stop_density": 0.0,
+          "bike_stop_density": 0.0
+        },
+        "sourcePeriods": {
+          "population": [
+            "10312",
+            "10712",
+            "11001",
+            "11002",
+            "11003",
+            "11004",
+            "11005",
+            "11006",
+            "11007",
+            "11008",
+            "11009",
+            "11010",
+            "11011",
+            "11012",
+            "11101",
+            "11102",
+            "11103",
+            "11104",
+            "11105",
+            "11106",
+            "11107",
+            "11108",
+            "11109",
+            "11110",
+            "11111",
+            "11112",
+            "11201",
+            "11202",
+            "11203",
+            "11204",
+            "11205",
+            "11206",
+            "11207",
+            "11208",
+            "11209",
+            "11210",
+            "11211",
+            "11212",
+            "11301",
+            "11302",
+            "11303",
+            "11304",
+            "11305",
+            "11306",
+            "11307",
+            "11309",
+            "11310",
+            "11311",
+            "11312",
+            "11401",
+            "11402",
+            "11403",
+            "11404",
+            "11405",
+            "11406",
+            "11407",
+            "11408",
+            "11409",
+            "11410",
+            "11411",
+            "11412"
+          ],
+          "births": [
+            "110",
+            "111",
+            "112",
+            "113",
+            "114"
+          ],
+          "wages": [
+            "110",
+            "111",
+            "112",
+            "113"
+          ],
+          "college_majors": [
+            "114"
+          ],
+          "youth_budgets": [
+            "all"
+          ],
+          "elections": [
+            "all"
+          ],
+          "job_vacancies": [
+            "11509"
+          ],
+          "job_vacancy_salaries": [
+            "11509"
+          ],
+          "rentals": [
+            "11509"
+          ],
+          "house_prices": [
+            "11509"
+          ],
+          "bus_stops": [
+            "11509"
+          ],
+          "railway_stops": [
+            "11509"
+          ],
+          "bike_stops": [
+            "11509"
+          ],
+          "vt_courses": [
+            "11509"
+          ],
+          "training_numbers": [
+            "11509"
+          ],
+          "talent_demand": [
+            "all"
+          ],
+          "population_villages": [
+            "11507"
+          ],
+          "village_boundaries": [
+            "11509"
+          ],
+          "youth_service_points": [
+            "11509"
+          ]
+        },
+        "qualityStatus": "observed",
+        "retentionRiskLevel": "low",
+        "fertilityRate": 74.92048533396161,
+        "fertilityVsCityAvg": 293.51297138318824,
+        "serviceCoverageRate": 0.0,
+        "serviceCoverageStatus": "observed",
+        "youthParticipationIndex": 64.6830530401035,
+        "youthCandidacyRatePer100k": 64.6830530401035
+      }
+    }
+  ]
+}

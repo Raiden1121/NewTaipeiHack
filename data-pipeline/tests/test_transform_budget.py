@@ -73,6 +73,32 @@ def settlement_row():
     }
 
 
+def allocation_rows():
+    return [
+        {
+            "document_id": "youth_budgets:116:proposed_budget:abc",
+            "budget_year_roc": "116",
+            "document_status": "proposed_budget",
+            "document_status_label": "預算案",
+            "row_type": "allocation",
+            "business_plan": "青年發展業務",
+            "work_plan": "綜合規劃業務",
+            "allocation_code": "01",
+            "allocation_name": "綜合規劃業務",
+            "budget_section": "經常門",
+            "account_category": None,
+            "budget_amount": "38,960,000",
+            "ratio_percent": None,
+            "unit_label": "新臺幣元",
+            "table_title": "歲出計畫說明提要與各項費用明細表",
+            "source_page_number": 41,
+            "source_document_url": "https://example.test/116",
+            "source_row_text": "01綜合規劃業務 38,960,000市庫負擔38,960,000元",
+            "source_pdf_sha256": "sha256:abc",
+        }
+    ]
+
+
 class TestTransformBudget(unittest.TestCase):
     def test_transforms_organization_budget_without_district_allocation(self):
         result = transform_youth_budgets(
@@ -134,6 +160,25 @@ class TestTransformBudget(unittest.TestCase):
         self.assertEqual(row["reserved_amount"], 11794731)
         self.assertEqual(row["surplus_amount"], -10082715)
         self.assertEqual(row["source_execution_ratio_percent"], 93.77)
+
+    def test_transforms_budget_allocation_to_twd_and_preserves_identity(self):
+        result = transform_youth_budgets(
+            allocation_rows(), fetched_at="2026-09-12T00:00:00+00:00"
+        )
+
+        self.assertEqual(result.quality["rows_out"], 1)
+        row = result.records[0]
+        self.assertEqual(row["row_type"], "allocation")
+        self.assertEqual(row["metric_id"], "budget_allocation_amount")
+        self.assertEqual(row["value"], 38_960_000)
+        self.assertEqual(row["unit"], "TWD")
+        self.assertEqual(row["budget_amount"], 38_960_000)
+        self.assertIsNone(row["budget_ratio_percent"])
+        self.assertEqual(row["allocation_code"], "01")
+        self.assertEqual(row["allocation_name"], "綜合規劃業務")
+        self.assertEqual(row["budget_section"], "經常門")
+        self.assertIsNone(row["account_category"])
+        self.assertEqual(row["raw_record"]["unit_label"], "新臺幣元")
 
     def test_pipeline_dispatches_youth_budget_mapping_envelope(self):
         result = run_transform(

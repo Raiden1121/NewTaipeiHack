@@ -76,7 +76,8 @@ class TestTransformCommon(unittest.TestCase):
         self.assertEqual(metadata["quality_flags"], [])
         self.assertEqual(metadata["age_min"], 18)
         self.assertEqual(metadata["age_max"], 35)
-        self.assertEqual(len(metadata), 18)
+        self.assertIsNone(metadata["source_url"])
+        self.assertEqual(len(metadata), 19)
 
     def test_common_metadata_rejects_inconsistent_contract_values(self):
         required = dict(

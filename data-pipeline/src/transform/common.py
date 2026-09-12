@@ -159,6 +159,7 @@ def build_common_metadata(
     age_max: int | None,
     youth_eligibility: str,
     fetched_at: str | None,
+    source_url: str | None = None,
     quality_flags: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build and validate the fields shared by every curated record."""
@@ -186,6 +187,7 @@ def build_common_metadata(
     return {
         "dataset": dataset,
         "source": source,
+        "source_url": source_url,
         "source_record_id": source_record_id,
         "geo_level": geo_level,
         "district_id": district_id,

@@ -146,7 +146,7 @@ response 不得包含 `raw_record`、`raw_records`、本地路徑或 stack trace
 | 行政區名稱 | `district_name` | `name` | `name` |
 | 工作機會子分數 | `yoiComponents.job` | （無） | `score_job` |
 | 薪資子分數 | `yoiComponents.salary` | （無） | `score_salary` |
-| 人才子分數 | `yoiComponents.talent` | （無） | `score_talent` |
+| 青年活力與發展子分數 | `yoiComponents.talent` | （無） | `score_talent` |
 | 居住友善子分數 | `yoiComponents.housing` | （無） | `score_housing` |
 | 交通子分數 | `yoiComponents.transport` | （無） | `score_transport` |
 | 青年參選率 | `youthCandidacyRatePer100k` | `youthParticipationIndex` | `youth_candidacy_rate` |
@@ -184,20 +184,23 @@ export interface DistrictSummary {
 
 ### 3.1 `districts[]`（29 筆，來自 `dashboard_overview.json`）
 
-每筆 28 個欄位。分四組：
+每筆包含原始指標、五個子分數、公開 YOI 與品質欄位；核心 YOI 欄位如下。
 
 **原始指標（單位為實際量綱）**
 
 | 欄位 | 單位 | 板橋區實值 |
 |---|---|---|
 | `youth_18_35_total` | 人 | 107970 |
+| `youth_ratio` | % | 19.6394 |
+| `youth_yoy` | % | -2.6043 |
+| `vacancies_per_km2` | 職缺/km² | 50.4217 |
 | `vacancies_per_10k_youth` | 職缺/萬青年 | 99.38 |
 | `occupation_shannon_index` | — | 3.59 |
 | `talent_demand_yoy` | % | -6.00 |
 | `salary_median` | TWD/月 | 35000 |
 | `high_salary_ratio` | 比例 0–1 | 0.0378 |
-| `adjusted_youth_wage` | 萬元/年 | 77.61 |
-| `college_student_density` | 人/km² | 4864.50 |
+| `adjusted_youth_wage` | 萬元/年（相容性／散點圖 proxy，不進 S_salary） | 77.61 |
+| `college_student_density` | 人/km² | 967.55 |
 | `vt_course_count` | 門 | 32 |
 | `training_people_per_10k_youth` | 人次/萬青年 | 24.87 |
 | `rent_median` | TWD/月 | 20000 |
@@ -211,9 +214,10 @@ export interface DistrictSummary {
 
 | 欄位 | 型別 | 說明 | 29 區實際範圍 |
 |---|---|---|---|
-| `opportunityIndex` | number | YOI，`0.25·job + 0.25·salary + 0.05·talent + 0.25·housing + 0.20·transport` | **20.42 – 54.82**（中位 38.16）|
+| `opportunityIndex` | number | 公開 YOI，先算 `YOI_raw` 再做 P5/P95 norm | **0 – 100**（中位 47.6722）|
+| `yoiRaw` | number \| null | `0.25·job + 0.25·salary + 0.15·talent + 0.20·housing + 0.15·transport`，未做最終 norm | **17.6149 – 52.4448**（中位 37.2857）|
 | `yoiComponents` | object | 五個 0–100 子分數 | 見下 |
-| `normalizedInputs` | object | 16 個原始指標標準化後的 0–100 值，除錯用 |
+| `normalizedInputs` | object | 18 個原始指標標準化後的 0–100 值，除錯用；包含相容性欄位 |
 | `retentionRiskLevel` | `"low"\|"medium"\|"high"` | 低 8 / 中 13 / 高 8 區 |
 | `fertilityRate` | number | 育齡青年生育率 ‰ | **12.67 – 74.92**（中位 26.70）|
 | `fertilityVsCityAvg` | number | 對全市平均比 % | 49.63 – 293.51 |
@@ -231,7 +235,7 @@ export interface DistrictSummary {
 |---|---|---|---|---|
 | `job` | 10.00 | 44.16 | 86.29 | |
 | `salary` | 0.22 | 39.49 | 91.61 | |
-| `talent` | 35.00 | 35.00 | 65.00 | **變異極小**，權重已降至 0.05 |
+| `talent` | 3.02 | 53.15 | 85.96 | 青年人口佔比、青年人口 YoY、大專學生密度 |
 | `housing` | 2.05 | 38.77 | 100.00 | 反向標準化，**越高代表居住越友善** |
 | `transport` | 1.76 | 19.00 | 65.00 | |
 
@@ -273,7 +277,7 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 | hover 卡：機會指數 | 同上 | ✅ |
 | hover 卡：留才風險 | `data.districts[].retentionRiskLevel` | ✅ |
 
-> 🔴 **著色門檻需重訂**：`lib/mapColors.ts` 的 `opportunityFillColor` 分界為 50/60/70/80，但實際值域只有 **20.42–54.82**。實測分桶：**28 區落最淺階、1 區落第二階，最深三階全空**——接上真資料後地圖會幾乎全白。建議改用分位數（Q1/median/Q3）動態分級，或由 API 在 `meta` 附上分級門檻。
+> `opportunityIndex` 現在先由 `YOI_raw` 做 P5/P95 norm，公開值域為 **0–100**；目前 29 區中位數為 47.6722。若前端仍採固定門檻，應依這個公開值域重新檢查分桶；更穩健的作法仍是由 API 提供分位數門檻。
 
 ### 4.3 重點行政區分析（`DistrictHighlightsTable`）
 
@@ -327,11 +331,11 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 | 綜合分數 | `data.metrics.opportunityIndex` | ✅ |
 | 工作機會 | `data.metrics.yoiComponents.job` | ✅ |
 | 薪資水準 | `data.metrics.yoiComponents.salary` | ✅ |
-| 人才資源 | `data.metrics.yoiComponents.talent` | ✅ 但 29 區只有 35 / 65 兩種值 |
+| 青年活力與發展 | `data.metrics.yoiComponents.talent` | ✅ 29 區皆有區級變異（3.02–85.96） |
 | 居住友善度 | `data.metrics.yoiComponents.housing` | ✅ |
 | 交通可及 | `data.metrics.yoiComponents.transport` | ✅ |
 
-> 前端 `DistrictDetailCard.tsx` 目前五維是寫死的 `DIMENSIONS` 常數（82/71/80/75/79），且**不隨選取行政區變動**。接上後五個頂點順序固定為：工作機會 → 薪資水準 → 人才資源 → 居住友善度 → 交通可及（順時針）。
+> 前端 `DistrictDetailCard.tsx` 已改為讀取選取行政區的 `yoiComponents`。五個頂點順序固定為：工作機會 → 薪資水準 → 青年活力與發展 → 居住友善度 → 交通可及（順時針）。
 >
 > ⚠️ 標籤用「居住友善度」不是「居住負擔」——分數越高越好。
 
@@ -654,7 +658,7 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 | 10 | `house_price_median` 未篩住宅用，含土地/車位 | `transform` | 加 `transaction_type` 篩選，平溪區例外 fallback |
 | 11 | `EDGRDESC`（職缺學歷）未在 curated keys | `job_vacancies` transform | 確認是否穩定輸出 |
 | 12 | 年齡口徑文案殘留 20–39 / 20–35 | 生育頁、施政頁 | 全部改 18–35 |
-| 13 | `yoiComponents.talent` 29 區只有 35/65 兩值 | `college_majors` 為學校所在地 | 已將權重降至 0.05，UI 可加註 |
+| 13 | `yoiComponents.talent` 仍含學校所在地 proxy | `college_majors` 為學校所在地；人口欄位為結構與變動訊號，不等同人才品質 | 已改為青年人口佔比 0.4、青年人口 YoY 0.4、大專學生密度 0.2；總權重 0.15，UI 可加註 |
 | 14 | `youth_keyword_frequency` top terms 為未濾除常見詞 | `youth_keyword_config.json` | 文字雲改用 `youth_topic_weight` |
 | 15 | 就業散佈圖 Plot 2 的 `yLabel` 仍是「房價所得比（倍）」，未跟上文件決議的「每坪平均房價」 | `CrossAnalysisScatter.tsx` | 已於 2026-09-12 決議採文件版並改字串，已完成 |
 | 16 | 文字雲年份選擇器已移除，UI 改為單一固定畫面 | `YouthTopicWordCloud.tsx` | 已於 2026-09-12 決議固定回傳 114 年，見 §6.4；`year` query 參數不再需要 |
