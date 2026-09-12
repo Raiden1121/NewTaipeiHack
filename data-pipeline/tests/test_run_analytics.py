@@ -14,6 +14,10 @@ import run_analytics  # noqa: E402
 
 
 class TestRunAnalytics(unittest.TestCase):
+    def test_fixed_topic_metric_is_not_an_available_cli_choice(self):
+        with self.assertRaises(SystemExit):
+            run_analytics.main(["--metric", "youth_topic_weight"])
+
     def test_all_metric_publishes_one_complete_snapshot(self):
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
@@ -64,92 +68,90 @@ class TestRunAnalytics(unittest.TestCase):
                 "keyword_frequency": {
                     "metric_id": "youth_keyword_frequency",
                     "generated_at": generated_at,
-                    "_quality": {},
-                },
-                "topic_weight": {
-                    "metric_id": "youth_topic_weight",
-                    "generated_at": generated_at,
-                    "_quality": {},
+                    "_quality": {
+                        "status": "observed",
+                        "eligible_join_rows": 1,
+                        "eligible_minutes_rows": 1,
+                    },
                 },
             }
 
             with patch.object(run_analytics, "HomepageInputResolver") as resolver:
                 with patch.object(run_analytics, "load_topic_weights", return_value=object()):
-                    with patch.object(run_analytics, "load_topic_rules", return_value=object()):
-                        with patch.object(run_analytics, "load_keyword_config", return_value=object()):
-                            with patch.object(run_analytics, "generate_homepage_data", return_value=homepage):
+                    with patch.object(run_analytics, "load_keyword_config", return_value=object()):
+                        with patch.object(run_analytics, "generate_homepage_data", return_value=homepage):
+                            with patch.object(
+                                run_analytics,
+                                "generate_employment_data",
+                                return_value=results["employment"],
+                            ):
                                 with patch.object(
                                     run_analytics,
-                                    "generate_employment_data",
-                                    return_value=results["employment"],
+                                    "generate_fertility_data",
+                                    return_value=results["fertility"],
                                 ):
                                     with patch.object(
                                         run_analytics,
-                                        "generate_fertility_data",
-                                        return_value=results["fertility"],
+                                        "generate_youth_participation_data",
+                                        return_value=results["participation"],
                                     ):
                                         with patch.object(
                                             run_analytics,
-                                            "generate_youth_participation_data",
-                                            return_value=results["participation"],
+                                            "generate_policy_support_data",
+                                            return_value=results["policy_support"],
                                         ):
                                             with patch.object(
                                                 run_analytics,
-                                                "generate_policy_support_data",
-                                                return_value=results["policy_support"],
+                                                "calculate_youth_keyword_frequency",
+                                                return_value=results["keyword_frequency"],
                                             ):
                                                 with patch.object(
                                                     run_analytics,
-                                                    "calculate_youth_keyword_frequency",
-                                                    return_value=results["keyword_frequency"],
-                                                ):
-                                                    with patch.object(
-                                                        run_analytics,
-                                                        "calculate_youth_topic_weights",
-                                                        return_value=results["topic_weight"],
+                                                    "publish_homepage_snapshot",
+                                                ) as publish:
+                                                    for writer_name in (
+                                                        "write_homepage_data",
+                                                        "write_employment_data",
+                                                        "write_fertility_data",
+                                                        "write_youth_participation_data",
+                                                        "write_policy_support_data",
+                                                        "write_youth_keyword_frequency",
                                                     ):
-                                                        with patch.object(run_analytics, "publish_homepage_snapshot") as publish:
-                                                            for writer_name in (
-                                                                "write_homepage_data",
-                                                                "write_employment_data",
-                                                                "write_fertility_data",
-                                                                "write_youth_participation_data",
-                                                                "write_policy_support_data",
-                                                                "write_youth_keyword_frequency",
-                                                                "write_youth_topic_weights",
-                                                            ):
-                                                                patcher = patch.object(
-                                                                    run_analytics,
-                                                                    writer_name,
-                                                                    return_value=(root / f"{writer_name}.json", root / "quality.json"),
-                                                                )
-                                                                patcher.start()
-                                                                self.addCleanup(patcher.stop)
+                                                        patcher = patch.object(
+                                                            run_analytics,
+                                                            writer_name,
+                                                            return_value=(
+                                                                root / f"{writer_name}.json",
+                                                                root / "quality.json",
+                                                            ),
+                                                        )
+                                                        patcher.start()
+                                                        self.addCleanup(patcher.stop)
 
-                                                            data_loader = patch.object(
-                                                                run_analytics,
-                                                                "_load_indexed_dataset",
-                                                                return_value=[],
-                                                            )
-                                                            data_loader.start()
-                                                            self.addCleanup(data_loader.stop)
+                                                    data_loader = patch.object(
+                                                        run_analytics,
+                                                        "_load_indexed_dataset",
+                                                        return_value=[],
+                                                    )
+                                                    data_loader.start()
+                                                    self.addCleanup(data_loader.stop)
 
-                                                            self.assertEqual(
-                                                                run_analytics.main(
-                                                                    [
-                                                                        "--metric",
-                                                                        "all",
-                                                                        "--output-dir",
-                                                                        str(root / "data"),
-                                                                        "--config-dir",
-                                                                        str(config_dir),
-                                                                        "--publish",
-                                                                        "--snapshot-id",
-                                                                        "dev-full-20260912",
-                                                                    ]
-                                                                ),
-                                                                0,
-                                                            )
+                                                    self.assertEqual(
+                                                        run_analytics.main(
+                                                            [
+                                                                "--metric",
+                                                                "all",
+                                                                "--output-dir",
+                                                                str(root / "data"),
+                                                                "--config-dir",
+                                                                str(config_dir),
+                                                                "--publish",
+                                                                "--snapshot-id",
+                                                                "dev-full-20260912",
+                                                            ]
+                                                        ),
+                                                        0,
+                                                    )
 
             resolver.from_paths.assert_called_once()
             publish.assert_called_once()
@@ -161,10 +163,45 @@ class TestRunAnalytics(unittest.TestCase):
                     "participation",
                     "policy_support",
                     "keyword_frequency",
-                    "topic_weight",
                 },
             )
             self.assertEqual(publish.call_args.kwargs["snapshot_id"], "dev-full-20260912")
+            self.assertTrue(publish.call_args.kwargs["update_current"])
+
+    def test_partial_keyword_source_creates_candidate_without_switching_current(self):
+        self.assertFalse(
+            run_analytics._keyword_snapshot_is_complete(
+                {
+                    "_quality": {
+                        "status": "partial",
+                        "eligible_join_rows": 3,
+                        "eligible_minutes_rows": 0,
+                    }
+                }
+            )
+        )
+        self.assertFalse(
+            run_analytics._keyword_snapshot_is_complete(
+                {
+                    "_quality": {
+                        "status": "unavailable",
+                        "eligible_join_rows": 0,
+                        "eligible_minutes_rows": 0,
+                    }
+                }
+            )
+        )
+        self.assertTrue(
+            run_analytics._keyword_snapshot_is_complete(
+                {
+                    "_quality": {
+                        "status": "observed",
+                        "eligible_join_rows": 3,
+                        "eligible_minutes_rows": 2,
+                    }
+                }
+            )
+        )
 
     def test_policy_support_branch_embeds_analysis_in_snapshot(self):
         with tempfile.TemporaryDirectory() as tempdir:

@@ -45,6 +45,22 @@ class TestPublishedSnapshot(unittest.TestCase):
             "source_periods": {"births": ["114"]},
             "coverage": {"district_count": 29},
         }
+        keyword = {
+            "metric_id": "youth_keyword_frequency",
+            "period_scope": "all_available",
+            "source_periods": {
+                "join_proposals": ["109", "114"],
+                "youth_council_minutes": ["110", "114"],
+            },
+            "normalization": "global_max",
+            "keywords": [],
+        }
+        keyword_quality = {
+            "period_strategy": "all_available",
+            "geo_level": "county",
+            "source_periods": keyword["source_periods"],
+            "coverage": {"candidate_keyword_count": 0},
+        }
 
         with tempfile.TemporaryDirectory() as tempdir:
             result = publish_homepage_snapshot(
@@ -52,10 +68,15 @@ class TestPublishedSnapshot(unittest.TestCase):
                 {},
                 output_dir=tempdir,
                 snapshot_id="dev-employment",
-                analyses={"employment": analysis, "fertility": fertility},
+                analyses={
+                    "employment": analysis,
+                    "fertility": fertility,
+                    "keyword_frequency": keyword,
+                },
                 analysis_quality={
                     "employment": analysis_quality,
                     "fertility": fertility_quality,
+                    "keyword_frequency": keyword_quality,
                 },
             )
 
@@ -73,6 +94,7 @@ class TestPublishedSnapshot(unittest.TestCase):
                 {
                     "employment": "analyses/employment.json",
                     "fertility": "analyses/fertility.json",
+                    "keyword_frequency": "analyses/keyword_frequency.json",
                 },
             )
             entry = next(item for item in manifest["datasets"] if item["dataset"] == "employment")
@@ -83,6 +105,12 @@ class TestPublishedSnapshot(unittest.TestCase):
                 item for item in manifest["datasets"] if item["dataset"] == "fertility"
             )
             self.assertEqual(fertility_entry["source_period"], {"births": ["114"]})
+            keyword_entry = next(
+                item for item in manifest["datasets"] if item["dataset"] == "keyword_frequency"
+            )
+            self.assertEqual(keyword_entry["period_strategy"], "all_available")
+            self.assertEqual(keyword_entry["geo_level"], "county")
+            self.assertEqual(keyword_entry["source_period"], keyword["source_periods"])
 
     def test_publishes_homepage_artifacts_and_switches_current_pointer_last(self):
         homepage = {

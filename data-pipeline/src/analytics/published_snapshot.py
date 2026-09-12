@@ -300,9 +300,9 @@ def _build_analysis_dataset_entry(
     return {
         "dataset": name,
         "path": f"analyses/{name}.json",
-        "period_strategy": "latest_snapshot",
+        "period_strategy": quality.get("period_strategy", "latest_snapshot"),
         "source_period": quality.get("source_periods", {}),
-        "geo_level": "district",
+        "geo_level": quality.get("geo_level", "district"),
         "coverage": dict(coverage),
         "quality_flags": _quality_flags(quality),
         "sources": _source_refs(source_refs),

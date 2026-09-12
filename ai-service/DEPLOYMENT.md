@@ -1,6 +1,14 @@
 # AI Service 部署說明
 
-給寫 CDK 的人看的。`infrastructure/` 目前只有 `cdk.json` 與 placeholder，還沒有 Stack。
+給之後要部署這個服務的人看的。
+
+⚠️ **`infrastructure/` 現在的實際 IaC 工具是 Terraform，不是 CDK**——frontend（S3 + CloudFront）、
+api（Python Lambda + API Gateway）、analytics_table（DynamoDB）、raw_data／transformed_data（S3）
+都已經用 Terraform 建立並部署，見 `infrastructure/main.tf` 與 `infrastructure/infrastructure.md`。
+`cdk.json`、`bin/`、`lib/` 是尚未清除的舊 placeholder，並未被使用，之後也不會用來部署任何東西。
+下面第 2 節示範的 CDK `NodejsFunction` 寫法僅供說明「ESM 打包／依賴打包」這個問題本身，
+實際部署這個 Lambda 時請改用 Terraform（例如 `archive_file` + esbuild 打包後的 zip，
+或另一個對應的 `modules/ai/` module），不要真的引入 CDK stack。
 
 ## TL;DR
 

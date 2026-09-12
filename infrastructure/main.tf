@@ -42,6 +42,13 @@ module "ai_service" {
   backend_lambda_role_name = module.api.lambda_role_name
 }
 
+module "transformed_data" {
+  source = "./modules/transformed_data"
+
+  project_name = var.project_name
+  environment  = var.environment
+}
+
 # `terraform apply` always rebuilds and redeploys the frontend, so the
 # CloudFront-served site matches whatever is currently in frontend/src.
 
