@@ -31,6 +31,14 @@ venv/
 cdk.out/
 **/cdk.out/
 
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+**/modules/api/lambda.zip
+*.tfplan
+**/.terraform.tfstate.lock.info
+
 # Browser verification artifacts
 .playwright-cli/
 output/playwright/
