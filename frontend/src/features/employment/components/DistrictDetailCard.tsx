@@ -1,30 +1,32 @@
-import { useMemo } from "react";
 import { motion } from "motion/react";
 import { BarChart3, MapPin } from "lucide-react";
 import { useDistrictSummary } from "@/features/home/hooks/useDistrictSummary";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { YoiComponents } from "@/lib/api/types";
 
 interface DimensionScore {
   label: string;
   value: number;
 }
 
-// 佔位資料，待 Backend API 提供整理後結果。
-const OVERALL_SCORE = 78;
-const DIMENSIONS: DimensionScore[] = [
-  { label: "工作機會", value: 82 },
-  { label: "薪資水準", value: 71 },
-  { label: "人才資源", value: 80 },
-  { label: "居住友善", value: 75 },
-  { label: "交通可及", value: 79 },
-];
-
 const SIZE = 240;
 const CENTER = SIZE / 2;
 const RADIUS = 74;
 const LABEL_RATIO = 1.2;
 const GRID_LEVELS = [0.25, 0.5, 0.75, 1];
+
+// 五個頂點順序固定：工作機會 → 薪資水準 → 人才資源 → 居住友善度 → 交通可及（順時針），
+// 見 api_contract.md §5.2。housing 分數方向已是「越高越好」，不得再反轉。
+function toDimensions(components: YoiComponents): DimensionScore[] {
+  return [
+    { label: "工作機會", value: components.job },
+    { label: "薪資水準", value: components.salary },
+    { label: "人才資源", value: components.talent },
+    { label: "居住友善度", value: components.housing },
+    { label: "交通可及", value: components.transport },
+  ];
+}
 
 function labelBaseline(sin: number): "auto" | "hanging" | "middle" {
   if (sin < -0.5) return "auto";
@@ -55,9 +57,8 @@ export default function DistrictDetailCard() {
   );
   const { data: districts = [] } = useDistrictSummary();
 
-  const selectedDistrict = useMemo(
-    () => districts.find((district) => district.id === selectedDistrictId) ?? null,
-    [districts, selectedDistrictId],
+  const selectedDistrict = districts.find(
+    (district) => district.district_id === selectedDistrictId,
   );
 
   if (!selectedDistrict) {
@@ -84,7 +85,8 @@ export default function DistrictDetailCard() {
     );
   }
 
-  const dataPoints = polygonPoints(DIMENSIONS.map((item) => item.value / 100));
+  const dimensions = toDimensions(selectedDistrict.yoiComponents);
+  const dataPoints = polygonPoints(dimensions.map((item) => item.value / 100));
 
   return (
     <Card className="flex h-full flex-col">
@@ -96,12 +98,14 @@ export default function DistrictDetailCard() {
             </p>
             <CardTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
               <BarChart3 className="h-5 w-5 text-primary" aria-hidden="true" />
-              {selectedDistrict.name} 詳細分析
+              {selectedDistrict.district_name} 詳細分析
             </CardTitle>
           </div>
           <div className="text-right">
             <p className="text-xs font-semibold text-accent-slate">綜合分數</p>
-            <p className="text-3xl font-bold text-primary">{OVERALL_SCORE}</p>
+            <p className="text-3xl font-bold text-primary">
+              {selectedDistrict.opportunityIndex.toFixed(1)}
+            </p>
           </div>
         </div>
       </CardHeader>
@@ -111,12 +115,12 @@ export default function DistrictDetailCard() {
             viewBox={`0 0 ${SIZE} ${SIZE}`}
             className="h-52 w-52"
             role="img"
-            aria-label={`${selectedDistrict.name}五維度雷達圖：${DIMENSIONS.map((d) => `${d.label} ${d.value}`).join("、")}`}
+            aria-label={`${selectedDistrict.district_name}五維度雷達圖：${dimensions.map((d) => `${d.label} ${d.value}`).join("、")}`}
           >
             {GRID_LEVELS.map((level, index) => (
               <motion.polygon
-                key={`${selectedDistrict.id}-grid-${level}`}
-                points={polygonPoints(DIMENSIONS.map(() => level))}
+                key={`${selectedDistrict.district_id}-grid-${level}`}
+                points={polygonPoints(dimensions.map(() => level))}
                 className="fill-none stroke-slate-200"
                 strokeWidth={1}
                 style={{ transformBox: "view-box", transformOrigin: "100px 100px" }}
@@ -125,8 +129,8 @@ export default function DistrictDetailCard() {
                 transition={{ delay: index * 0.05, duration: 0.3 }}
               />
             ))}
-            {DIMENSIONS.map((dimension, index) => {
-              const { x, y } = polarPoint(index, DIMENSIONS.length, 1);
+            {dimensions.map((dimension, index) => {
+              const { x, y } = polarPoint(index, dimensions.length, 1);
               return (
                 <line
                   key={dimension.label}
@@ -139,10 +143,10 @@ export default function DistrictDetailCard() {
                 />
               );
             })}
-            {DIMENSIONS.map((dimension, index) => {
+            {dimensions.map((dimension, index) => {
               const angle =
-                (Math.PI * 2 * index) / DIMENSIONS.length - Math.PI / 2;
-              const { x, y } = polarPoint(index, DIMENSIONS.length, LABEL_RATIO);
+                (Math.PI * 2 * index) / dimensions.length - Math.PI / 2;
+              const { x, y } = polarPoint(index, dimensions.length, LABEL_RATIO);
               return (
                 <text
                   key={`${dimension.label}-label`}
@@ -159,7 +163,7 @@ export default function DistrictDetailCard() {
               );
             })}
             <motion.polygon
-              key={`${selectedDistrict.id}-data`}
+              key={`${selectedDistrict.district_id}-data`}
               points={dataPoints}
               className="fill-primary stroke-primary"
               fillOpacity={0.2}
@@ -170,15 +174,15 @@ export default function DistrictDetailCard() {
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 130, damping: 14, delay: 0.1 }}
             />
-            {DIMENSIONS.map((dimension, index) => {
+            {dimensions.map((dimension, index) => {
               const { x, y } = polarPoint(
                 index,
-                DIMENSIONS.length,
+                dimensions.length,
                 dimension.value / 100,
               );
               return (
                 <motion.circle
-                  key={`${selectedDistrict.id}-dot-${dimension.label}`}
+                  key={`${selectedDistrict.district_id}-dot-${dimension.label}`}
                   cx={x}
                   cy={y}
                   r={3}
@@ -193,19 +197,16 @@ export default function DistrictDetailCard() {
           </svg>
         </div>
         <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          {DIMENSIONS.map((dimension) => (
+          {dimensions.map((dimension) => (
             <li
               key={dimension.label}
               className="flex items-center justify-between border-b border-slate-100 pb-1.5"
             >
               <span className="text-slate-600">{dimension.label}</span>
-              <span className="font-bold text-slate-900">{dimension.value}</span>
+              <span className="font-bold text-slate-900">{dimension.value.toFixed(1)}</span>
             </li>
           ))}
         </ul>
-        <p className="text-[11px] text-slate-400">
-          綜合分數與各維度數值為佔位資料，待 Backend API 提供。
-        </p>
       </CardContent>
     </Card>
   );

@@ -33,24 +33,16 @@ const mockedUseDistrictSummary = vi.mocked(useDistrictSummary);
 
 const SAMPLE_DISTRICTS = [
   {
-    id: "A",
-    name: "測試甲區",
-    youthPopulation: 1000,
+    district_id: "A",
+    district_name: "測試甲區",
     opportunityIndex: 80,
     retentionRiskLevel: "low" as const,
-    youthParticipationIndex: 60,
-    fertilityRate: 40,
-    policySupportScore: 70,
   },
   {
-    id: "B",
-    name: "測試乙區",
-    youthPopulation: 500,
+    district_id: "B",
+    district_name: "測試乙區",
     opportunityIndex: 50,
     retentionRiskLevel: "high" as const,
-    youthParticipationIndex: 40,
-    fertilityRate: 45,
-    policySupportScore: 50,
   },
 ];
 

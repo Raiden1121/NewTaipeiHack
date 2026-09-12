@@ -16,7 +16,8 @@ import {
 } from "@/hooks/useNewTaipeiTopology";
 import { useSelectedDistrict } from "@/stores/useSelectedDistrict";
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { opportunityFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
+import { tieredFillColor, SELECTED_DISTRICT_FILL } from "@/lib/mapColors";
+import { computeTercileThresholds } from "@/lib/quantile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -98,7 +99,12 @@ export default function OpportunityIndexMap() {
   const colorTheme = useSettingsStore((state) => state.colorTheme);
 
   const districtById = useMemo(
-    () => new Map(districts.map((district) => [district.id, district])),
+    () => new Map(districts.map((district) => [district.district_id, district])),
+    [districts],
+  );
+
+  const opportunityThresholds = useMemo(
+    () => computeTercileThresholds(districts.map((district) => district.opportunityIndex)),
     [districts],
   );
 
@@ -368,7 +374,7 @@ export default function OpportunityIndexMap() {
                       style={{
                         fill: isSelected
                           ? SELECTED_DISTRICT_FILL
-                          : opportunityFillColor(opportunityIndex, colorTheme),
+                          : tieredFillColor(opportunityIndex, opportunityThresholds, colorTheme),
                         strokeWidth:
                           (isSelected || isHovered ? 3 : 1.5) / view.scale,
                       }}

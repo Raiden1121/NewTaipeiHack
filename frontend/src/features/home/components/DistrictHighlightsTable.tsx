@@ -87,12 +87,12 @@ export default function DistrictHighlightsTable() {
             className="-mr-2 flex max-h-[460px] flex-col gap-0.5 overflow-y-auto pr-2"
           >
             {ranked.map((district, index) => {
-              const isSelected = district.id === selectedDistrictId;
+              const isSelected = district.district_id === selectedDistrictId;
               return (
-                <li key={district.id} data-district-id={district.id}>
+                <li key={district.district_id} data-district-id={district.district_id}>
                   <button
                     type="button"
-                    onClick={() => selectDistrict(district.id)}
+                    onClick={() => selectDistrict(district.district_id)}
                     className={cn(
                       "flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
                       isSelected ? "bg-primary/10" : "hover:bg-slate-50",
@@ -115,7 +115,7 @@ export default function DistrictHighlightsTable() {
                           isSelected ? "text-primary" : "text-slate-800",
                         )}
                       >
-                        {district.name}
+                        {district.district_name}
                       </span>
                     </span>
                     <span className="text-sm font-bold text-slate-900">

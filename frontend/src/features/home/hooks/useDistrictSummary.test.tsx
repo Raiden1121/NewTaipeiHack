@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { useDistrictSummary } from "./useDistrictSummary";
-import * as districtsData from "@/data/districts";
+import * as queries from "@/lib/api/queries";
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -19,25 +19,28 @@ function createWrapper() {
 }
 
 describe("useDistrictSummary", () => {
-  it("exposes the data returned by fetchDistrictSummaries", async () => {
-    vi.spyOn(districtsData, "fetchDistrictSummaries").mockResolvedValue([
-      {
-        id: "65000010",
-        name: "板橋區",
-        youthPopulation: 148000,
-        opportunityIndex: 86,
-        retentionRiskLevel: "low",
-        youthParticipationIndex: 72,
-        fertilityRate: 42.1,
-        policySupportScore: 81,
+  it("selects districts[] out of the dashboard overview query", async () => {
+    vi.spyOn(queries, "useDashboardOverview").mockReturnValue({
+      data: {
+        districts: [
+          {
+            district_id: "65000010",
+            district_name: "板橋區",
+            opportunityIndex: 38.16,
+            retentionRiskLevel: "medium",
+          },
+        ],
       },
-    ]);
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof queries.useDashboardOverview>);
 
     const { result } = renderHook(() => useDistrictSummary(), {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.[0].name).toBe("板橋區");
+    await waitFor(() => expect(result.current.data?.[0].district_name).toBe("板橋區"));
   });
 });
