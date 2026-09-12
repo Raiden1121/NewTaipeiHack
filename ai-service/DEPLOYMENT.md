@@ -11,11 +11,18 @@
 |---|---|
 | Handler | `dist/handlers/lambda.handler` |
 | Runtime | Node.js 22（或 20），**ESM** |
-| Timeout | **120 秒**（Opus 實測單次 54–74 秒，預設 3 秒一定失敗，見下方「延遲」） |
+| Timeout | **120 秒**（Q&A 實測 14–27 秒，但預先算 miss 時會即時算 50–58 秒；預設 3 秒一定失敗） |
 | Memory | 512 MB 起（純 I/O 等待，加記憶體不會變快） |
 | IAM | `bedrock:InvokeModel`（跨區推論要多加，見下方） |
-| 必要環境變數 | `BEDROCK_MODEL_ID` |
+| 必要環境變數 | `BEDROCK_MODEL_ID`、`AI_PRECOMPUTE_DIR` |
 | 對外介面 | 尚未決定，**目前沒有 auth** |
+
+**模型：Sonnet 4-6**（`us.anthropic.claude-sonnet-4-6`）。不需要換 Haiku ——
+`explain` / `policyCopilot` 走預先算（線上 3–5 ms），Q&A 靠 `answer` 字數上限
+進到 14–27 秒。詳見下方「延遲」。
+
+`AI_PRECOMPUTE_DIR` 列為必要不是筆誤：沒設的話 `explain` / `policyCopilot`
+會即時算 50–58 秒，而 HTTP API 是 30 秒且不可調 —— 那兩個功能會**一定失敗**。
 
 > ⚠️ **不要沿用 `infrastructure/modules/api`。** 那個 module 是 backend 的
 > 資料讀取 API：`runtime = "python3.12"`、`handler = "handler.handler"`、
@@ -131,6 +138,36 @@ fn.addToRolePolicy(new PolicyStatement({
 | `WEB_SEARCH_SCOPE` | ✖ | `trusted` 把預設改成只搜 `gov.tw` / `edu.tw`；預設 `all` |
 | `WEB_SEARCH_PROVIDER=off` | ✖ | 全域關閉網路搜尋（預設開啟，這是唯一的全域關法） |
 | `TAVILY_TIMEOUT_MS` | ✖ | 預設 8000，算進 Lambda timeout |
+| `AI_PRECOMPUTE_DIR` | ⚠️ 強烈建議 | 預先算結果的位置。**沒設就是關閉** → `explain` / `policyCopilot` 會即時算 50–58 秒 → 被 HTTP API 的 30 秒切斷 |
+| `AI_PRECOMPUTE_WRITE_THROUGH` | ✖ | 設 `1` 讓 miss 之後把結果寫回快取。預設關閉（理由見下） |
+| `AI_DATA_DIR` | ✖ | 批次腳本讀 data-pipeline 資料的位置。**Lambda 不需要**（evidence 從 request body 進來） |
+| `AI_DISTRICTS_FILE` | ✖ | 批次腳本的行政區清單位置，預設從 `AI_DATA_DIR` 推出 `../config/districts.json` |
+
+### ⚠️ `AI_PRECOMPUTE_DIR` 沒設的後果
+
+`explain` 與 `policyCopilot` 實測 **50 與 58 秒**，而 HTTP API 是 30 秒且不可調 ——
+沒有預先算，這兩個功能在正式路徑上**一定失敗**。
+
+Lambda 的本機磁碟（`/tmp`）不是好選擇：每個執行環境各自一份，而且會被回收，
+等於幾乎每次都 miss。應該指向一個共享位置（S3 掛載、EFS，或改實作成 S3／DynamoDB
+—— `PrecomputedStore` 介面就是為了讓這個換掉時不用動呼叫端）。
+
+產生方式（在有 data-pipeline 資料的機器上跑，不是在 Lambda 裡）：
+
+```powershell
+$env:AI_PRECOMPUTE_DIR="…"
+npm run precompute -- --dry --all      # 先估時間：29 區 × 2 功能 ≈ 26 分鐘（併發 2）
+npm run precompute -- --all
+npm run dev:precompute-check           # 驗證線上請求真的會命中
+```
+
+**`dev:precompute-check` 不能跳過。** 快取鍵是「輸入內容的指紋」，
+命中率取決於呼叫端（backend）有不有用同樣的方式組 context。對不上的症狀很安靜：
+回應照樣正確，只是每次都花 50 秒然後被切斷。這支腳本用「被呼叫就丟錯」的假 client，
+一 miss 就立刻炸出來。
+
+**write-through 預設關閉**是刻意的：開了會讓第一個打進來的使用者決定所有人之後看到
+的卡片內容，包含模型那次剛好答得差的版本，而且沒有人會知道。
 
 ### ⚠️ 網路搜尋預設開啟（行為變更）
 
@@ -168,6 +205,24 @@ fn.addToRolePolicy(new PolicyStatement({
 ---
 
 ## 5. 延遲：這是最需要注意的地方
+
+**現況（2026-09-13，Sonnet 4-6，含網路搜尋）：**
+
+| 功能 | 線上延遲 | 靠什麼 |
+|---|---|---|
+| `qa` | **13.9–26.9 秒** | `answer` 字數上限 400 字 |
+| `explain` | **5 ms** | 預先算命中（即時算是 50.2 秒） |
+| `policyCopilot` | **3 ms** | 預先算命中（即時算是 58.4 秒） |
+
+所以部署時真正要盯的是兩件事：
+
+1. **`AI_PRECOMPUTE_DIR` 一定要設，而且要跑過 `dev:precompute-check`。**
+   沒設的話 `explain` / `policyCopilot` 會即時算 50–58 秒，必定被 30 秒切斷。
+2. **Lambda timeout 設 120 秒**（不是因為 Q&A 需要，是因為預先算 miss 時會即時算，
+   以及批次產生本身）。
+
+⚠️ 下面保留完整的探索過程，包含**後來被推翻的結論**（早期寫「只有換模型有效」）。
+真正有效的是「不該即時算的東西就不要即時算」。
 
 用真實 curated 資料實測（`npm run dev:latency`，板橋區，n=1，未含網路搜尋）：
 
@@ -255,7 +310,30 @@ fn.addToRolePolicy(new PolicyStatement({
    與 frontend，還要一個放 job 狀態的地方。
 
 ⚠️ **不要指望「少送一點 evidence」能解決。** 減少 evidence 只會間接讓模型少寫一點，
-直接效果實測是無效的（Opus 3 筆 → 83 筆只慢 18%）。有效的是**砍輸出**與**換模型**。
+直接效果實測是無效的（Opus 3 筆 → 83 筆只慢 18%）。
+
+### 實際採用的方案（推翻上面的「只有換模型」）
+
+上面那份選項清單漏了一個問題：**`explain` 與 `policyCopilot` 根本不需要即時算。**
+它們沒有使用者問題，輸出是（行政區, 主題, 那批 evidence）的純函數，
+而且是給 dashboard 卡片用的 —— 使用者打開頁面就要看到，不是在等一個對話回覆。
+50 秒與 58 秒不是「要優化的延遲」，是「架構放錯位置」。
+
+改成離線批次算好、線上讀現成的之後：
+
+| 功能 | 即時算 | 預先算命中 |
+|---|---|---|
+| Data Explanation | 50,247 ms | **5 ms** |
+| AI Policy Copilot | 58,434 ms | **3 ms** |
+
+剩下的 Q&A 靠限制 `answer` 字數（400 字）進 30 秒：單區小問題
+31,502 → 25,378 ms、政策題 31,877 → 26,906 ms、為何八里 26,759 → 25,808 ms。
+
+**所以模型沒有換，Sonnet 4-6 就夠了。** Haiku 留著當餘裕來源 ——
+Sonnet 會主動更正使用者說錯的前提、會發現兩個指標互相矛盾，
+那種自我對抗式的檢查是小模型最容易掉的能力，而它正是這個服務不出錯的核心。
+
+機制與取捨見 `ai-service.md` 的「預先算」章節。
 
 ---
 
@@ -304,11 +382,31 @@ aws lambda invoke --function-name <name> \
 - [ ] `generatedBy` 不是 `mock(no network)`
 - [ ] `sources` 有內容，且 `url` 指得到真實頁面
 - [ ] 冷啟動下的總時間仍在 API Gateway timeout 內
+- [ ] **`explain` / `policyCopilot` 的 `cache` 是 `hit`。**
+      是 `disabled` 代表沒設 `AI_PRECOMPUTE_DIR`；是 `miss` 代表指紋對不上
+      （backend 組 context 的方式跟預先算當時不同）。兩種都會即時算 50–58 秒
+      而被 30 秒切斷 —— 這是部署後最容易漏掉、而且症狀最不明顯的一項
+- [ ] `qa` 的 `cache` 是 `bypass`（Q&A 不快取，這是預期值）
 
 ## 8. 回應格式
 
-`{ action, generatedBy, output, sources }`。型別在
+`{ action, generatedBy, cache, precomputedAt, output, sources }`。型別在
 `shared/src/aiContract.ts`，frontend / backend 直接引用那份。
+
+`cache` 與 `precomputedAt` 說明這份結果是預先算的還是即時算的：
+
+| `cache` | 意思 |
+|---|---|
+| `hit` | 回的是批次預先算好的結果，`precomputedAt` 是它**當初**產生的時間 |
+| `miss` | 快取開著但沒有這一筆，已即時計算（`explain` / `policyCopilot` 會是 50–58 秒，很可能超時） |
+| `disabled` | 沒設 `AI_PRECOMPUTE_DIR` |
+| `bypass` | 這個 action 不快取（`qa` 永遠是這個） |
+
+**前端請把 `precomputedAt` 顯示出來**（例如「分析產生於 X」）：使用者看到的卡片可能
+是幾小時前算的，不講就等於暗示它是剛剛算的。
+
+`cache` 也是排查的第一個線索：看到內容不對的卡片時，`hit` 代表可能是舊快照的答案
+（重跑 `npm run precompute`），`bypass` / `miss` 代表是模型這次的輸出。
 
 ⚠️ **`output` 有兩種填法，前端要分開處理：**
 

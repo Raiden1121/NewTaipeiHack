@@ -286,10 +286,33 @@ export interface AiSuccessResponse {
    * 卻沒人發現，是很現實的風險。
    */
   generatedBy: string;
+  /**
+   * 這份結果是預先算的還是即時算的。
+   *
+   * - `hit`：回的是批次預先算好的結果，`precomputedAt` 是它**當初**產生的時間
+   * - `miss`：快取開著但沒有這一筆，已即時計算
+   * - `disabled`：伺服器端沒有設快取位置
+   * - `bypass`：這個 action 不快取（`qa` 永遠是這個，因為問法無限多種）
+   *
+   * 背景：`explain` 與 `policyCopilot` 沒有使用者問題，輸出是
+   * （行政區, 主題, 那批 evidence）的純函數，實測各要 50 與 58 秒，
+   * 超過 API Gateway HTTP API 固定的 30 秒上限，所以正式路徑走預先算。
+   */
+  cache: AiCacheStatus;
+  /**
+   * 預先算的產生時間（ISO 8601），`cache` 不是 `hit` 時是 null。
+   *
+   * **前端請把它顯示出來**（例如「分析產生於 X」）：使用者看到的卡片可能是
+   * 幾小時前算的，不講就等於暗示它是剛剛算的。
+   */
+  precomputedAt: string | null;
   output: StructuredOutput;
   /** **一定存在。** 沒有引用任何資料時是空陣列（此時 dataSufficiency 是 insufficient）。 */
   sources: SourceAttribution[];
 }
+
+/** 見 `AiSuccessResponse.cache`。 */
+export type AiCacheStatus = 'hit' | 'miss' | 'disabled' | 'bypass';
 
 export interface AiErrorResponse {
   error: string;

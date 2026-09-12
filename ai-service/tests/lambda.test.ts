@@ -59,6 +59,24 @@ describe('handler 成功路徑', () => {
     expect(payload.generatedBy).toContain('mock');
   });
 
+  /**
+   * `cache` 是排查的第一個線索：看到內容不對的卡片時，`hit` 代表可能是舊快照的
+   * 答案，`bypass` / `miss` 代表是模型這次的輸出。少了它就分不出來。
+   */
+  it('envelope 帶 cache / precomputedAt，讓前端分得出是預先算還是即時算', async () => {
+    const explain = JSON.parse((await handler({ body: requestBody('explain') })).body);
+    // 測試環境沒設 AI_PRECOMPUTE_DIR，所以快取是關閉的（行為等於沒有快取）。
+    expect(explain.cache).toBe('disabled');
+    expect(explain.precomputedAt).toBeNull();
+
+    const qa = JSON.parse(
+      (await handler({ body: requestBody('qa', { question: '板橋區有多少青年？' }) })).body,
+    );
+    // Q&A 永遠不快取：問法無限多種，預先算不可能涵蓋。
+    expect(qa.cache).toBe('bypass');
+    expect(qa.precomputedAt).toBeNull();
+  });
+
   it('回應一定帶 sources，且來源可回溯到真實檔案路徑', async () => {
     const payload = JSON.parse((await handler({ body: requestBody('explain') })).body);
 

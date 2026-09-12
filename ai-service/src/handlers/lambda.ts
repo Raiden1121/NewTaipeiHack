@@ -9,6 +9,11 @@ import type { AiFeatureResult } from './runFeature.js';
 import { explainData } from './explainData.js';
 import { policyCopilot } from './policyCopilot.js';
 import { dataQa } from './dataQa.js';
+import {
+  dispatchWithPrecompute,
+  type PrecomputeCacheStatus,
+} from '../precompute/servePrecomputed.js';
+import { createPrecomputedStoreFromEnv } from '../precompute/store.js';
 
 /**
  * 對外的 action 名稱。這份清單是給 backend / frontend 對齊用的契約
@@ -35,6 +40,18 @@ export type AiRequest = z.infer<typeof AiRequestSchema>;
 export interface AiSuccessResponse {
   action: AiAction;
   generatedBy: string;
+  /**
+   * 這份結果是預先算的還是即時算的。
+   *
+   * `hit` 代表回的是批次產生的結果，`precomputedAt` 是它**當初**產生的時間。
+   * explain 與 policyCopilot 實測各要 50 與 58 秒，超過 API Gateway HTTP API
+   * 固定的 30 秒上限，所以正式路徑應該讓它們走預先算。
+   *
+   * 前端該把 `precomputedAt` 顯示出來（例如「分析產生於 X」）：使用者看到的
+   * 卡片可能是幾小時前算的，不講就等於暗示它是剛剛算的。
+   */
+  cache: PrecomputeCacheStatus;
+  precomputedAt: string | null;
   output: StructuredOutput;
   /**
    * 資料來源。**每個回應都一定會有這個欄位**（沒有引用任何資料時是空陣列，
@@ -87,11 +104,19 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
     const request = AiRequestSchema.parse(parseBody(event.body, event.isBase64Encoded));
     const client = createBedrockClientFromEnv();
     const webSearch = createWebSearchProviderFromEnv();
-    const result = await dispatch(request.action, client, request.context, webSearch);
+    // explain / policyCopilot 先查預先算的結果；Q&A 一律即時（問法無限多種，
+    // 預先算不可能涵蓋）。沒設 AI_PRECOMPUTE_DIR 時行為完全等於沒有快取。
+    const result = await dispatchWithPrecompute(request.action, dispatch, client, request.context, {
+      store: createPrecomputedStoreFromEnv(),
+      webSearch,
+      writeThrough: process.env.AI_PRECOMPUTE_WRITE_THROUGH === '1',
+    });
 
     return jsonResponse(200, {
       action: request.action,
       generatedBy: client.description,
+      cache: result.cache,
+      precomputedAt: result.precomputedAt,
       output: result.output,
       sources: result.sources,
     } satisfies AiSuccessResponse);

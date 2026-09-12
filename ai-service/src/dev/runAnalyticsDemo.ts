@@ -33,6 +33,7 @@ import {
 import { dataQa } from '../handlers/dataQa.js';
 import { explainData } from '../handlers/explainData.js';
 import { policyCopilot } from '../handlers/policyCopilot.js';
+import { createWebSearchProviderFromEnv } from '../websearch/factory.js';
 import { formatEvidenceForPrompt } from '../prompts/guardrails.js';
 import { formatSourceAttributions } from '../types/sourceAttribution.js';
 import type { AiRequestContext } from '../types/aiEvidence.js';
@@ -78,6 +79,12 @@ if (dryRun) {
 
 const client: BedrockClient = forceMock ? new MockBedrockClient() : createBedrockClientFromEnv();
 console.log(`模型：${client.description}`);
+// 搜尋 provider 一定要自己建再傳進 handler。handler 的第三個參數是選填，沒傳就是
+// `DisabledWebSearchProvider` —— 那會讓這支 demo 走的是「搜尋關閉」的路徑，
+// 而正式路徑（`handlers/lambda.ts`）是開的，於是 demo 驗過的東西跟線上不是同一條。
+// 唯一的線索藏在 limitations 的「已開啟上網搜尋，但沒有找到相關的網路資料」。
+const searchProvider = createWebSearchProviderFromEnv();
+console.log(`搜尋：${searchProvider.description}`);
 console.log('');
 
 // `--feature=explain|policy|qa` 只跑其中一個。Opus 一次要 40 秒以上，三個一起跑
@@ -86,17 +93,21 @@ const only = args.find((arg) => arg.startsWith('--feature='))?.split('=')[1];
 const shouldRun = (name: string): boolean => only === undefined || only === name;
 
 if (shouldRun('explain')) {
-  await runFeature('Data Explanation', () => explainData(client, context));
+  await runFeature('Data Explanation', () => explainData(client, context, searchProvider));
 }
 if (shouldRun('policy')) {
-  await runFeature('AI Policy Copilot', () => policyCopilot(client, context));
+  await runFeature('AI Policy Copilot', () => policyCopilot(client, context, searchProvider));
 }
 if (shouldRun('qa')) {
   await runFeature('AI Data Q&A', () =>
-    dataQa(client, {
-      ...context,
-      question: `${focusDistrict}的青年發展機會和留才風險，跟新北市其他行政區比起來如何？`,
-    }),
+    dataQa(
+      client,
+      {
+        ...context,
+        question: `${focusDistrict}的青年發展機會和留才風險，跟新北市其他行政區比起來如何？`,
+      },
+      searchProvider,
+    ),
   );
 }
 

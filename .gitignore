@@ -56,6 +56,9 @@ frontend/prd.md
 ai-service/實作計畫.md
 # AI 真實輸出的取樣紀錄（本機檢視用，每次跑都不一樣，不進版控）
 ai-service/opus-*.md
+ai-service/sonnet-*.md
+# 預先算的 explain / policyCopilot 結果（npm run precompute 產生，跟著快照重跑）
+ai-service/.precomputed/
 
 #data
 /data-pipeline/data/curated
