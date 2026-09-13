@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatInt } from "@/lib/format";
 
 export default function DistrictHighlightsTable() {
   const {
@@ -63,7 +64,7 @@ export default function DistrictHighlightsTable() {
       <CardContent className="flex flex-1 flex-col">
         {isLoading ? (
           <div className="flex flex-col gap-2">
-            {Array.from({ length: 14 }).map((_, index) => (
+            {Array.from({ length: 8 }).map((_, index) => (
               <Skeleton key={index} className="h-9 w-full rounded-lg" />
             ))}
           </div>
@@ -119,7 +120,7 @@ export default function DistrictHighlightsTable() {
                       </span>
                     </span>
                     <span className="text-sm font-bold text-slate-900">
-                      {district.opportunityIndex}
+                      {formatInt(district.opportunityIndex)}
                     </span>
                   </button>
                 </li>

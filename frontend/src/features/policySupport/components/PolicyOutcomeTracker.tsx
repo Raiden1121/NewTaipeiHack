@@ -23,6 +23,13 @@ function trendIsGood(value: number, desired: Direction): boolean {
   return desired === "up" ? value >= 0 : value <= 0;
 }
 
+// 紅漲綠跌（台灣慣例）：顏色只看數值本身正負，跟是否「符合期望方向」無關。
+function signColor(value: number): string {
+  if (value > 0) return "text-risk-high";
+  if (value < 0) return "text-risk-low";
+  return "text-accent-slate";
+}
+
 function OutcomeCard({ outcome, index }: { outcome: Outcome; index: number }) {
   const MetricIcon = outcome.icon;
 
@@ -45,7 +52,7 @@ function OutcomeCard({ outcome, index }: { outcome: Outcome; index: number }) {
   }
 
   const isGood = trendIsGood(outcome.value, outcome.desired);
-  const color = isGood ? "text-risk-low" : "text-risk-high";
+  const color = signColor(outcome.value);
   const TrendIcon = outcome.value > 0 ? TrendingUp : outcome.value < 0 ? TrendingDown : ArrowRight;
 
   return (

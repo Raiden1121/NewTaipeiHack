@@ -17,7 +17,6 @@ interface Metric {
   caption: string;
   value: string;
   deltaPct: number | null;
-  avgDiffPct: number | null;
   formula?: string;
 }
 
@@ -104,7 +103,6 @@ export default function CoreFertilityKpiPanel() {
       caption: "18–35 歲婦女年度生育數",
       value: births === undefined ? "資料待補" : formatInt(births),
       deltaPct: births !== undefined ? yoy(births, prevBirths) : null,
-      avgDiffPct: null,
     },
     {
       id: "avg-fertility-rate",
@@ -113,7 +111,6 @@ export default function CoreFertilityKpiPanel() {
       caption: "每千名 18–35 歲育齡人口之年度生育數",
       value: `${fertilityRate.toFixed(2)}‰`,
       deltaPct: yoy(fertilityRate, prevFertilityRate),
-      avgDiffPct: selectedDistrict ? selectedDistrict.fertilityVsCityAvg - 100 : null,
       formula: FERTILITY_RATE_FORMULA,
     },
     {
@@ -123,7 +120,6 @@ export default function CoreFertilityKpiPanel() {
       caption: "18–35 歲占該區總人口比例",
       value: youthShare === undefined ? "資料待補" : `${youthShare.toFixed(1)}%`,
       deltaPct: youthShare !== undefined ? yoy(youthShare, prevYouthShare) : null,
-      avgDiffPct: null,
     },
   ];
 
@@ -159,9 +155,6 @@ export default function CoreFertilityKpiPanel() {
               key={metric.id}
               className="flex flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Icon className="h-4 w-4" aria-hidden="true" />
-              </span>
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1 text-xs font-semibold text-slate-600">
                   {metric.label}
@@ -188,32 +181,14 @@ export default function CoreFertilityKpiPanel() {
                   {metric.caption}
                 </p>
               </div>
-              <span
-                className={cn(
-                  "flex w-14 shrink-0 flex-col items-center justify-center rounded-md border px-1.5 py-1 text-center leading-tight",
-                  metric.avgDiffPct === null
-                    ? "border-slate-200 bg-slate-100 text-slate-400"
-                    : metric.avgDiffPct > 0
-                      ? "border-risk-high/30 bg-risk-high/10 text-risk-high"
-                      : metric.avgDiffPct < 0
-                        ? "border-risk-low/30 bg-risk-low/10 text-risk-low"
-                        : "border-slate-200 bg-slate-100 text-slate-400",
-                )}
-              >
-                <span className="text-[9px] font-semibold uppercase tracking-wide opacity-70">
-                  較平均
-                </span>
-                <span className="text-xs font-bold">
-                  {metric.avgDiffPct === null
-                    ? "－"
-                    : formatSignedPercent(metric.avgDiffPct)}
-                </span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Icon className="h-4 w-4" aria-hidden="true" />
               </span>
             </div>
           );
         })}
         <p className="pt-1 text-[11px] text-slate-400">
-          行內百分比為與去年同期相比，右側框框為與全市平均值相比（紅色代表較高、綠色代表較低）。托育資源覆蓋率待
+          行內百分比為與去年同期相比。托育資源覆蓋率待
           Backend 完成 geocoding 後補上，見 api_contract.md §7.2。
         </p>
       </CardContent>

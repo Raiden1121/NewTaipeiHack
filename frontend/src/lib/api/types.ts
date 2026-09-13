@@ -224,23 +224,34 @@ export interface PoliticsResourceIoAnalysis {
   executionRate: number | null;
 }
 
-export interface YouthTopicWeightTopic {
-  label: string;
+// canonical 形狀，見 api_contract.md §6.4：全期間聚合（period_scope 固定 "all_available"），
+// 不帶年份。`/api/v1/analyses/youth-topic-weight` 是舊格式（`topics[]`/`label`/`year_roc`）的
+// 相容 alias，尚未依契約回傳與 canonical 完全相同的 payload（見 §10 已知不一致 #19），
+// 故前端固定打 canonical endpoint，不讀 alias。
+export interface YouthKeywordFrequencyKeyword {
+  term: string;
   weight: number;
   signal: string;
+  term_frequency: number;
+  document_count: number;
   join_mentions: number;
   minutes_mentions: number;
+  join_support_score: number;
   resolved: boolean;
   escalated: boolean;
-  join_support_score: number;
+  frequency_score: number;
   raw_score: number;
+  ranking_score: number;
+  policy_relevance: number;
+  topic_mentions: number;
 }
 
-// 攤平形狀，見 api_contract.md §6.4：backend 已固定回傳最新一年（114）的 topics[]。
-export interface YouthTopicWeightAnalysis {
-  analysis_id: "youth-topic-weight";
-  year_roc: number;
-  topics: YouthTopicWeightTopic[];
+export interface YouthKeywordFrequencyAnalysis {
+  analysis_id: "youth-keyword-frequency";
+  period_scope: "all_available";
+  /** 各資料源實際可讀的年度（民國年字串），例如 { join_proposals: ["109", ..., "115"] }。 */
+  source_periods: Record<string, string[]>;
+  keywords: YouthKeywordFrequencyKeyword[];
 }
 
 export interface FertilityOverlayAnalysis {
