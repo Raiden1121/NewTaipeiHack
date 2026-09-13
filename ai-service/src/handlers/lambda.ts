@@ -3,8 +3,11 @@ import { createBedrockClientFromEnv, type BedrockClient } from '../bedrock/clien
 import { AiRequestContextSchema, type AiRequestContext } from '../types/aiEvidence.js';
 import type { StructuredOutput } from '../types/structuredOutput.js';
 import type { SourceAttribution } from '../types/sourceAttribution.js';
+import { WebSearchScopeSchema } from '../types/webFinding.js';
 import { createWebSearchProviderFromEnv } from '../websearch/factory.js';
 import type { WebSearchProvider } from '../websearch/provider.js';
+import { buildAiContext, createEvidenceRepositoryFromEnv } from '../context/buildContext.js';
+import type { EvidenceRepository } from '../context/evidenceRepository.js';
 import type { AiFeatureResult } from './runFeature.js';
 import { explainData } from './explainData.js';
 import { policyCopilot } from './policyCopilot.js';
@@ -23,10 +26,65 @@ export const AI_ACTIONS = ['explain', 'policyCopilot', 'qa'] as const;
 export const AiActionSchema = z.enum(AI_ACTIONS);
 export type AiAction = z.infer<typeof AiActionSchema>;
 
-/** request payload：`{ action, context }`。context 就是 `AiRequestContext`。 */
+/**
+ * 自撈路徑的搜尋設定覆寫。
+ *
+ * 刻意**不用** `WebSearchSettingsSchema`：那份 schema 每個欄位都有 `.default()`，
+ * 所以只傳 `{ enabled: true }` 也會被補成 `scope: 'all'`。那會蓋掉伺服器端的
+ * `WEB_SEARCH_SCOPE=trusted` —— 呼叫端沒表達過的意見被當成明確選擇。
+ * 這裡全部 optional、沒有預設，對應 `BuildAiContextOptions.webSearch`
+ * 的 `Partial<WebSearchSettings>`，沒講的欄位就交給 `buildAiContext` 決定。
+ */
+const WebSearchOverrideSchema = z.object({
+  enabled: z.boolean().optional(),
+  contextSize: z.enum(['low', 'medium', 'high']).optional(),
+  scope: WebSearchScopeSchema.optional(),
+});
+
+/**
+ * request payload。**兩種形狀都接受**：
+ *
+ * 1. `{ action, context }` —— 呼叫端自己組好 evidence（原本唯一的形狀，行為不變）
+ * 2. `{ action, focusDistrict, focusArea, question? }` —— 省略 `context`，
+ *    由 ai-service 自己去 evidence 來源撈（需要設 `AI_EVIDENCE_SOURCE`）
+ *
+ * ## 為什麼要有第二種
+ *
+ * 第一種要求呼叫端產生完整的 `AiEvidence[]`，包含 `evidenceId`、`unit`、
+ * `youthEligibility`、`computation`。那些值來自 `src/context/` 的 3,600 行
+ * （攤平規則、`ANALYTICS_METRIC_META` 的 165 個指標、`BLOCKED_KEYS`、dedupe），
+ * 而 backend 是 Python —— 等於要用另一個語言重寫一份並**逐字節產生相同的結果**。
+ *
+ * 而且失敗方式很惡劣：預先算的快取鍵是輸入指紋，含每筆 evidence 的
+ * `evidenceId` + `value` + `unit`（見 `precompute/fingerprint.ts`）。
+ * 兩個實作只要差一個字元（例如 metricId 少了巢狀前綴，`years.people_total`
+ * 而不是 `annual.population.people_total`），指紋就永遠不同 → 永遠 miss →
+ * explain / policyCopilot 走即時算 50–58 秒 → 被 API Gateway 的 30 秒切斷。
+ * 兩邊都「有資料、跑得動」，只是使用者永遠拿到 503，沒有任何錯誤訊息指向真因。
+ *
+ * 第二種讓組 evidence 這件事只有一份實作，而且跟 `npm run precompute` 是**同一份**
+ * （都走 `createEvidenceRepositoryFromEnv()` + `buildAiContext()`），
+ * 所以指紋在結構上不可能分岔。
+ */
 export const AiRequestSchema = z.object({
   action: AiActionSchema,
-  context: AiRequestContextSchema,
+  /** 呼叫端組好的 context。省略時走自撈。 */
+  context: AiRequestContextSchema.optional(),
+  /**
+   * 以下三個只在**省略 `context`** 時使用；有 `context` 時一律以 context 裡的值為準
+   * （不做合併，避免同一個欄位有兩個來源時行為要靠猜）。
+   */
+  focusDistrict: z.string().nullish(),
+  focusArea: z.string().nullish(),
+  question: z.string().nullish(),
+  /**
+   * 省略時**不傳給 `buildAiContext`**，讓它用自己的預設（搜尋開啟）。
+   *
+   * 這件事對 explain / policyCopilot 是必要的：`runBatch.ts` 也沒傳，
+   * 所以兩邊的 `webSearch.enabled` 都是 `true`。這裡若改成吃
+   * `AiRequestContextSchema` 的預設（`false`），指紋就會跟預先算的結果永遠不同。
+   */
+  webSearch: WebSearchOverrideSchema.optional(),
 });
 export type AiRequest = z.infer<typeof AiRequestSchema>;
 
@@ -102,11 +160,12 @@ interface LambdaResponse {
 export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
   try {
     const request = AiRequestSchema.parse(parseBody(event.body, event.isBase64Encoded));
+    const context = await resolveRequestContext(request);
     const client = createBedrockClientFromEnv();
     const webSearch = createWebSearchProviderFromEnv();
     // explain / policyCopilot 先查預先算的結果；Q&A 一律即時（問法無限多種，
     // 預先算不可能涵蓋）。沒設 AI_PRECOMPUTE_DIR 時行為完全等於沒有快取。
-    const result = await dispatchWithPrecompute(request.action, dispatch, client, request.context, {
+    const result = await dispatchWithPrecompute(request.action, dispatch, client, context, {
       store: createPrecomputedStoreFromEnv(),
       webSearch,
       writeThrough: process.env.AI_PRECOMPUTE_WRITE_THROUGH === '1',
@@ -136,6 +195,79 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
       error: error instanceof Error ? error.message : 'unknown error',
     } satisfies AiErrorResponse);
   }
+}
+
+/**
+ * evidence 來源。**跨呼叫重用**（module scope 的 lazy singleton）。
+ *
+ * 不是微優化：`DynamoEvidenceRepository` 會建 DynamoDB client，而實測 1,167 ms 的
+ * 讀取裡有相當一部分是 client 初始化與 TLS 交握。Lambda 的 warm invocation 之間
+ * 重用同一個 client 才拿得到那個省下來的時間。
+ *
+ * lazy 而不是在 module top-level 直接建：top-level 會在 import 時就讀環境變數，
+ * 於是所有 import 這個模組的測試都得先把環境變數擺好，即使它們根本不走自撈。
+ */
+let cachedRepository: EvidenceRepository | null = null;
+
+/**
+ * 自撈有沒有被啟用。
+ *
+ * 用「`AI_EVIDENCE_SOURCE` 有沒有設」而不是自己發明一個開關，因為那個變數本來就是
+ * 「evidence 從哪來」的唯一控制點，多一個開關只會多一種不一致的狀態。
+ * Terraform 在傳了 analytics 表名時會一起設 `AI_EVIDENCE_SOURCE=dynamo`
+ * （見 `infrastructure/modules/ai_service/main.tf`），所以部署的 Lambda 是開的。
+ *
+ * 沒設就**不要**默默退回讀本機快照檔：Lambda 沒有那些檔案，那條路只會在讀檔時
+ * 才失敗，而錯誤訊息會指向檔案系統而不是真正的原因（呼叫端沒給 context、
+ * 伺服器也沒設定要自己撈）。
+ */
+export function selfFetchSource(env: NodeJS.ProcessEnv = process.env): string | null {
+  const mode = env.AI_EVIDENCE_SOURCE?.trim();
+  return mode === undefined || mode === '' ? null : mode;
+}
+
+/**
+ * 決定這次請求用哪一份 context。
+ *
+ * 有 `context` 就照用 —— 呼叫端已經組好，這裡不做任何補充或合併。
+ * 沒有就自己撈，而且**必須跟 `runBatch.ts` 用完全一樣的呼叫**，否則指紋對不上。
+ * 目前 `runBatch` 傳的是 `{ focusDistrict, focusArea }`（沒有 question、
+ * 沒有 webSearch），而 `question: null` 與省略 question 在 `buildAiContext` 裡
+ * 走同一條分支（`inferFocusMetrics` / `inferComparisonMetrics` 對非字串都回 `[]`，
+ * 回傳的 `question` 都是 `null`），所以這裡傳 null 不會讓指紋改變。
+ */
+export async function resolveRequestContext(
+  request: AiRequest,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<AiRequestContext> {
+  if (request.context !== undefined) {
+    return request.context;
+  }
+
+  const source = selfFetchSource(env);
+  if (source === null) {
+    throw new Error(
+      '請求沒有帶 context.evidence，而這個服務沒有被設定成自己去撈 evidence。' +
+        '兩種修法選一個：呼叫端送完整的 `context`（含 evidence），' +
+        '或在伺服器端設 AI_EVIDENCE_SOURCE（線上應為 `dynamo`，並一併設 ANALYTICS_TABLE_NAME）。',
+    );
+  }
+
+  cachedRepository ??= createEvidenceRepositoryFromEnv(env);
+  return buildAiContext(cachedRepository, {
+    focusDistrict: request.focusDistrict ?? null,
+    focusArea: request.focusArea ?? null,
+    question: request.question ?? null,
+    // 沒傳就不要傳 —— 讓 buildAiContext 用它自己的預設（搜尋開啟），
+    // 那才跟 runBatch 一致。傳 `undefined` 進去也會被 `webSearch?.enabled ?? true`
+    // 當成沒傳，但明確不放這個 key 讀起來不會讓人以為有覆寫。
+    ...(request.webSearch === undefined ? {} : { webSearch: request.webSearch }),
+  });
+}
+
+/** 測試用：清掉 repository 快取，讓下一次 `resolveRequestContext` 重新依環境變數建。 */
+export function resetEvidenceRepositoryCache(): void {
+  cachedRepository = null;
 }
 
 export function dispatch(
