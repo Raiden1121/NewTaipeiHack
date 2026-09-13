@@ -1,0 +1,70 @@
+﻿
+> @newtaipei-youth/ai-service@0.0.0 dev:metric-audit
+> tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runMetricMetaAudit.ts
+
+node.exe : .env not found. Continuing without it.
+位於 線路:1 字元:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program File
+s\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (.env not  
+   found. Continuing without it.:String) [], RemoteEx  
+  ception
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+.env not found. Continuing without it.
+快照        : dev-full-youth-keyword-20260913
+主題        : (全部)
+evidence    : 4683 筆（totalMatched 5210）
+指標種類    : 165
+對照表 key  : 127
+
+不在對照表  : 6 種  ← 這些走 inferMeta() 的名稱規則
+unit 是 null: 24 種  ← 模型看不到單位
+
+==============================================================================
+不在對照表的指標（依 evidence 筆數排序）
+==============================================================================
+  keywords.join_support_score            x23    unit=null     elig=context_only  sample=767.731684
+  keywords.frequency_score               x23    unit=null     elig=context_only  sample=0.753601
+  keywords.raw_score                     x23    unit=null     elig=context_only  sample=3.741581
+  keywords.ranking_score                 x23    unit=null     elig=context_only  sample=4.565197
+  keywords.policy_relevance              x23    unit=null     elig=context_only  sample=1.02952
+  keywords.topic_mentions                x23    unit=null     elig=context_only  sample=32
+
+==============================================================================
+unit 是 null 的指標 —— 確認每一個都是「本來就沒有單位」
+==============================================================================
+（分級字串如 retentionRiskLevel、無量綱係數如 r_squared 屬於正常）
+  occupation_shannon_index               x29    elig=context_only  sample=3.5914334023681076
+  qualityStatus                          x29    elig=context_only  sample=observed
+  retentionRiskLevel                     x29    elig=eligible      sample=low
+  serviceCoverageStatus                  x29    elig=context_only  sample=observed
+  youthParticipationIndex                x29    elig=eligible      sample=8.622250579846352
+  daycareCoverageStatus                  x29    elig=context_only  sample=observed
+  fafiLevel                              x29    elig=eligible      sample=high
+  fertilityLevel                         x29    elig=eligible      sample=medium
+  keywords.join_support_score            x23    elig=context_only  sample=767.731684
+  keywords.frequency_score               x23    elig=context_only  sample=0.753601
+  keywords.raw_score                     x23    elig=context_only  sample=3.741581
+  keywords.ranking_score                 x23    elig=context_only  sample=4.565197
+  keywords.policy_relevance              x23    elig=context_only  sample=1.02952
+  keywords.topic_mentions                x23    elig=context_only  sample=32
+  scatter.knowledge_job_vs_estimated_wage.regression.slope x1     elig=context_only  sample=0.750078131533915
+  scatter.knowledge_job_vs_estimated_wage.regression.intercept x1     elig=context_only  sample=33.681762838088346
+  scatter.knowledge_job_vs_estimated_wage.regression.r_squared x1     elig=context_only  sample=0.0782268494417566
+  scatter.monthly_wage_vs_house_price.regression.slope x1     elig=context_only  sample=9.223239489115194
+  scatter.monthly_wage_vs_house_price.regression.intercept x1     elig=context_only  sample=-7.105427357601002
+  scatter.monthly_wage_vs_house_price.regression.r_squared x1     elig=context_only  sample=1
+  citySummary.daycareCoverageStatus      x1     elig=context_only  sample=observed
+  scatter.regression.slope               x1     elig=context_only  sample=0.0464594790207283
+  scatter.regression.intercept           x1     elig=context_only  sample=25.16995687266271
+  scatter.regression.r_squared           x1     elig=context_only  sample=0.0126716019962465
+
+==============================================================================
+對照表有、但這份快照沒產出的 key（11 個，可能已改名或移除）
+==============================================================================
+  estimatedWage, score_job, score_salary, score_talent, score_housing, score_transport, available_months, coverage_ratio, births_mother_age_18_35, average_monthly_female_18_35, fertility_rate
+
+SUMMARY metrics=165 missingFromMeta=6 noUnit=24 staleMetaKeys=11 evidence=4683

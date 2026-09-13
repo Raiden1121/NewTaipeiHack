@@ -26,10 +26,13 @@
 import {
   AnalyticsSnapshotEvidenceRepository,
   ANALYTICS_METRIC_META,
+  COMPARISON_METRIC_RULES,
   defaultDataPipelineDataDir,
   readAnalyticsSnapshot,
 } from '../context/buildContext.js';
 import type { AiEvidence } from '../types/aiEvidence.js';
+import { SOURCE_CONFIG_SNAPSHOT } from '../context/generated/analyticsConfig.js';
+import { readAnalyticsConfig } from './syncAnalyticsConfig.js';
 
 const args = process.argv.slice(2);
 const strict = args.includes('--strict');
@@ -132,15 +135,128 @@ if (stale.length > 0) {
   console.log('');
 }
 
+// ---------------------------------------------------------------------------
+// 跨區比較的覆蓋率
+//
+// 「為什麼 X 排第幾／這麼高」這類問題，只有當那個指標在某條規則的 `metricIds`
+// 裡（也就是會跨 29 區取）時才答得出來。只在 `focusMetricIds` 的話模型只拿到
+// 焦點行政區自己的數字，就會回「無法確認排名」—— 實測踩過兩次。
+//
+// 比對用**實際 evidence 的 metricId**（帶路徑，例如
+// `service_coverage.covered_youth`），不是葉名，否則會誤判。
+// ---------------------------------------------------------------------------
+const districtsOf = new Map<string, Set<string>>();
+for (const item of bundle.evidence) {
+  if (item.districtName === null) {
+    continue;
+  }
+  const base = item.metricId.split('#')[0]!;
+  const set = districtsOf.get(base) ?? new Set<string>();
+  set.add(item.districtName);
+  districtsOf.set(base, set);
+}
+const districtCount = new Set(
+  bundle.evidence.map((item) => item.districtName).filter((name) => name !== null),
+).size;
+
+// 至少 8 成行政區都有值 = 這個指標可以拿來排名。
+const RANKABLE_THRESHOLD = 0.8;
+const rankable = [...districtsOf.entries()]
+  .filter(([, set]) => districtCount > 0 && set.size >= districtCount * RANKABLE_THRESHOLD)
+  .map(([metricId]) => metricId)
+  .sort();
+
+const comparisonIds = new Set(COMPARISON_METRIC_RULES.flatMap((rule) => [...rule.metricIds]));
+const focusOnlyIds = new Set(COMPARISON_METRIC_RULES.flatMap((rule) => [...rule.focusMetricIds]));
+const reachable = (metricId: string): boolean =>
+  comparisonIds.has(metricId) || comparisonIds.has(metricId.split('.').pop() ?? metricId);
+const inFocus = (metricId: string): boolean =>
+  focusOnlyIds.has(metricId) || focusOnlyIds.has(metricId.split('.').pop() ?? metricId);
+
+const notComparable = rankable.filter((metricId) => !reachable(metricId));
+const focusOnly = notComparable.filter((metricId) => inFocus(metricId));
+const uncovered = notComparable.filter((metricId) => !inFocus(metricId));
+
+console.log('='.repeat(78));
+console.log(`跨區比較覆蓋率（${districtCount} 區，門檻 ${RANKABLE_THRESHOLD * 100}%）`);
+console.log('='.repeat(78));
+console.log(`可排名的指標    : ${rankable.length}`);
+console.log(`跨區拿得到      : ${rankable.length - notComparable.length}`);
+console.log(`⚠️ 只在 focus    : ${focusOnly.length}（問排名會答「無法確認」）`);
+console.log(`❌ 兩個表都沒有 : ${uncovered.length}`);
+if (focusOnly.length > 0) {
+  console.log('');
+  for (const metricId of focusOnly) {
+    console.log(`  focus-only  ${metricId}`);
+  }
+}
+if (uncovered.length > 0) {
+  console.log('');
+  for (const metricId of uncovered) {
+    console.log(`  uncovered   ${metricId}`);
+  }
+}
+console.log('');
+
+// ---------------------------------------------------------------------------
+// 產生出來的 analytics config 有沒有跟 pipeline 的來源漂移
+//
+// `src/context/generated/analyticsConfig.ts` 是 pipeline config 的投影，
+// 而 prompt 上的權重（「就業子分數 × 0.25」）直接來自它。pipeline 改了權重卻
+// 沒有人重跑 `npm run sync:metric-config` 的話，模型會拿**舊權重**去算貢獻度，
+// 算出來的數字有理有據但是錯的 —— 那比沒有權重更糟。
+// ---------------------------------------------------------------------------
+let configDrift = 0;
+try {
+  const live = await readAnalyticsConfig();
+  const projected = SOURCE_CONFIG_SNAPSHOT as unknown as Record<string, unknown>;
+  const liveSubset = {
+    version: live.version,
+    normalization: live.normalization,
+    yoi_weights: live.yoi_weights,
+    fafi: live.fafi,
+    service_radius_m: live.service_radius_m,
+  };
+  const liveJson = JSON.stringify(liveSubset);
+  const projectedJson = JSON.stringify({
+    version: projected.version,
+    normalization: projected.normalization,
+    yoi_weights: projected.yoi_weights,
+    fafi: projected.fafi,
+    service_radius_m: projected.service_radius_m,
+  });
+
+  console.log('='.repeat(78));
+  console.log('analytics config 投影');
+  console.log('='.repeat(78));
+  if (liveJson === projectedJson) {
+    console.log(`一致（v${live.version}）：generated/analyticsConfig.ts 跟 pipeline config 相同`);
+  } else {
+    configDrift = 1;
+    console.error('❌ 漂移：generated/analyticsConfig.ts 跟 pipeline config 不一致');
+    console.error(`  pipeline : ${liveJson}`);
+    console.error(`  generated: ${projectedJson}`);
+    console.error('  修法：npm run sync:metric-config，然後 commit 產生出來的檔案。');
+  }
+  console.log('');
+} catch (error) {
+  console.error(`讀不到 pipeline config，跳過漂移偵測：${error instanceof Error ? error.message : String(error)}`);
+  console.log('');
+}
+
 console.log(
   `SUMMARY metrics=${all.length} missingFromMeta=${missing.length} ` +
-    `noUnit=${noUnit.length} staleMetaKeys=${stale.length} evidence=${bundle.evidence.length}`,
+    `noUnit=${noUnit.length} staleMetaKeys=${stale.length} evidence=${bundle.evidence.length} ` +
+    `rankable=${rankable.length} focusOnly=${focusOnly.length} uncovered=${uncovered.length} ` +
+    `configDrift=${configDrift}`,
 );
 
 // `--strict` 只看「不在對照表」，**不看 unit 是不是 null**。
 // 有 18 個指標本來就沒有單位（retentionRiskLevel=low、r_squared、Shannon 指數），
 // 把 noUnit 納入判斷會讓 --strict 永遠失敗，那個守門就等於沒有。
-if (strict && missing.length > 0) {
-  console.error(`\n--strict：有 ${missing.length} 個指標不在 ANALYTICS_METRIC_META，exit 1`);
+if (strict && (missing.length > 0 || configDrift > 0)) {
+  console.error(
+    `\n--strict：missingFromMeta=${missing.length} configDrift=${configDrift}，exit 1`,
+  );
   process.exit(1);
 }
