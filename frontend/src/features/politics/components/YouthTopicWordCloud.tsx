@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useYouthKeywordFrequency } from "@/lib/api/queries";
-import type { YouthKeywordFrequencyAnalysis } from "@/lib/api/types";
+import type { YouthKeyword, YouthKeywordFrequencyAnalysis } from "@/lib/api/types";
+import { cn } from "@/lib/utils";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -82,7 +83,7 @@ function estimateTextBox(term: string, fontSize: number) {
 }
 
 // 依重要程度由大到小，沿螺旋外擴尋找不與既有詞碰撞的位置（AABB 碰撞偵測）。
-function layoutWordCloud(topics: { label: string; weight: number }[]): {
+function layoutWordCloud(keywords: YouthKeyword[]): {
   placed: PlacedWord[];
   bounds: ViewBoxBounds;
 } {
@@ -171,12 +172,11 @@ export default function YouthTopicWordCloud() {
 
   const layout = useMemo(() => {
     const keywords = analysis?.keywords ?? [];
-    return keywords.length > 0
-      ? layoutWordCloud(keywords.map((keyword) => ({ label: keyword.term, weight: keyword.weight })))
-      : null;
+    return keywords.length > 0 ? layoutWordCloud(keywords) : null;
   }, [analysis]);
   const yearRange = coveredYearRange(analysis?.source_periods);
 
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const hoveredWord =
     layout && hoveredIndex !== null ? layout.placed[hoveredIndex] : null;
   // 字級放大很多之後，tooltip 也跟著放大，避免相對於文字雲顯得過小。
