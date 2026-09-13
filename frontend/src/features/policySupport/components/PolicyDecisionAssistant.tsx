@@ -4,6 +4,7 @@ import { Bot, SendHorizontal, ShieldCheck, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AiRequestError, askPolicyQuestion } from "@/lib/api/ai";
 
 type ChatRole = "user" | "assistant";
 
@@ -13,9 +14,8 @@ interface ChatMessage {
   content: string;
 }
 
-// AI 尚未串接，固定以此句回覆所有提問。
-const FIXED_REPLY = "我只是個語言模型，這件事我幫不上忙。";
-const REPLY_DELAY_MS = 700;
+// CloudFront 等 AI Lambda 最多 60 秒；前端多等 5 秒，讓伺服器端的錯誤訊息有機會先回來。
+const AI_TIMEOUT_MS = 65_000;
 
 const GREETING: ChatMessage = {
   id: "greeting",
@@ -174,7 +174,7 @@ export default function PolicyDecisionAssistant() {
   const [trustedSourcesOnly, setTrustedSourcesOnly] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const timeoutRef = useRef<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const hasUserMessage = messages.some((message) => message.role === "user");
   const showExamples = !hasUserMessage && input.trim().length === 0;
@@ -188,9 +188,9 @@ export default function PolicyDecisionAssistant() {
 
   useEffect(() => {
     return () => {
-      if (timeoutRef.current !== null) {
-        window.clearTimeout(timeoutRef.current);
-      }
+      // 卸載時取消進行中的請求；清掉 ref 讓回來的結果不再更新狀態。
+      abortRef.current?.abort();
+      abortRef.current = null;
     };
   }, []);
 
@@ -199,7 +199,7 @@ export default function PolicyDecisionAssistant() {
     inputRef.current?.focus({ preventScroll: true });
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = input.trim();
     if (!trimmed || isTyping) return;
@@ -211,13 +211,32 @@ export default function PolicyDecisionAssistant() {
     setInput("");
     setIsTyping(true);
 
-    timeoutRef.current = window.setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { id: createMessageId(), role: "assistant", content: FIXED_REPLY },
-      ]);
-      setIsTyping(false);
-    }, REPLY_DELAY_MS);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+    let content: string;
+    try {
+      const result = await askPolicyQuestion(
+        trimmed,
+        trustedSourcesOnly ? "trusted" : "all",
+        controller.signal,
+      );
+      content = result.answer;
+    } catch (error) {
+      content =
+        error instanceof AiRequestError ? error.message : "AI 回覆失敗，請稍後再試。";
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+
+    if (abortRef.current !== controller) return;
+    abortRef.current = null;
+    setMessages((prev) => [
+      ...prev,
+      { id: createMessageId(), role: "assistant", content },
+    ]);
+    setIsTyping(false);
   }
 
   return (

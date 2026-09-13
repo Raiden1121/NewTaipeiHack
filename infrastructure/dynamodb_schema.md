@@ -50,6 +50,8 @@ YRR／青年里長占比是固定 111 年的 projection 規則：loader 從 `ana
 | `ANALYSIS#youth-keyword-frequency` | `DATA` | canonical 全期間 shape：`{analysis_id, calculation_version, config_version, source_datasets, period_scope, source_periods, normalization, weight_normalization, candidate_mode, keywords[]}`；`keywords[].term` 是唯一 canonical 關鍵詞欄位 | 數 KB | §6.4——舊 `/youth-topic-weight` 只做 URL alias，解析到同一筆 item；不得建立 `ANALYSIS#youth-topic-weight` 的 `topics[]` 副本，也不得補 `year_roc` |
 | `ANALYSIS#politics-resource-io` | `DATA` | `budget_by_department[]` | 小 / placeholder | §6.3——⚠️ pipeline 目前沒有對應資料源（`youth_budgets.business_plan` 只有 3 類，對不上前端 4 個新科別），這個 item 現在只能放空陣列或 null，等青年局科別拆分確認後再補。`budgetTrend`／`executionRate`／`executionRateYearRoc` 不重複存在這裡，backend 組 response 時去讀 `DASHBOARD/POLICY`。|
 | `ANALYSIS#policy-outcomes` | `DATA` | `policy_support.json` 的 `policyOutcomes`：`wageTrend[]`、`currentWageGrowth`、`currentPopGrowth`、`desiredDirection{wageGrowth, populationChange}` | 數 KB | §8.1——**不存 `populationTrend[]`**，該陣列 Lambda 讀取時從 `DASHBOARD/POPULATION_TREND` 的 `annual.population.years[]` 重新組裝（純整形，非計算），跟 §6.3 重用 `DASHBOARD/POLICY` 是同一個作法 |
+| `AI_CONTEXT` | `MANIFEST` | 完整 `manifest.json`：`snapshot_id`、`encoding="gzip+json"`、`payload`（Binary，gzip 過的 JSON 文字） | ~2KB | 不對外；ai-service 的 `DynamoEvidenceRepository` |
+| `AI_CONTEXT` | `ARTIFACT#<artifact_key>` | 完整、未裁切的 artifact（`dashboard_overview`、`employment`、`fertility`、`participation`、`policy_support`、`keyword_frequency`…；不含 `district_details`）：`snapshot_id`、`artifact_key`、`encoding`、`payload` | gzip 後 1–49KB | 不對外；同上 |
 
 ＊ 以 `dev-full-youth-keyword-20260913` snapshot 實測。
 
@@ -62,10 +64,13 @@ YRR／青年里長占比是固定 111 年的 projection 規則：loader 從 `ana
 
 如果之後真的需要，補一個新 item（新的 `sk`）即可，不需要重新設計整張表。
 
+上面的排除只適用於給 API 用的 `DASHBOARD` / `DISTRICT#` / `ANALYSIS#` item。`AI_CONTEXT` item 刻意存**完整**快照：ai-service 的攤平程式自己會跳過村里明細，而且它必須看到跟本機快照檔一模一樣的內容，evidence 與預先算的 fingerprint 才會一致。
+
 ## 給「之後維護這張表的程式」的寫入約定
 
 - 每次發布**直接覆寫**對應的 item，DynamoDB 本身不做多版本保留——歷史版本的真實來源是 data-pipeline 自己的 `data/analytics/published/<snapshot_id>/` 資料夾，不需要在 DynamoDB 裡重複保留。
 - **`META/MANIFEST` 最後寫**：`GET /catalog` 和每個 response 的 `meta.generated_at` 都是拿它判斷資料新鮮度，先寫完其他 item 再更新這筆，可以避免「manifest 已經指向新 snapshot，但其他 item 還沒寫完」的中間狀態被讀到。
+- `AI_CONTEXT` item 的 `payload` 是 gzip 過的 JSON **文字**，不是 DynamoDB Map：Map 不保證 key 順序，而 ai-service 依攤平順序截斷 evidence；原始 `dashboard_overview` 472KB 也超過單筆 400KB 上限。每筆都帶 `snapshot_id`，讀取端要求它與 `META/MANIFEST` 相同，不同就視為寫入中、不混用。
 - 逐區資料要寫兩處（`DASHBOARD/DISTRICTS` 的陣列裡一份 + `DISTRICT#<id>/SUMMARY` 各一份）：同一份算好的物件序列化兩次，不是兩份不同計算，維護時記得兩邊同時更新。這條也適用於 `youthBoroughChiefRatioPercent` 與 `yrr`。
 - YRR／青年里長占比的 loader 規則固定為 111 年：從 `analyses/participation.json.elections.v1_borough_chief.years[]` 取 `year_roc == 111`，將 `youth_borough_chief_ratio` 寫入 `districts[].youthBoroughChiefRatioPercent`，將 `yrr` 寫入 `districts[].yrr`；來源缺值時保留 `null`，不得補 0 或由前端挑年份。
 - `elections.borough_chief_v1_citywide` 必須使用同一批 111 年 29 區資料，先分別加總 `elected_seat_count`、`youth_elected_count`、`youth_population_18_35`、`population_total`，再寫入：`ratio_percent = youth_elected_count / elected_seat_count × 100`；`yrr = (youth_elected_count / elected_seat_count) / (youth_population_18_35 / population_total)`。不得平均 29 區的 `yrr`；必要分母缺值或為 0 時，對應結果為 `null`。

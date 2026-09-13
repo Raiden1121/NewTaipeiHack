@@ -1,15 +1,15 @@
 # AI Service Lambda -- the Amazon Bedrock call boundary (ai-service/).
 #
-# Deliberately NOT fronted by API Gateway or a Lambda Function URL. This
-# handler has no authentication at all (see ai-service/DEPLOYMENT.md
-# section 6) -- exposing it publicly means anyone who finds the URL can
-# run up the Bedrock bill, one full prompt (few-shot + evidence) per
-# request, at whatever model's price. Instead, invocation is authorized
-# purely through IAM: same-account callers don't need a resource-based
-# policy (aws_lambda_permission) at all, just `lambda:InvokeFunction` on
-# their own identity policy, which is what `backend_lambda_role_name`
-# below grants. This also sidesteps API Gateway's 29/30s hard timeout
-# ceiling, which Opus (33-75s observed) and even Sonnet blow through.
+# Not fronted by API Gateway, and its Function URL is not public. This
+# handler has no authentication of its own (see ai-service/DEPLOYMENT.md
+# section 6) -- a public URL means anyone who finds it can run up the
+# Bedrock bill, one full prompt (few-shot + evidence) per request. So the
+# Function URL below uses AWS_IAM auth, and the only principal allowed to
+# call it is the frontend CloudFront distribution, which signs requests
+# with Origin Access Control (modules/frontend, path /api/ai). Same-account
+# IAM callers can still invoke the function directly, which is what
+# `backend_lambda_role_name` below grants. This also sidesteps API
+# Gateway's 30s hard ceiling; CloudFront's origin read timeout is 60s.
 #
 # Packaging uses esbuild rather than `npm run build` (tsc): tsc only
 # transpiles TypeScript, it doesn't bundle node_modules, and the Lambda
@@ -40,15 +40,30 @@ resource "null_resource" "build_ai_service" {
   # directory rewrites the repo-root node_modules that frontend/ shares, which
   # left the frontend build without react/tailwind on the next apply. The root
   # install already provides these deps, and esbuild is fetched by `npx --yes`.
+  #
+  # The banner defines `require` inside the ESM bundle. The AWS SDK ships as
+  # CJS and calls require("node:stream") etc.; esbuild's ESM output replaces
+  # those with a shim that throws "Dynamic require of ... is not supported"
+  # when no real `require` exists, which crashed the Lambda at init. Keeping
+  # ESM (rather than --format=cjs) matters because buildContext.ts uses
+  # import.meta.url.
   provisioner "local-exec" {
     working_dir = "${path.module}/../../../ai-service"
-    command     = "npx --yes esbuild@0.24.2 src/handlers/lambda.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist-lambda/index.mjs"
+    command     = "npx --yes esbuild@0.24.2 src/handlers/lambda.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist-lambda/index.mjs \"--banner:js=import{createRequire}from'node:module';const require=createRequire(import.meta.url);\""
+  }
+
+  # Copies ai-service/.precomputed/*.json into dist-lambda/precomputed/ so the
+  # zip serves explain / policyCopilot from precomputed results (see
+  # AI_PRECOMPUTE_DIR below). Warns, but does not fail, when there are none.
+  provisioner "local-exec" {
+    working_dir = "${path.module}/../../../ai-service"
+    command     = "node scripts/stage-lambda.mjs"
   }
 }
 
 data "archive_file" "ai_service" {
   type        = "zip"
-  source_file = "${path.module}/../../../ai-service/dist-lambda/index.mjs"
+  source_dir  = "${path.module}/../../../ai-service/dist-lambda"
   output_path = "${path.module}/ai-service-lambda.zip"
 
   depends_on = [null_resource.build_ai_service]
@@ -146,14 +161,20 @@ resource "aws_lambda_function" "ai_service" {
 
   environment {
     variables = merge(
-      { BEDROCK_MODEL_ID = var.bedrock_model_id },
+      {
+        BEDROCK_MODEL_ID = var.bedrock_model_id
+        # Staged into the zip by scripts/stage-lambda.mjs. Must be generated
+        # against this same DynamoDB table (AI_EVIDENCE_SOURCE=dynamo) or the
+        # fingerprints will not match and every card recomputes live.
+        AI_PRECOMPUTE_DIR = "/var/task/precomputed"
+      },
       # Evidence source. ai-service defaults to reading data-pipeline's published
       # snapshot files, which do not exist in Lambda -- there is no filesystem to
       # read and the 450MB data directory is deliberately not packaged.
       #
-      # These two are set together because neither is useful alone. They do NOT
-      # affect the request path today: lambda.ts takes evidence from the request
-      # body and never calls buildAiContext(). See variables.tf.
+      # These two are set together because neither is useful alone. They are
+      # what lets a request omit `context` and have the handler fetch evidence
+      # itself (lambda.ts resolveRequestContext). See variables.tf.
       var.analytics_table_name != ""
       ? { ANALYTICS_TABLE_NAME = var.analytics_table_name, AI_EVIDENCE_SOURCE = "dynamo" }
       : {},
@@ -168,6 +189,14 @@ resource "aws_lambda_function" "ai_service" {
     Project     = var.project_name
     Environment = var.environment
   }
+}
+
+# IAM-auth Function URL, reachable only through the frontend CloudFront
+# distribution (modules/frontend grants cloudfront.amazonaws.com, scoped to that
+# distribution's ARN). Unsigned requests to this URL get 403.
+resource "aws_lambda_function_url" "ai_service" {
+  function_name      = aws_lambda_function.ai_service.function_name
+  authorization_type = "AWS_IAM"
 }
 
 # Same-account IAM callers don't need a Lambda resource-based policy --

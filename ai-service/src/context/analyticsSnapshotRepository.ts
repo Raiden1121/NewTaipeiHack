@@ -6,7 +6,11 @@ import {
   dedupeAnalyticsEvidence,
   flattenAnalyticsArtifact,
 } from './analyticsRecord.js';
-import { readAnalyticsSnapshot, type AnalyticsArtifactRef } from './analyticsSnapshot.js';
+import {
+  readAnalyticsSnapshot,
+  type AnalyticsArtifactRef,
+  type AnalyticsSnapshot,
+} from './analyticsSnapshot.js';
 import {
   DEFAULT_LIMIT_PER_DATASET,
   applyEvidenceFilters,
@@ -52,85 +56,101 @@ export class AnalyticsSnapshotEvidenceRepository implements EvidenceRepository {
 
   async query(query: EvidenceQuery): Promise<EvidenceBundle> {
     const snapshot = await readAnalyticsSnapshot(this.dataDir, this.snapshotId);
-    const limit = query.limitPerDataset ?? DEFAULT_LIMIT_PER_DATASET;
-    const notes: string[] = [];
-
-    const availableArtifactKeys = snapshot.artifacts.map((artifact) => artifact.key);
-    const selected = selectArtifacts(snapshot.artifacts, query, notes);
-
-    if (selected.length === 0) {
-      return {
-        evidence: [],
-        totalMatched: 0,
-        truncated: false,
-        notes: [
-          ...notes,
-          `analytics 快照 ${snapshot.snapshotId} 在本次條件下沒有可讀的分析檔案。`,
-        ],
-      };
-    }
-
-    // pipeline 自己宣告的快照層級缺陷。不往上帶的話，AI 會把 partial 的資料當完整的講。
-    for (const warning of snapshot.warnings) {
-      notes.push(
-        `analytics 快照 ${snapshot.snapshotId} 帶有警告 ${warning}，受影響的指標解讀時必須保留。`,
-      );
-    }
-
-    const perDataset: AiEvidence[] = [];
-    let totalMatched = 0;
-    let truncated = false;
-
-    for (const artifact of selected) {
-      const payload = await readArtifact(artifact);
-      const flattened = flattenAnalyticsArtifact(payload, {
-        artifactKey: artifact.key,
-        sourcePath: artifact.sourcePath,
-        snapshotId: snapshot.snapshotId,
-        generatedAt: snapshot.generatedAt,
-        upstreamDatasets: snapshot.upstreamDatasets,
-        availableArtifactKeys,
-      });
-      notes.push(...flattened.notes);
-
-      const matched = applyEvidenceFilters(flattened.evidence, query);
-      totalMatched += matched.length;
-
-      if (matched.length === 0) {
-        notes.push(
-          `analytics 的 ${analyticsDatasetName(artifact.key)}（${artifact.sourcePath}）` +
-            '在本次篩選條件下沒有符合的指標。',
-        );
-        continue;
-      }
-      if (matched.length > limit) {
-        truncated = true;
-        notes.push(
-          `${analyticsDatasetName(artifact.key)} 僅取樣 ${limit} 筆，實際符合條件共 ${matched.length} 筆；` +
-            '這是為了控制 prompt 長度而截斷，不代表資料只有這麼多，也不可據此推論全體分布。',
-        );
-      }
-      perDataset.push(...matched.slice(0, limit));
-    }
-
-    // 跨 artifact 的重複收合放在最後：必須等所有 artifact 都攤平完才知道哪些重複。
-    const { evidence, removed } = dedupeAnalyticsEvidence(perDataset);
-    if (removed > 0) {
-      notes.push(
-        `analytics 各分析之間有 ${removed} 筆重複的指標值（同一個數字在多個分析裡各出現一次），` +
-          '已收合成單一 evidence，避免同一個數字被當成多個獨立來源互相佐證。',
-      );
-    }
-
-    if (evidence.length > 0) {
-      // 這一句放在最前面：它界定了後面所有 analytics 數字的性質。
-      notes.unshift(
-        analyticsSnapshotNote(snapshot.snapshotId, snapshot.generatedAt, snapshot.upstreamDatasets),
-      );
-    }
-
-    return { evidence, totalMatched, truncated, notes: unique(notes) };
+    return buildAnalyticsEvidenceBundle(snapshot, query, readArtifact);
   }
+}
+
+/**
+ * 把一份快照（manifest＋artifact 內容）變成 evidence。
+ *
+ * 從 `AnalyticsSnapshotEvidenceRepository` 抽出來，讓 `DynamoEvidenceRepository`
+ * 走同一份程式：兩邊只差「artifact 內容從哪裡讀」，篩選、截斷、dedupe 與 notes
+ * 完全相同，所以同一個查詢在兩種來源下會得到相同的 evidence —— 預先算的
+ * fingerprint 也才對得上。
+ */
+export async function buildAnalyticsEvidenceBundle(
+  snapshot: AnalyticsSnapshot,
+  query: EvidenceQuery,
+  loadArtifact: (artifact: AnalyticsArtifactRef) => Promise<unknown>,
+): Promise<EvidenceBundle> {
+  const limit = query.limitPerDataset ?? DEFAULT_LIMIT_PER_DATASET;
+  const notes: string[] = [];
+
+  const availableArtifactKeys = snapshot.artifacts.map((artifact) => artifact.key);
+  const selected = selectArtifacts(snapshot.artifacts, query, notes);
+
+  if (selected.length === 0) {
+    return {
+      evidence: [],
+      totalMatched: 0,
+      truncated: false,
+      notes: [
+        ...notes,
+        `analytics 快照 ${snapshot.snapshotId} 在本次條件下沒有可讀的分析檔案。`,
+      ],
+    };
+  }
+
+  // pipeline 自己宣告的快照層級缺陷。不往上帶的話，AI 會把 partial 的資料當完整的講。
+  for (const warning of snapshot.warnings) {
+    notes.push(
+      `analytics 快照 ${snapshot.snapshotId} 帶有警告 ${warning}，受影響的指標解讀時必須保留。`,
+    );
+  }
+
+  const perDataset: AiEvidence[] = [];
+  let totalMatched = 0;
+  let truncated = false;
+
+  for (const artifact of selected) {
+    const payload = await loadArtifact(artifact);
+    const flattened = flattenAnalyticsArtifact(payload, {
+      artifactKey: artifact.key,
+      sourcePath: artifact.sourcePath,
+      snapshotId: snapshot.snapshotId,
+      generatedAt: snapshot.generatedAt,
+      upstreamDatasets: snapshot.upstreamDatasets,
+      availableArtifactKeys,
+    });
+    notes.push(...flattened.notes);
+
+    const matched = applyEvidenceFilters(flattened.evidence, query);
+    totalMatched += matched.length;
+
+    if (matched.length === 0) {
+      notes.push(
+        `analytics 的 ${analyticsDatasetName(artifact.key)}（${artifact.sourcePath}）` +
+          '在本次篩選條件下沒有符合的指標。',
+      );
+      continue;
+    }
+    if (matched.length > limit) {
+      truncated = true;
+      notes.push(
+        `${analyticsDatasetName(artifact.key)} 僅取樣 ${limit} 筆，實際符合條件共 ${matched.length} 筆；` +
+          '這是為了控制 prompt 長度而截斷，不代表資料只有這麼多，也不可據此推論全體分布。',
+      );
+    }
+    perDataset.push(...matched.slice(0, limit));
+  }
+
+  // 跨 artifact 的重複收合放在最後：必須等所有 artifact 都攤平完才知道哪些重複。
+  const { evidence, removed } = dedupeAnalyticsEvidence(perDataset);
+  if (removed > 0) {
+    notes.push(
+      `analytics 各分析之間有 ${removed} 筆重複的指標值（同一個數字在多個分析裡各出現一次），` +
+        '已收合成單一 evidence，避免同一個數字被當成多個獨立來源互相佐證。',
+    );
+  }
+
+  if (evidence.length > 0) {
+    // 這一句放在最前面：它界定了後面所有 analytics 數字的性質。
+    notes.unshift(
+      analyticsSnapshotNote(snapshot.snapshotId, snapshot.generatedAt, snapshot.upstreamDatasets),
+    );
+  }
+
+  return { evidence, totalMatched, truncated, notes: unique(notes) };
 }
 
 /**
@@ -166,7 +186,7 @@ export const ANALYTICS_ARTIFACTS_BY_FOCUS_AREA: Readonly<Record<string, readonly
  * 第 1 順位讓呼叫端能完全控制；第 2 順位是實務上最常用的路徑；
  * 第 3 順位是「使用者問了一個跨主題的問題」，該付的成本就付。
  */
-function selectArtifacts(
+export function selectArtifacts(
   artifacts: readonly AnalyticsArtifactRef[],
   query: EvidenceQuery,
   notes: string[],

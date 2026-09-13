@@ -246,11 +246,18 @@ export async function resolveRequestContext(
 
   const source = selfFetchSource(env);
   if (source === null) {
-    throw new Error(
-      '請求沒有帶 context.evidence，而這個服務沒有被設定成自己去撈 evidence。' +
-        '兩種修法選一個：呼叫端送完整的 `context`（含 evidence），' +
-        '或在伺服器端設 AI_EVIDENCE_SOURCE（線上應為 `dynamo`，並一併設 ANALYTICS_TABLE_NAME）。',
-    );
+    // 丟 ZodError 讓 handler 回 400：這台伺服器不會自己撈，所以 `context` 對這個
+    // 部署來說就是必填，缺了是呼叫端的問題，不是「伺服器暫時失敗、可重試」的 502。
+    throw new z.ZodError([
+      {
+        code: z.ZodIssueCode.custom,
+        path: ['context'],
+        message:
+          '請求沒有帶 context，而這個服務沒有被設定成自己去撈 evidence。' +
+          '兩種修法選一個：呼叫端送完整的 `context`（含 evidence），' +
+          '或在伺服器端設 AI_EVIDENCE_SOURCE（線上應為 `dynamo`，並一併設 ANALYTICS_TABLE_NAME）。',
+      },
+    ]);
   }
 
   cachedRepository ??= createEvidenceRepositoryFromEnv(env);

@@ -17,7 +17,7 @@ api（Python Lambda + API Gateway）、analytics_table（DynamoDB）、raw_data�
 
 | 項目 | 值 |
 |---|---|
-| Handler | `dist/handlers/lambda.handler` |
+| Handler | `index.handler`（Terraform 用 esbuild 把 `src/handlers/lambda.ts` 打包成 `index.mjs`） |
 | Runtime | Node.js 22（或 20），**ESM** |
 | Timeout | **120 秒**（Q&A 實測 14–27 秒，但預先算 miss 時會即時算 50–58 秒；預設 3 秒一定失敗） |
 | Memory | 512 MB 起（純 I/O 等待，加記憶體不會變快） |
@@ -42,18 +42,16 @@ api（Python Lambda + API Gateway）、analytics_table（DynamoDB）、raw_data�
 
 ## 0. evidence 從哪裡來
 
-⚠️ **先講一件容易誤會的事：`handler` 目前不會自己去查 DynamoDB。**
+evidence 有兩條路，由 request 決定（見 `src/handlers/lambda.ts` 的 `resolveRequestContext`）：
 
-`src/handlers/lambda.ts` 的 evidence **只從 request body 進來**，
-它沒有呼叫 `buildAiContext()` 也沒有碰任何 repository。所以下面那些
-DynamoDB 的設定**在 request 路徑上不會被讀到** —— 它們是為了兩件事先準備好的：
+1. **request 帶 `context`**：照用呼叫端組好的 evidence，不讀 DynamoDB。
+2. **request 省略 `context`**，只給 `focusDistrict` / `focusArea` / `question`：
+   handler 用 `AI_EVIDENCE_SOURCE=dynamo` 自己去表裡撈（`buildAiContext()`），
+   跟 `npm run precompute` 走同一份程式碼，所以預先算的 fingerprint 對得上。
+   伺服器沒設 `AI_EVIDENCE_SOURCE` 時，這種 request 會回 **400**。
 
-1. **`npm run precompute`**（批次預先算 explain / policyCopilot）會用 repository
-2. **未來 handler 若要自己查表**，設定與權限已經到位，不必再動 Terraform
-
-真正決定線上 evidence 的是**呼叫端**。架構圖上那是 Backend：
-`DynamoDB → Backend API Lambda → （組好 AiRequestContext）→ AI Service Lambda`。
-那段程式碼還沒寫（見 `infrastructure.md` 的 Responsibilities）。
+建議呼叫端用第 2 種：backend 是 Python，自己組 evidence 等於重寫一份
+攤平規則，而且只要差一個字元，預先算就永遠 miss。
 
 ### DynamoDB 這條路已經實作、也實測過了
 
@@ -72,9 +70,15 @@ ai-service 拿到寫入權限的話，prompt 層的 bug 就有可能污染 dashb
 也刻意不給 `Query` / `Scan`：表的 schema 設計成每個查詢都是 key 查詢
 （見 `infrastructure/dynamodb_schema.md`），給 Scan 是把便宜的請求變貴的方法。
 
-**目前的落差**：`ANALYSIS#*` 那 6 筆還沒接，所以 employment 主題比本機快照少
-17 種指標、fertility 少 48 種（`citySummary.*`、`daycareCoverage`、`fafi*` 都在
-那幾筆裡）。employment 類的問題可以直接用，生育／家庭友善會明顯變弱。
+**讀的是 `AI_CONTEXT` item**：analytics Lambda 除了給 API 的 `DASHBOARD` / `ANALYSIS#`
+item，還會把**完整**的 published snapshot 寫成 `AI_CONTEXT/MANIFEST` 與
+`AI_CONTEXT/ARTIFACT#<key>`（gzip 過的 JSON，見 `infrastructure/dynamodb_schema.md`）。
+`DynamoEvidenceRepository` 讀回來之後，走的是跟本機快照同一份攤平程式，所以兩邊的
+evidence 完全相同（`tests/dynamoRepository.test.ts` 的一致性測試在守這件事）。
+以前只讀 `DASHBOARD/*` 時少掉的 `citySummary`、`daycareCoverage`、逐區分析現在都有了。
+
+⚠️ 表是舊版 analytics Lambda 寫的（沒有 `AI_CONTEXT`）時，回應會是「資料不足」，
+`limitations` 裡會說要重跑 analytics Lambda。
 
 ---
 
@@ -88,9 +92,8 @@ ai-service 拿到寫入權限的話，prompt 層的 bug 就有可能污染 dashb
 - 不用掛 EFS、不用 S3 讀取權限
 - 不用設 `AI_DATA_DIR`
 
-`handler` 的 evidence **只從 request body 進來**（呼叫端已經查好）。
-`AI_EVIDENCE_SOURCE=dynamo` 那條路目前只有 `npm run precompute` 與 dev 腳本會走，
-不在 request 路徑上 —— 見第 0 節。
+evidence 要嘛從 request body 進來，要嘛從 DynamoDB 撈（見第 0 節），
+兩條路都不碰本機檔案。
 
 `CuratedFileEvidenceRepository` 與 `AnalyticsSnapshotEvidenceRepository`
 （會讀本機檔案的那兩個）只在本機開發腳本用到，**不在 Lambda 的執行路徑上** ——
@@ -200,18 +203,29 @@ Resource = [
 `explain` 與 `policyCopilot` 實測 **50 與 58 秒**，而 HTTP API 是 30 秒且不可調 ——
 沒有預先算，這兩個功能在正式路徑上**一定失敗**。
 
-Lambda 的本機磁碟（`/tmp`）不是好選擇：每個執行環境各自一份，而且會被回收，
-等於幾乎每次都 miss。應該指向一個共享位置（S3 掛載、EFS，或改實作成 S3／DynamoDB
-—— `PrecomputedStore` 介面就是為了讓這個換掉時不用動呼叫端）。
+**目前的做法：打包進 Lambda zip。** `terraform apply` 會跑
+`scripts/stage-lambda.mjs`，把 `ai-service/.precomputed/*.json` 複製到
+`dist-lambda/precomputed/`，Lambda 的 `AI_PRECOMPUTE_DIR` 固定是
+`/var/task/precomputed`。`.precomputed/` 是空的時候 apply 不會失敗，只會印警告，
+explain / policyCopilot 則會即時算。
 
-產生方式（在有 data-pipeline 資料的機器上跑，不是在 Lambda 裡）：
+產生方式（在本機跑，不是在 Lambda 裡）。**evidence 來源一定要是線上那張表**，
+否則 fingerprint 對不上、線上永遠 miss：
 
-```powershell
-$env:AI_PRECOMPUTE_DIR="…"
+```bash
+cd ai-service
+export AI_EVIDENCE_SOURCE=dynamo
+export ANALYTICS_TABLE_NAME=newtaipei-youth-analytics   # terraform output analytics_table_name
+export AI_PRECOMPUTE_DIR=.precomputed
+# WEB_SEARCH_SCOPE 要跟 Lambda 設定一致（兩邊都不設就是 all）
 npm run precompute -- --dry --all      # 先估時間：29 區 × 2 功能 ≈ 26 分鐘（併發 2）
 npm run precompute -- --all
 npm run dev:precompute-check           # 驗證線上請求真的會命中
+cd ../infrastructure && terraform apply # 重新打包，把結果帶上去
 ```
+
+analytics Lambda 重跑（快照更新）之後，舊結果全部會 miss，要重做一次上面的步驟。
+Lambda 的 `/tmp` 不適合當快取位置：每個執行環境各一份，而且會被回收。
 
 **`dev:precompute-check` 不能跳過。** 快取鍵是「輸入內容的指紋」，
 命中率取決於呼叫端（backend）有不有用同樣的方式組 context。對不上的症狀很安靜：
@@ -397,15 +411,18 @@ Sonnet 會主動更正使用者說錯的前提、會發現兩個指標互相矛�
 開放給任何人呼叫 —— 每個請求都會送出完整 prompt（含 few-shot 與 evidence），
 而且是 Opus 級的價格。
 
-部署前要選一個：
+**目前的做法：CloudFront → IAM 授權的 Function URL。**
 
-- **只給 Backend 呼叫**（推薦）：不要開公開 endpoint，用 IAM 授權讓 Backend Lambda
-  直接 `lambda:InvokeFunction`，或 Function URL 設 `AuthType: AWS_IAM`。
-  這樣 AI Service 完全不對外，最省事也最安全。
-- API Gateway + API key / Usage plan（有 rate limit，但 API key 算不上真的認證）
-- Cognito authorizer（如果前端本來就有登入）
+- Function URL 是 `AWS_IAM`，直接打會 403。
+- 前端 CloudFront 的 `/api/ai` 路徑用 Origin Access Control 簽章後轉過去，
+  Lambda 的 resource policy 只允許那一個 distribution（`modules/frontend/main.tf`）。
+- 瀏覽器 POST 時必須帶 `x-amz-content-sha256`（body 的 SHA-256），
+  CloudFront 不會自己算；`frontend/src/lib/api/ai.ts` 已處理。
+- CloudFront 等 origin 最多 60 秒（`origin_read_timeout`）。
 
-這件事要跟 backend 一起決定，我不會單方面加。
+⚠️ 這**不是使用者認證**：任何打得開前端網站的人都能透過 `/api/ai` 呼叫 Bedrock。
+黑客松 demo 可以接受；要長期公開的話，至少加 AWS WAF 的 rate-based rule，
+或 Lambda 的 reserved concurrency 限制最大花費。
 
 ---
 
@@ -427,6 +444,18 @@ aws lambda invoke --function-name <name> \
 ```
 
 這一步過了再放一筆真的 evidence 進去驗 Bedrock 權限。
+
+經過 CloudFront 的完整路徑（前端實際走的）：
+
+```bash
+BODY='{"action":"qa","question":"板橋區的青年人口有多少？"}'
+HASH=$(printf %s "$BODY" | shasum -a 256 | cut -d' ' -f1)
+curl -sS -X POST "$(terraform output -raw frontend_url)/api/ai" \
+  -H 'content-type: application/json' -H "x-amz-content-sha256: $HASH" -d "$BODY"
+```
+
+拿到 HTML 而不是 JSON，代表簽章被拒（CloudFront 把 403 換成了 index.html）：
+檢查 body hash 有沒有帶、Lambda permission 有沒有建立。
 `ai-service/src/dev/runRealBedrockSmokeTest.ts` 裡有一筆可以直接複製的 evidence。
 
 檢查清單：

@@ -8,6 +8,8 @@ snapshot does not carry them in the shape api_contract.md serves.
 Lives outside lambda/ so it is not copied into the container image.
 """
 
+import gzip
+import json
 import sys
 import unittest
 from decimal import Decimal
@@ -18,6 +20,7 @@ if str(LAMBDA_DIR) not in sys.path:
     sys.path.insert(0, str(LAMBDA_DIR))
 
 from dynamodb_projection import (  # noqa: E402
+    AI_CONTEXT_PK,
     MANIFEST_KEY,
     build_items,
     to_dynamodb_types,
@@ -280,6 +283,38 @@ class TestProjection(unittest.TestCase):
         converted = [to_dynamodb_types(item) for item in self.items]
         self.assertFalse(any(has_float(item) for item in converted))
         self.assertEqual(converted[0]["kpis"]["cityYouthPopulation"], Decimal("845938.0"))
+
+    def test_ai_context_carries_every_artifact_untrimmed_before_the_manifest(self):
+        keys = [(item["pk"], item["sk"]) for item in self.items]
+        manifest_index = keys.index(MANIFEST_KEY)
+        for artifact_key, content in {"dashboard_overview": DASHBOARD, **ANALYSES}.items():
+            key = (AI_CONTEXT_PK, f"ARTIFACT#{artifact_key}")
+            self.assertLess(keys.index(key), manifest_index)
+            item = self.by_key[key]
+            self.assertEqual(item["snapshot_id"], "test-snapshot")
+            self.assertEqual(item["encoding"], "gzip+json")
+            # Not trimmed like the dashboard items: villages stay, ai-service drops them.
+            self.assertEqual(json.loads(gzip.decompress(item["payload"])), content)
+
+    def test_ai_context_manifest_is_the_whole_published_manifest(self):
+        item = self.by_key[(AI_CONTEXT_PK, "MANIFEST")]
+        self.assertEqual(item["snapshot_id"], "test-snapshot")
+        self.assertEqual(json.loads(gzip.decompress(item["payload"])), MANIFEST)
+
+    def test_ai_context_keeps_key_order(self):
+        # ai-service's truncation keeps the first N evidence per dataset, so the
+        # artifact's key order has to survive the round trip.
+        item = self.by_key[(AI_CONTEXT_PK, "ARTIFACT#dashboard_overview")]
+        self.assertEqual(list(json.loads(gzip.decompress(item["payload"]))), list(DASHBOARD))
+
+    def test_ai_context_skips_district_details_like_ai_service(self):
+        items = build_items(
+            manifest=MANIFEST,
+            dashboard=DASHBOARD,
+            analyses={**ANALYSES, "district_details": {"districts": []}},
+        )
+        keys = {(item["pk"], item["sk"]) for item in items}
+        self.assertNotIn((AI_CONTEXT_PK, "ARTIFACT#district_details"), keys)
 
 
 if __name__ == "__main__":

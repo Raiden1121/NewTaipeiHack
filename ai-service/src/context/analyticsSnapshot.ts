@@ -123,7 +123,6 @@ export async function readAnalyticsSnapshot(
   snapshotId?: string,
 ): Promise<AnalyticsSnapshot> {
   const resolvedId = snapshotId ?? (await readCurrentSnapshotId(dataDir));
-  const snapshotRelativeDir = path.posix.join(ANALYTICS_DIR, PUBLISHED_DIR, resolvedId);
   const manifestPath = path.join(dataDir, ANALYTICS_DIR, PUBLISHED_DIR, resolvedId, 'manifest.json');
 
   let raw: string;
@@ -141,8 +140,24 @@ export async function readAnalyticsSnapshot(
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error(`manifest.json 外層必須是物件：${manifestPath}`);
   }
-  const manifest = parsed as Record<string, unknown>;
+  return parseAnalyticsManifest(parsed as Record<string, unknown>, dataDir, resolvedId);
+}
 
+/**
+ * 把 manifest 物件轉成 `AnalyticsSnapshot`。
+ *
+ * 從 `readAnalyticsSnapshot` 拆出來，讓 `DynamoEvidenceRepository` 用同一份規則解析
+ * 表裡存的 manifest —— artifact 清單、`SKIPPED_ARTIFACT_KEYS`、sourcePath 格式
+ * 只要有一處不同，兩種來源的 evidence 就會分岔。
+ *
+ * `resolvedId` 決定 sourcePath 的快照目錄名；`dataDir` 只影響 `absolutePath`。
+ */
+export function parseAnalyticsManifest(
+  manifest: Record<string, unknown>,
+  dataDir: string,
+  resolvedId: string,
+): AnalyticsSnapshot {
+  const snapshotRelativeDir = path.posix.join(ANALYTICS_DIR, PUBLISHED_DIR, resolvedId);
   return {
     snapshotId: asString(manifest.snapshot_id) ?? resolvedId,
     generatedAt: asString(manifest.generated_at),

@@ -19,12 +19,25 @@ it can be exercised against any local `data/analytics/published/<id>/`.
 
 from __future__ import annotations
 
+import gzip
+import json
 from decimal import Decimal
 from typing import Any, Mapping, Sequence
 
-__all__ = ["build_items", "to_dynamodb_types", "MANIFEST_KEY"]
+__all__ = ["build_items", "to_dynamodb_types", "MANIFEST_KEY", "AI_CONTEXT_PK"]
 
 MANIFEST_KEY = ("META", "MANIFEST")
+
+# AI context items, read by ai-service's DynamoEvidenceRepository. The dashboard
+# items below are trimmed to api_contract.md's shapes; ai-service needs the full
+# published artifacts so its evidence -- and the precompute fingerprints built
+# from it -- match what it gets from the local snapshot files.
+AI_CONTEXT_PK = "AI_CONTEXT"
+AI_CONTEXT_ENCODING = "gzip+json"
+# Mirrors ai-service's SKIPPED_ARTIFACT_KEYS (src/context/analyticsSnapshot.ts).
+_AI_CONTEXT_SKIPPED_ARTIFACTS = ("district_details",)
+# DynamoDB rejects items over 400KB; leave room for the key and other attributes.
+_AI_CONTEXT_MAX_PAYLOAD_BYTES = 350_000
 
 # api_contract.md §8.1: fixed semantics, not data -- wages rising is good, and
 # youth population falling is the risk being tracked, so both want "up".
@@ -187,6 +200,56 @@ def _keyword_frequency(participation: Mapping[str, Any]) -> dict[str, Any]:
     return item
 
 
+def _gzip_json(value: Any, label: str) -> bytes:
+    """JSON text rather than a DynamoDB map: maps do not keep key order, and the
+    order decides which evidence survives ai-service's per-dataset truncation."""
+
+    raw = json.dumps(value, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    payload = gzip.compress(raw, compresslevel=9, mtime=0)
+    if len(payload) > _AI_CONTEXT_MAX_PAYLOAD_BYTES:
+        raise ValueError(
+            f"AI context {label} is {len(payload)} bytes gzipped, "
+            f"over the {_AI_CONTEXT_MAX_PAYLOAD_BYTES}-byte DynamoDB item budget"
+        )
+    return payload
+
+
+def _ai_context_items(
+    manifest: Mapping[str, Any],
+    dashboard: Mapping[str, Any],
+    analyses: Mapping[str, Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """The whole snapshot, untrimmed: villages and the other subtrees the
+    dashboard items drop stay in, because ai-service's flattener skips them
+    itself and must see exactly what the local snapshot files contain."""
+
+    snapshot_id = manifest.get("snapshot_id")
+    items: list[dict[str, Any]] = [
+        {
+            "pk": AI_CONTEXT_PK,
+            "sk": "MANIFEST",
+            "snapshot_id": snapshot_id,
+            "encoding": AI_CONTEXT_ENCODING,
+            "payload": _gzip_json(dict(manifest), "manifest"),
+        }
+    ]
+    artifacts: dict[str, Mapping[str, Any]] = {"dashboard_overview": dashboard, **analyses}
+    for artifact_key, content in artifacts.items():
+        if artifact_key in _AI_CONTEXT_SKIPPED_ARTIFACTS:
+            continue
+        items.append(
+            {
+                "pk": AI_CONTEXT_PK,
+                "sk": f"ARTIFACT#{artifact_key}",
+                "snapshot_id": snapshot_id,
+                "artifact_key": artifact_key,
+                "encoding": AI_CONTEXT_ENCODING,
+                "payload": _gzip_json(dict(content), artifact_key),
+            }
+        )
+    return items
+
+
 def build_items(
     *,
     manifest: Mapping[str, Any],
@@ -315,6 +378,8 @@ def build_items(
             },
         ]
     )
+
+    items.extend(_ai_context_items(manifest, dashboard, analyses))
 
     # Written last: readers use it to decide the snapshot is complete.
     items.append(

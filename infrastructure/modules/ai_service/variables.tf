@@ -32,8 +32,8 @@ variable "bedrock_model_id" {
     `npm run dev:reasoning-check` after switching, because that check (does it admit
     it cannot answer?) is exactly what small models tend to lose.
   EOT
-  type    = string
-  default = "us.anthropic.claude-sonnet-4-6"
+  type        = string
+  default     = "us.anthropic.claude-sonnet-4-6"
 }
 
 variable "timeout" {
@@ -93,13 +93,9 @@ variable "analytics_table_name" {
     snapshot files, which do not exist in Lambda (no filesystem, and the 450MB
     data directory is deliberately not packaged).
 
-    NOTE: the request handler does not read this table today. `lambda.ts` takes
-    evidence from the request body and never calls buildAiContext(), so these
-    settings currently affect only `npm run precompute` and the dev scripts.
-    They are wired up now so that (a) the batch job has what it needs and (b)
-    whoever makes the handler self-serve does not have to touch Terraform.
-    Deciding who reads DynamoDB -- backend before the call, or ai-service
-    itself -- is still open; see infrastructure.md's Responsibilities.
+    The request handler reads this table when a request omits `context`:
+    `lambda.ts`'s resolveRequestContext() calls buildAiContext() with the
+    DynamoDB repository. Requests that carry their own `context` never touch it.
   EOT
   type        = string
   default     = ""

@@ -1,135 +1,60 @@
 /**
- * 從 DynamoDB 的 AI Context / analytics 表讀 evidence。
+ * 從 DynamoDB 的 analytics 表讀 evidence（線上正式路徑）。
  *
- * 這是架構圖上 `Deterministic Analytics → DynamoDB → AI Service` 的正式路徑。
- * `AnalyticsSnapshotEvidenceRepository`（讀本機發布的快照檔）是它的本機替代品，
- * 兩者產出**完全相同的 metricId 與 evidenceId**，所以切換來源不會讓預先算的
- * fingerprint 失效、也不會讓 prompt 長得不一樣。
+ * ## 讀的是 `AI_CONTEXT` item，不是 dashboard 用的 item
  *
- * ## 表的形狀不是快照的鏡射
+ * `DASHBOARD/*`、`ANALYSIS#*` 是依 `api_contract.md` 裁切過的形狀，少了
+ * `citySummary`、`daycareCoverage`、逐區的 employment / fertility 分析。
+ * 以前這裡把那些 item 包回快照形狀再攤平，結果 employment 少 17 種指標、
+ * fertility 少 48 種，而且 evidence 跟本機快照對不上 → 預先算永遠 miss。
  *
- * schema 見 `infrastructure/dynamodb_schema.md`。關鍵差異：DynamoDB 存的是
- * **`api_contract.md` 實際要用的形狀**，而且刻意排除了村里層級明細
- * （`service_coverage.villages[]` 等，各約 200KB）。對 ai-service 來說這是好事 ——
- * 那些本來就在 `BLOCKED_KEYS` 裡被擋掉。
+ * 現在 analytics Lambda 另外把**完整的** published snapshot 寫進同一張表
+ * （`infrastructure/modules/analytics_lambda/lambda/dynamodb_projection.py`）：
  *
- * ## 為什麼重用 `flattenAnalyticsArtifact`
+ * | pk | sk | 內容 |
+ * |---|---|---|
+ * | `AI_CONTEXT` | `MANIFEST` | 完整 `manifest.json` |
+ * | `AI_CONTEXT` | `ARTIFACT#<key>` | 該 artifact 的完整 JSON |
  *
- * item 裡的逐區物件欄位名跟快照的 `dashboard_overview.districts[]` 幾乎一致
- * （`youth_18_35_total`、`salary_median`、`opportunityIndex`、`yoiComponents`…），
- * 所以把 item 包成快照的形狀再餵給同一個攤平函式，就能沿用：
+ * 內容是 gzip 過的 JSON 文字（`payload`，Binary），不是 DynamoDB Map：
  *
- * - `BLOCKED_KEYS` / `METADATA_KEYS`（擋掉 normalizedInputs、sourcePeriods、coverage…）
- * - `ANALYTICS_METRIC_META`（單位與青年適用性）
- * - evidenceId 格式 `{dataset}:{period}:{scope}:{metricId}`
- * - dedupe 規則與 notes
+ * 1. Map 不保證 key 順序，而攤平後的 evidence 順序決定 `limitPerDataset` 截掉哪些。
+ *    順序一變，evidence 子集就變，fingerprint 就對不上。
+ * 2. 最大的 `dashboard_overview` 原始 472KB，超過單筆 400KB 上限；gzip 後約 49KB。
  *
- * 自己寫一套映射的話，這些行為會慢慢分岔，而分岔的症狀是「本機驗過但線上不一樣」。
+ * 讀回來之後交給 `buildAnalyticsEvidenceBundle()`，跟本機快照是同一份程式，
+ * 所以兩邊產生的 evidence（含順序、notes、sourcePath）相同。
  *
- * ## 一次 BatchGetItem
+ * ## 完整性
  *
- * 需要的 item 最多 8 筆，遠低於 BatchGetItem 的 100 筆上限，所以一次往返就夠。
- * 不用 Query 也不用 Scan（表沒有 GSI，schema 也刻意設計成只需要 key 查詢）。
+ * writer 最後才寫 `META/MANIFEST`。這裡要求它跟 `AI_CONTEXT` item 的 `snapshot_id`
+ * 一致；不一致代表新快照寫到一半，回空集合＋說明，不混用兩個快照的資料。
+ *
+ * ## 兩次 BatchGetItem
+ *
+ * 第一次拿兩份 manifest，第二次只拿這次主題需要的 artifact（最多 7 筆）。
+ * 不用 Query 也不用 Scan（IAM 刻意只給 GetItem / BatchGetItem）。
  */
+import { gunzipSync } from 'node:zlib';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, BatchGetCommand } from '@aws-sdk/lib-dynamodb';
-import type { AiEvidence } from '../types/aiEvidence.js';
-import {
-  DEFAULT_LIMIT_PER_DATASET,
-  applyEvidenceFilters,
-  type EvidenceBundle,
-  type EvidenceQuery,
-  type EvidenceRepository,
-} from './evidenceRepository.js';
-import {
-  analyticsSnapshotNote,
-  dedupeAnalyticsEvidence,
-  flattenAnalyticsArtifact,
-} from './analyticsRecord.js';
-import { ANALYTICS_ARTIFACTS_BY_FOCUS_AREA } from './analyticsSnapshotRepository.js';
+import { parseAnalyticsManifest, type AnalyticsArtifactRef } from './analyticsSnapshot.js';
+import { buildAnalyticsEvidenceBundle, selectArtifacts } from './analyticsSnapshotRepository.js';
+import type { EvidenceBundle, EvidenceQuery, EvidenceRepository } from './evidenceRepository.js';
 
 /** 表的 key。`pk`/`sk` 都是 String，見 `modules/analytics_table/main.tf`。 */
-interface ItemKey {
+export interface DynamoItemKey {
   pk: string;
   sk: string;
 }
 
-/**
- * 一筆 DynamoDB item 要怎麼變成快照形狀。
- *
- * `wrap` 存在的理由是**讓 metricId 跟快照路徑一致**：快照裡年度人口在
- * `annual.population.years[]`，而 DynamoDB 的 `DASHBOARD/POPULATION_TREND`
- * 把它攤平成 item 根層的 `years`。不包回去的話 metricId 會變成
- * `years.people_total` 而不是 `annual.population.people_total`，
- * 於是 `ANALYTICS_METRIC_META`、關鍵字表、預先算的 fingerprint 全部對不上。
- */
-interface ItemPlan {
-  key: ItemKey;
-  /** 對應快照的 artifact key，決定 dataset 名稱與 dedupe 規則。 */
-  artifactKey: string;
-  /** 把 item 內容包成快照的巢狀形狀。 */
-  wrap: (item: Record<string, unknown>) => unknown;
-  /** 這筆屬於哪些 focusArea（空陣列＝任何主題都讀）。 */
-  focusAreas?: readonly string[];
-}
+export const META_MANIFEST_KEY: DynamoItemKey = { pk: 'META', sk: 'MANIFEST' };
+export const AI_CONTEXT_MANIFEST_KEY: DynamoItemKey = { pk: 'AI_CONTEXT', sk: 'MANIFEST' };
+/** writer 寫入 `payload` 的編碼。改格式時兩邊要一起改。 */
+export const AI_CONTEXT_ENCODING = 'gzip+json';
 
-const MANIFEST_KEY: ItemKey = { pk: 'META', sk: 'MANIFEST' };
-
-/**
- * 要讀哪些 item。
- *
- * `DASHBOARD/DISTRICTS` 一定讀：它一筆就含 29 區的所有核心指標（約 86KB），
- * 同時滿足「焦點行政區」與「跨區比較」兩種需求。分開讀 `DISTRICT#<id>/SUMMARY`
- * 反而更貴 —— 那是同一份物件的副本，而跨區比較還是得再拿整包。
- */
-const ITEM_PLANS: readonly ItemPlan[] = [
-  {
-    key: { pk: 'DASHBOARD', sk: 'DISTRICTS' },
-    artifactKey: 'dashboard_overview',
-    wrap: (item) => ({ districts: item.districts }),
-  },
-  {
-    key: { pk: 'DASHBOARD', sk: 'KPIS' },
-    artifactKey: 'dashboard_overview',
-    wrap: (item) => ({ kpis: item.kpis, availability: item.availability }),
-  },
-  {
-    key: { pk: 'DASHBOARD', sk: 'POPULATION_TREND' },
-    artifactKey: 'dashboard_overview',
-    // 包回快照的 annual.population.years[]，metricId 才會是
-    // `annual.population.people_total` 而不是 `years.people_total`。
-    wrap: (item) => ({ annual: { population: { years: item.years } } }),
-  },
-  {
-    key: { pk: 'DASHBOARD', sk: 'FERTILITY_TREND' },
-    artifactKey: 'fertility',
-    wrap: (item) => ({ annual: { fertility: { years: item.years } } }),
-    focusAreas: ['fertility', 'resources', 'policy'],
-  },
-  {
-    key: { pk: 'DASHBOARD', sk: 'SERVICE_COVERAGE' },
-    artifactKey: 'participation',
-    wrap: (item) => ({ service_coverage: stripKeys(item) }),
-    focusAreas: ['resources', 'participation', 'policy'],
-  },
-  {
-    key: { pk: 'DASHBOARD', sk: 'POLICY' },
-    artifactKey: 'policy_support',
-    wrap: (item) => ({ policy: stripKeys(item) }),
-    focusAreas: ['policy', 'resources', 'participation', 'employment'],
-  },
-  {
-    key: { pk: 'DASHBOARD', sk: 'ELECTIONS' },
-    artifactKey: 'participation',
-    wrap: (item) => ({ elections: stripKeys(item) }),
-    focusAreas: ['participation', 'resources', 'policy'],
-  },
-];
-
-/** 去掉 key 屬性，其餘照原樣。item 是 `{pk, sk, ...內容}` 的形狀。 */
-function stripKeys(item: Record<string, unknown>): Record<string, unknown> {
-  const { pk: _pk, sk: _sk, ...rest } = item;
-  return rest;
+export function aiContextArtifactKey(artifactKey: string): DynamoItemKey {
+  return { pk: 'AI_CONTEXT', sk: `ARTIFACT#${artifactKey}` };
 }
 
 export interface DynamoEvidenceRepositoryOptions {
@@ -155,96 +80,80 @@ export class DynamoEvidenceRepository implements EvidenceRepository {
   }
 
   async query(query: EvidenceQuery): Promise<EvidenceBundle> {
-    const plans = selectPlans(query);
-    const keys = [MANIFEST_KEY, ...plans.map((plan) => plan.key)];
-    const items = await this.batchGet(keys);
+    const heads = await this.batchGet([META_MANIFEST_KEY, AI_CONTEXT_MANIFEST_KEY]);
 
-    const manifest = items.get(keyOf(MANIFEST_KEY));
-    if (manifest === undefined) {
+    const meta = heads.get(keyOf(META_MANIFEST_KEY));
+    if (meta === undefined) {
       // 這正是 schema 文件說的「manifest 不存在就是還沒發布」。
       // 誠實回空集合＋說明，不要丟錯 —— 呼叫端會據此回「資料不足」。
-      return {
-        evidence: [],
-        totalMatched: 0,
-        truncated: false,
-        notes: [
-          `DynamoDB 表 ${this.tableName} 裡沒有 META/MANIFEST，` +
-            '代表 data-pipeline 還沒發布任何 analytics snapshot，本次沒有可引用的資料。',
-        ],
-      };
+      return emptyBundle(
+        `DynamoDB 表 ${this.tableName} 裡沒有 META/MANIFEST，` +
+          '代表 data-pipeline 還沒發布任何 analytics snapshot，本次沒有可引用的資料。',
+      );
     }
 
-    const snapshotId = asString(manifest.snapshot_id) ?? '(unknown)';
-    const generatedAt = asString(manifest.generated_at);
-    const notes = new Set<string>();
-    for (const warning of asStringArray(manifest.warnings)) {
-      notes.add(`資料管線對這份快照的警告：${warning}`);
+    const contextManifest = heads.get(keyOf(AI_CONTEXT_MANIFEST_KEY));
+    if (contextManifest === undefined) {
+      return emptyBundle(
+        `DynamoDB 表 ${this.tableName} 有 META/MANIFEST 但沒有 AI_CONTEXT/MANIFEST，` +
+          '代表寫入這張表的 analytics Lambda 還是不會寫 AI context 的舊版本；' +
+          '重新部署並執行 analytics Lambda 之後才有資料。',
+      );
     }
 
-    const collected: AiEvidence[] = [];
-    const missing: string[] = [];
-    for (const plan of plans) {
-      const item = items.get(keyOf(plan.key));
+    const snapshotId = asString(meta.snapshot_id);
+    const contextSnapshotId = asString(contextManifest.snapshot_id);
+    if (snapshotId === null || contextSnapshotId !== snapshotId) {
+      return emptyBundle(
+        `DynamoDB 表 ${this.tableName} 的 META/MANIFEST（${snapshotId ?? '無 snapshot_id'}）` +
+          `與 AI_CONTEXT/MANIFEST（${contextSnapshotId ?? '無 snapshot_id'}）不是同一個快照，` +
+          '可能正在寫入新快照；本次不混用兩份資料。',
+      );
+    }
+
+    const manifest = decodePayload(contextManifest, 'AI_CONTEXT/MANIFEST');
+    if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
+      throw new Error(`AI_CONTEXT/MANIFEST 的內容不是物件（表 ${this.tableName}）`);
+    }
+    // dataDir 傳空字串：sourcePath 仍是 `analytics/published/<id>/...`，跟本機快照一致；
+    // absolutePath 在這條路徑上用不到。
+    const snapshot = parseAnalyticsManifest(manifest as Record<string, unknown>, '', snapshotId);
+
+    // 先決定要讀哪些 artifact 並一次抓回來。notes 丟掉：buildAnalyticsEvidenceBundle
+    // 會用同一個函式再選一次並寫 notes，這裡只是要知道該抓哪些 key。
+    const wanted = selectArtifacts(snapshot.artifacts, query, []);
+    const items = await this.batchGet(wanted.map((artifact) => aiContextArtifactKey(artifact.key)));
+
+    return buildAnalyticsEvidenceBundle(snapshot, query, async (artifact: AnalyticsArtifactRef) => {
+      const key = aiContextArtifactKey(artifact.key);
+      const label = `${key.pk}/${key.sk}`;
+      const item = items.get(keyOf(key));
       if (item === undefined) {
-        missing.push(`${plan.key.pk}/${plan.key.sk}`);
-        continue;
+        // 跟本機快照「manifest 宣告了但讀不到檔案」同樣丟錯：少一個 artifact 卻照常回答，
+        // 模型會把殘缺的資料當成完整的講。
+        throw new Error(
+          `AI_CONTEXT/MANIFEST 宣告了 artifact ${artifact.key}，但表 ${this.tableName} 裡沒有 ${label}。`,
+        );
       }
-      const result = flattenAnalyticsArtifact(plan.wrap(item), {
-        artifactKey: plan.artifactKey,
-        // 來源不是檔案，寫成表名＋key 才能回溯這個數字是從哪裡讀的。
-        sourcePath: `dynamodb://${this.tableName}/${plan.key.pk}/${plan.key.sk}`,
-        snapshotId,
-        generatedAt,
-        upstreamDatasets: asStringArray(manifest.source_datasets),
-        availableArtifactKeys: plans.map((candidate) => candidate.artifactKey),
-      });
-      collected.push(...result.evidence);
-      for (const note of result.notes) {
-        notes.add(note);
+      if (asString(item.snapshot_id) !== snapshotId) {
+        throw new Error(
+          `${label} 屬於快照 ${asString(item.snapshot_id) ?? '(unknown)'}，不是目前的 ${snapshotId}；` +
+            '可能正在寫入新快照，請稍後重試。',
+        );
       }
-    }
-    if (missing.length > 0) {
-      notes.add(
-        `DynamoDB 表 ${this.tableName} 缺少這些 item：${missing.join('、')}。` +
-          '相關面向本次沒有資料，不代表該面向的實際狀況。',
-      );
-    }
-
-    // 跨 item 的重複收合：同一個數字在多個 item 裡各出現一次（例如逐區物件同時
-    // 存在 DASHBOARD/DISTRICTS 與 DISTRICT#<id>/SUMMARY），不收合的話模型會拿
-    // 兩個 evidenceId「互相佐證」同一個來源。
-    const { evidence: deduped, removed } = dedupeAnalyticsEvidence(collected);
-    if (removed > 0) {
-      notes.add(
-        `analytics 各 item 之間有 ${removed} 筆重複的指標值，已收合成單一 evidence，` +
-          '避免同一個數字被當成多個獨立來源互相佐證。',
-      );
-    }
-    notes.add(
-      analyticsSnapshotNote(snapshotId, generatedAt, asStringArray(manifest.source_datasets)),
-    );
-
-    // 篩選重用快照那邊同一個函式 —— 自己寫一份的話行為會慢慢分岔，
-    // 而分岔的症狀是「同一個查詢在兩種來源下拿到不同的 evidence」。
-    const filtered = applyEvidenceFilters(deduped, query);
-    const limit = query.limitPerDataset ?? DEFAULT_LIMIT_PER_DATASET;
-    const truncated = filtered.length > limit;
-
-    return {
-      evidence: truncated ? filtered.slice(0, limit) : filtered,
-      totalMatched: filtered.length,
-      truncated,
-      notes: [...notes],
-    };
+      return decodePayload(item, label);
+    });
   }
 
   /**
    * BatchGetItem。刻意處理 `UnprocessedKeys`：DynamoDB 在被節流時會回傳部分結果
    * 而**不報錯**，不重試的話症狀是「有些指標時有時無」，非常難查。
    */
-  private async batchGet(keys: readonly ItemKey[]): Promise<Map<string, Record<string, unknown>>> {
+  private async batchGet(
+    keys: readonly DynamoItemKey[],
+  ): Promise<Map<string, Record<string, unknown>>> {
     const found = new Map<string, Record<string, unknown>>();
-    let pending: ItemKey[] = [...keys];
+    let pending: DynamoItemKey[] = [...keys];
 
     for (let attempt = 0; attempt < 3 && pending.length > 0; attempt += 1) {
       const response = await this.client.send(
@@ -269,30 +178,27 @@ export class DynamoEvidenceRepository implements EvidenceRepository {
   }
 }
 
-function keyOf(key: ItemKey): string {
-  return `${key.pk}\u0000${key.sk}`;
+function emptyBundle(note: string): EvidenceBundle {
+  return { evidence: [], totalMatched: 0, truncated: false, notes: [note] };
 }
 
-/** 依 focusArea 決定要讀哪些 item。沒指定主題就全讀。 */
-export function selectPlans(query: EvidenceQuery): ItemPlan[] {
-  const focusArea = query.focusArea?.trim().toLowerCase();
-  if (focusArea === undefined || focusArea.length === 0) {
-    return [...ITEM_PLANS];
+function decodePayload(item: Record<string, unknown>, label: string): unknown {
+  if (item.encoding !== AI_CONTEXT_ENCODING) {
+    throw new Error(
+      `${label} 的 encoding 是 ${String(item.encoding)}，這個版本只讀 ${AI_CONTEXT_ENCODING}。`,
+    );
   }
-  // 主題沒有對應設定時全讀 —— 跟 analytics 快照那邊同一個保守作法：
-  // 寧可多讀一點，也不要讓模型缺它需要的資料。
-  if (ANALYTICS_ARTIFACTS_BY_FOCUS_AREA[focusArea] === undefined) {
-    return [...ITEM_PLANS];
+  const payload = item.payload;
+  if (!(payload instanceof Uint8Array)) {
+    throw new Error(`${label} 缺少 Binary 型別的 payload 欄位。`);
   }
-  return ITEM_PLANS.filter(
-    (plan) => plan.focusAreas === undefined || plan.focusAreas.includes(focusArea),
-  );
+  return JSON.parse(gunzipSync(payload).toString('utf-8')) as unknown;
+}
+
+function keyOf(key: DynamoItemKey): string {
+  return `${key.pk}\u0000${key.sk}`;
 }
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
-}
-
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
