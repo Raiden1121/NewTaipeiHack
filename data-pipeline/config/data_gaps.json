@@ -94,10 +94,10 @@
       "recheck_after": null
     },
     "homepage_fallback_constant": {
-      "summary": "全台青年人口為寫死常數，非本管線計算值。",
-      "detail": "kpi.nationalYouthPopulation 固定為 4,820,000，並標記 nationalYouthPopulationQuality=proxy。管線只收新北市資料，沒有全國各縣市人口來源。",
-      "datasets": [],
-      "resolution": "若需真實值，須新增全國人口 collector。",
+      "summary": "全台青年人口退回寫死常數，非本管線計算值。",
+      "detail": "kpi.nationalYouthPopulation 正常由 national_population（ODRP014 全國村里 18–35 歲加總）計算並標 observed。只有參考年度的 national_population 缺漏或帶 incomplete_coverage 時，才退回 4,820,000 並標記 nationalYouthPopulationQuality=proxy。",
+      "datasets": ["national_population"],
+      "resolution": "重跑 national_population 該年度月份（例如 --start-period 11412 --end-period 11412 --datasets national_population）。",
       "recheck_after": null
     },
     "period_misalignment_114_population_vs_115_boundary": {

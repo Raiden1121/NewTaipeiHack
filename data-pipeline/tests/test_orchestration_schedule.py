@@ -66,6 +66,7 @@ class TestExecutionSchedule(unittest.TestCase):
         expected_strategies = {
             "population": PeriodStrategy.MONTHLY,
             "population_villages": PeriodStrategy.MONTHLY,
+            "national_population": PeriodStrategy.MONTHLY,
             "movement": PeriodStrategy.MONTHLY,
             "births": PeriodStrategy.ANNUAL,
             "marriages": PeriodStrategy.ANNUAL,

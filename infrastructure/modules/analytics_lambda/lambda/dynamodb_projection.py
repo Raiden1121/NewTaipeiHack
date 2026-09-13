@@ -219,8 +219,9 @@ def build_items(
             "pk": "DASHBOARD",
             "sk": "POLICY",
             **policy,
-            # §6.3 pairs the rate with the year it belongs to; the key stays
-            # present (null) until the pipeline splits the two lookups.
+            # §6.3 pairs the rate with the year it belongs to. homepage selects
+            # the latest usable execution year separately from the latest legal
+            # budget; the key stays present (null) for snapshots that predate it.
             "executionRateYearRoc": policy.get("executionRateYearRoc"),
         },
         {

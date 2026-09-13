@@ -154,6 +154,8 @@ DEFAULT_COLLECTOR_SPECS: tuple[CollectorSpec, ...] = (
     CollectorSpec(
         "population_villages", lambda period: fetch_population(period, county="新北市")
     ),
+    # county=None: ODRP014 without COUNTY returns every village in Taiwan.
+    CollectorSpec("national_population", lambda period: fetch_population(period, county=None)),
     CollectorSpec("movement", lambda period: fetch_moving(period, county="新北市")),
     CollectorSpec("births", _collect_births, PeriodStrategy.ANNUAL),
     CollectorSpec("marriages", _collect_marriages, PeriodStrategy.ANNUAL),

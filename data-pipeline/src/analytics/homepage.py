@@ -112,6 +112,11 @@ def generate_homepage_data(
     snapshots = {dataset: load_latest(dataset) for dataset in snapshot_datasets}
     talent_records = load_all("talent_demand")
 
+    national_population_records = load_periods(
+        "national_population",
+        [f"{annual_years[-1]:03d}{month:02d}" for month in range(1, 13)],
+    )
+
     annual_population = calculate_annual_population(
         population_records, annual_years_roc=annual_years
     )
@@ -178,7 +183,7 @@ def generate_homepage_data(
         latest_annual_year=annual_years[-1],
         latest_election_year=max(config.election_years_roc),
     )
-    kpi = _build_homepage_kpi(annual_population, annual_years, quality)
+    kpi = _build_homepage_kpi(annual_population, annual_years, quality, national_population_records)
     policy = _build_homepage_policy(budget_series["trend"])
 
     result = {
@@ -279,28 +284,40 @@ def _attach_homepage_district_metrics(
         row["youthCandidacyRatePer100k"] = participation.get("youth_candidacy_rate")
 
 
+NATIONAL_YOUTH_POPULATION_FALLBACK = 4_820_000
+
+
 def _build_homepage_kpi(
-    annual_population: Mapping[str, Any], years: list[int], quality: dict[str, Any]
+    annual_population: Mapping[str, Any],
+    years: list[int],
+    quality: dict[str, Any],
+    national_population_records: list[dict[str, Any]],
 ) -> dict[str, Any]:
     rows = list(annual_population.get("years", []))
     current = next((row for row in rows if row.get("year_roc") == years[-1]), {})
     previous = next((row for row in rows if row.get("year_roc") == years[-2]), {}) if len(years) > 1 else {}
     city = current.get("city", {})
     previous_city = previous.get("city", {})
-    national_youth = 4_820_000
-    quality["proxy_usage"].append(
-        {
-            "metric": "national_youth_population",
-            "reason": "homepage_fallback_constant",
-            "value": national_youth,
-        }
+    national_youth = _national_youth_population(
+        national_population_records, list(current.get("source_period") or [])
     )
+    national_quality = "observed"
+    if national_youth is None:
+        national_youth = NATIONAL_YOUTH_POPULATION_FALLBACK
+        national_quality = "proxy"
+        quality["proxy_usage"].append(
+            {
+                "metric": "national_youth_population",
+                "reason": "homepage_fallback_constant",
+                "value": national_youth,
+            }
+        )
     people = _number(city.get("people_total"))
     youth = _number(city.get("youth_18_35_total"))
     previous_youth = _number(previous_city.get("youth_18_35_total"))
     return {
         "nationalYouthPopulation": national_youth,
-        "nationalYouthPopulationQuality": "proxy",
+        "nationalYouthPopulationQuality": national_quality,
         "cityYouthPopulation": youth,
         "cityYouthPopulationShare": None if people in (None, 0) or youth is None else youth / people * 100,
         "cityYouthPopulationYoY": _yoy(youth, previous_youth),
@@ -308,9 +325,33 @@ def _build_homepage_kpi(
     }
 
 
+def _national_youth_population(
+    records: list[dict[str, Any]], city_source_periods: list[str]
+) -> float | None:
+    """National 18–35 total for the city KPI's month, else the latest month loaded.
+
+    Aggregates flagged ``incomplete_coverage`` are skipped: a sum missing villages
+    is not the national figure.
+    """
+
+    candidates = {
+        str(row.get("period_start")): _number(row.get("value"))
+        for row in records
+        if row.get("metric_id") == "youth_18_35_total"
+        and _number(row.get("value")) is not None
+        and "incomplete_coverage" not in (row.get("quality_flags") or [])
+    }
+    for period in city_source_periods:
+        if period in candidates:
+            return candidates[period]
+    return candidates[max(candidates)] if candidates else None
+
+
 def _build_homepage_policy(trend: list[dict[str, Any]]) -> dict[str, Any]:
-    available = [row for row in trend if row.get("legal_budget_amount") is not None]
-    latest = available[-1] if available else {}
+    budget_rows = [row for row in trend if row.get("legal_budget_amount") is not None]
+    execution_rows = [row for row in trend if row.get("execution_rate") is not None]
+    latest_budget = budget_rows[-1] if budget_rows else {}
+    latest_execution = execution_rows[-1] if execution_rows else {}
     return {
         "budgetTrend": [
             {
@@ -321,10 +362,15 @@ def _build_homepage_policy(trend: list[dict[str, Any]]) -> dict[str, Any]:
             }
             for row in trend
         ],
-        "currentBudget": latest.get("legal_budget_amount"),
-        "budgetYoY": latest.get("budget_yoy_percent"),
-        "executionRate": latest.get("execution_rate"),
-        "executionFailure": latest.get("execution_failure"),
+        "currentBudget": latest_budget.get("legal_budget_amount"),
+        "budgetYoY": latest_budget.get("budget_yoy_percent"),
+        "executionRate": latest_execution.get("execution_rate"),
+        "executionRateYearRoc": latest_execution.get("year_roc"),
+        "executionFailure": (
+            None
+            if latest_execution
+            else latest_budget.get("execution_failure")
+        ),
     }
 
 

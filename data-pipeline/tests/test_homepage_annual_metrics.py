@@ -12,6 +12,7 @@ from analytics.annual_metrics import (  # noqa: E402
     calculate_annual_population,
     calculate_budget_series,
 )
+from analytics.homepage import _build_homepage_policy  # noqa: E402
 
 
 class TestHomepageAnnualMetrics(unittest.TestCase):
@@ -88,6 +89,74 @@ class TestHomepageAnnualMetrics(unittest.TestCase):
         row = result["trend"][0]
         self.assertAlmostEqual(row["execution_rate"], 138627956 / 158650000 * 100)
         self.assertEqual(row["execution_unit_conversion"], "legal_budget_thousand_to_twd")
+
+    def test_budget_execution_uses_reported_ratio_for_prior_year_summary(self):
+        result = calculate_budget_series(
+            [
+                {
+                    "budget_year_roc": "114",
+                    "row_type": "total",
+                    "document_status": "legal_budget",
+                    "budget_amount": 196153,
+                    "unit": "TWD_thousand",
+                }
+            ],
+            [
+                {
+                    "budget_year_roc": "114",
+                    "row_type": "total",
+                    "document_status": "final_settlement",
+                    "budget_amount": 196653000,
+                    "settlement_amount": 183283665,
+                    "realized_amount": None,
+                    "source_execution_ratio_percent": "93.20",
+                    "unit": "TWD",
+                    "raw_record": {
+                        "source_record_type": "prior_year_settlement_summary"
+                    },
+                }
+            ],
+            annual_years_roc=[114],
+        )
+
+        row = result["trend"][0]
+        self.assertEqual(row["execution_rate"], 93.2)
+        self.assertIsNone(row["execution_failure"])
+        self.assertEqual(row["execution_rate_source"], "source_execution_ratio_percent")
+        self.assertEqual(
+            row["execution_source_record_type"], "prior_year_settlement_summary"
+        )
+        self.assertIsNone(row["legal_budget_amount_for_execution"])
+        self.assertIsNone(row["execution_denominator_unit"])
+        self.assertIsNone(row["execution_unit_conversion"])
+
+    def test_homepage_policy_selects_latest_budget_and_latest_usable_execution_separately(self):
+        policy = _build_homepage_policy(
+            [
+                {
+                    "year_roc": 114,
+                    "legal_budget_amount": 196153,
+                    "budget_yoy_percent": 23.63,
+                    "execution_rate": 93.2,
+                    "execution_failure": None,
+                    "quality_status": "observed",
+                },
+                {
+                    "year_roc": 115,
+                    "legal_budget_amount": 213022,
+                    "budget_yoy_percent": 8.6,
+                    "execution_rate": None,
+                    "execution_failure": "final_settlement_unavailable",
+                    "quality_status": "observed",
+                },
+            ]
+        )
+
+        self.assertEqual(policy["currentBudget"], 213022)
+        self.assertEqual(policy["budgetYoY"], 8.6)
+        self.assertEqual(policy["executionRate"], 93.2)
+        self.assertEqual(policy["executionRateYearRoc"], 114)
+        self.assertIsNone(policy["executionFailure"])
 
 
 if __name__ == "__main__":

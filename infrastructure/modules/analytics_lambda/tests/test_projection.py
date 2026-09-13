@@ -193,6 +193,32 @@ class TestProjection(unittest.TestCase):
         self.assertIn("executionRateYearRoc", policy)
         self.assertIsNone(policy["executionRateYearRoc"])
 
+    def test_passes_through_pipeline_selected_execution_year_and_national_kpi(self):
+        dashboard = {
+            **DASHBOARD,
+            "kpis": {
+                **DASHBOARD["kpis"],
+                "nationalYouthPopulation": 4979852.0,
+                "nationalYouthPopulationQuality": "observed",
+            },
+            "policy": {
+                **DASHBOARD["policy"],
+                "executionRate": 93.2,
+                "executionRateYearRoc": 114,
+                "executionFailure": None,
+            },
+        }
+
+        items = build_items(manifest=MANIFEST, dashboard=dashboard, analyses=ANALYSES)
+        by_key = {(item["pk"], item["sk"]): item for item in items}
+
+        policy = by_key[("DASHBOARD", "POLICY")]
+        self.assertEqual(policy["executionRate"], 93.2)
+        self.assertEqual(policy["executionRateYearRoc"], 114)
+        kpis = by_key[("DASHBOARD", "KPIS")]["kpis"]
+        self.assertEqual(kpis["nationalYouthPopulation"], 4979852.0)
+        self.assertEqual(kpis["nationalYouthPopulationQuality"], "observed")
+
     def test_drops_the_payloads_the_schema_excludes(self):
         coverage = self.by_key[("DASHBOARD", "SERVICE_COVERAGE")]
         self.assertNotIn("villages", coverage)
