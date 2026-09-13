@@ -21,6 +21,7 @@
     "dev:metric-audit": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runMetricMetaAudit.ts",
     "dev:ask": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runAsk.ts",
     "sync:metric-config": "tsx src/dev/syncAnalyticsConfig.ts",
+    "dev:dynamo-check": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runDynamoCheck.ts",
     "dev:dump-prompt": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/dumpPrompt.ts"
   },
   "dependencies": {
