@@ -740,6 +740,21 @@ export const ANALYTICS_METRIC_META: Readonly<Record<string, MetricMeta>> = {
   total_amount: { unit: 'TWD', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
   share_percent: { unit: '%', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
 
+  // --- 青年議題關鍵詞的評分（keyword_frequency 分析）---
+  // 這 6 個是 dev-full-youth-keyword-20260913 這份快照才開始產出的，
+  // 稽核（npm run dev:metric-audit）抓到的 —— 正是這張表會默默過期的典型例子。
+  // 全部是無量綱的合成分數，所以 unit 是 null 而不是硬填一個單位。
+  join_support_score: {
+    unit: null,
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
+  raw_score: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  frequency_score: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  ranking_score: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  policy_relevance: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  topic_mentions: { unit: '次', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+
   // --- 提案漏斗 ---
   count: { unit: '件', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
   escalated_to_council: {

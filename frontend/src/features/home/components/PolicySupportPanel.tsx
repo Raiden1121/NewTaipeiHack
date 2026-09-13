@@ -9,10 +9,22 @@ const CHART_VB_W = 300;
 const CHART_VB_H = 120;
 const CHART_PAD_X = 22;
 
-function BudgetTrendChart({ trend }: { trend: BudgetTrendPoint[] }) {
+// 折線圖固定顯示近五年 112–116；116 年是最新法定預算年，115／116 若後端尚未
+// 提供資料（value_thousand: null）則畫成「資料待補」空心點，不臆造數值。
+const TREND_DISPLAY_YEARS = [112, 113, 114, 115, 116] as const;
+
+function buildDisplayTrend(trend: BudgetTrendPoint[]): BudgetTrendPoint[] {
+  const byYear = new Map(trend.map((item) => [item.year_roc, item]));
+  return TREND_DISPLAY_YEARS.map(
+    (year) => byYear.get(year) ?? { year_roc: year, value_thousand: null },
+  );
+}
+
+function BudgetTrendChart({ trend: rawTrend }: { trend: BudgetTrendPoint[] }) {
+  const trend = buildDisplayTrend(rawTrend);
   const vbW = CHART_VB_W;
   const vbH = CHART_VB_H;
-  const labelH = 22;
+  const labelH = 30;
   const top = 10;
   const bottom = vbH - labelH;
   const plotH = bottom - top;
@@ -26,18 +38,24 @@ function BudgetTrendChart({ trend }: { trend: BudgetTrendPoint[] }) {
   const max = Math.max(...amounts);
   const min = Math.min(...amounts);
 
-  const points = trend
-    .map((item, index) => ({ ...item, index }))
-    .filter((item): item is typeof item & { value_thousand: number } => item.value_thousand !== null)
-    .map((item) => {
-      const x = CHART_PAD_X + item.index * stepX;
-      const y = bottom - ((item.value_thousand - min) / (max - min || 1)) * plotH;
-      return { x, y, year: item.year_roc };
-    });
+  const allPoints = trend.map((item, index) => {
+    const x = CHART_PAD_X + index * stepX;
+    const y =
+      item.value_thousand === null
+        ? bottom
+        : bottom - ((item.value_thousand - min) / (max - min || 1)) * plotH;
+    return { x, y, year: item.year_roc, hasValue: item.value_thousand !== null };
+  });
+  const points = allPoints.filter((p) => p.hasValue);
+  const missingPoints = allPoints.filter((p) => !p.hasValue);
 
   const polylinePoints = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`);
   const firstX = points[0]?.x.toFixed(1) ?? "0";
   const lastX = points[points.length - 1]?.x.toFixed(1) ?? "0";
+
+  // 從最後一個有資料的點，虛線接到緊接著的「資料待補」點，標示尚未接上的部分。
+  const lastAvailable = points[points.length - 1];
+  const firstMissing = missingPoints[0];
 
   const axisX = CHART_PAD_X;
   const axisTopY = top - 6;
@@ -109,19 +127,52 @@ function BudgetTrendChart({ trend }: { trend: BudgetTrendPoint[] }) {
           />
         </>
       )}
+      {lastAvailable && firstMissing && (
+        <line
+          x1={lastAvailable.x}
+          y1={lastAvailable.y}
+          x2={firstMissing.x}
+          y2={firstMissing.y}
+          className="stroke-slate-300"
+          strokeWidth={1.5}
+          strokeDasharray="4 3"
+        />
+      )}
       {points.map((point) => (
         <circle key={point.year} cx={point.x} cy={point.y} r={2.5} className="fill-primary" />
+      ))}
+      {missingPoints.map((point) => (
+        <circle
+          key={point.year}
+          cx={point.x}
+          cy={point.y}
+          r={2.5}
+          className="fill-surface stroke-slate-300"
+          strokeWidth={1.5}
+        />
       ))}
       {trend.map((item, index) => (
         <text
           key={`${item.year_roc}-label`}
           x={CHART_PAD_X + index * stepX}
-          y={bottom + 16}
+          y={bottom + 15}
           textAnchor="middle"
           className="fill-slate-400"
           fontSize={11}
         >
           {item.year_roc}
+        </text>
+      ))}
+      {missingPoints.map((point) => (
+        <text
+          key={`${point.year}-missing`}
+          x={point.x}
+          y={bottom + 27}
+          textAnchor="middle"
+          className="fill-slate-300"
+          fontSize={8.5}
+        >
+          資料待補
         </text>
       ))}
     </svg>
@@ -142,7 +193,9 @@ export default function PolicySupportPanel() {
 
   const { policy } = overview;
   const TrendIcon = policy.budgetYoY >= 0 ? TrendingUp : TrendingDown;
-  const missingYears = policy.budgetTrend
+  // 註腳的「尚未發布」年份要對齊圖表實際顯示的 112–116 範圍，不能直接用原始
+  // budgetTrend（110–114）算，否則會誤報已經不顯示的 110、111 年。
+  const missingYears = buildDisplayTrend(policy.budgetTrend)
     .filter((item) => item.value_thousand === null)
     .map((item) => item.year_roc);
 

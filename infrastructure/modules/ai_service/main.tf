@@ -104,6 +104,36 @@ resource "aws_iam_role_policy" "bedrock_invoke" {
   })
 }
 
+# Read-only access to the analytics table (the AI Context store).
+#
+# ai-service reads evidence from DynamoDB at request time -- see
+# ai-service/src/context/dynamoRepository.ts. It needs exactly two actions:
+# BatchGetItem for the normal path (one round trip for all the items a request
+# needs) and GetItem because the SDK falls back to it for single-key reads.
+#
+# No write actions on purpose: ai-service must never modify the analytics store.
+# Writing is data-pipeline's job (modules/analytics_lambda). A read-only grant
+# means a bug in the prompt layer cannot corrupt the dashboard's data source.
+#
+# No Query/Scan either: the table's schema is designed so every access pattern
+# is a plain key lookup (infrastructure/dynamodb_schema.md), and granting Scan
+# on a table that will grow is how a cheap request turns into an expensive one.
+resource "aws_iam_role_policy" "analytics_table_read" {
+  count = var.analytics_table_arn != "" ? 1 : 0
+
+  name = "${var.project_name}-ai-service-analytics-read"
+  role = aws_iam_role.ai_service_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem", "dynamodb:BatchGetItem"]
+      Resource = var.analytics_table_arn
+    }]
+  })
+}
+
 resource "aws_lambda_function" "ai_service" {
   function_name    = "${var.project_name}-ai-service"
   role             = aws_iam_role.ai_service_exec.arn
@@ -117,6 +147,16 @@ resource "aws_lambda_function" "ai_service" {
   environment {
     variables = merge(
       { BEDROCK_MODEL_ID = var.bedrock_model_id },
+      # Evidence source. ai-service defaults to reading data-pipeline's published
+      # snapshot files, which do not exist in Lambda -- there is no filesystem to
+      # read and the 450MB data directory is deliberately not packaged.
+      #
+      # These two are set together because neither is useful alone. They do NOT
+      # affect the request path today: lambda.ts takes evidence from the request
+      # body and never calls buildAiContext(). See variables.tf.
+      var.analytics_table_name != ""
+      ? { ANALYTICS_TABLE_NAME = var.analytics_table_name, AI_EVIDENCE_SOURCE = "dynamo" }
+      : {},
       var.tavily_api_key != "" ? { TAVILY_API_KEY = var.tavily_api_key } : {},
       var.web_search_scope != "" ? { WEB_SEARCH_SCOPE = var.web_search_scope } : {},
       var.web_search_include_domains != "" ? { WEB_SEARCH_INCLUDE_DOMAINS = var.web_search_include_domains } : {},

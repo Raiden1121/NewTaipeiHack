@@ -395,10 +395,47 @@ evidence 來源抽在 `EvidenceRepository` 介面後面（`src/context/evidenceR
 職缺數」，於是要嘛不敢下判斷、要嘛偷偷自己算；只有 analytics，模型看得到「機會指數
 45.3 分」卻拿不到任何可以點進去查證的來源網址。
 
-`AI_EVIDENCE_SOURCE=curated|analytics` 可以只用其中一個。
-DynamoDB 實作仍待補 —— 架構上正式路徑是
-`Deterministic Analytics → DynamoDB / AI Context → AI Service`，
-但 `AiEvidence` 不變，所以換來源時 handler / prompt / Bedrock 那幾層不用改。
+`AI_EVIDENCE_SOURCE` 有四種值：`analytics`（預設，讀本機快照檔）、
+**`dynamo`（正式路徑，讀 DynamoDB）**、`curated`、`composite`。
+
+### DynamoDB（已實作，但不在 lambda 的 request 路徑上）
+
+⚠️ **`handlers/lambda.ts` 不會自己查表。** 它的 evidence 只從 request body 進來
+（沒有呼叫 `buildAiContext()`）。所以 `AI_EVIDENCE_SOURCE=dynamo` 目前只有
+**`npm run precompute` 與 dev 腳本**會走到。線上的 evidence 由呼叫端（Backend）
+決定，那段程式碼還沒寫。
+
+`Deterministic Analytics → DynamoDB / AI Context → AI Service`。
+`DynamoEvidenceRepository`（`src/context/dynamoRepository.ts`）一次
+`BatchGetItem` 讀最多 8 筆 item。實測 1,167 ms、83 筆 evidence
+（板橋區 / employment）。
+
+**兩種來源產出完全相同的 metricId 與 evidenceId。** 作法是把 DynamoDB 的 item
+**包回快照的巢狀形狀**再餵給同一個 `flattenAnalyticsArtifact`：
+
+```
+{ pk:'DASHBOARD', sk:'POPULATION_TREND', years:[...] }
+  → { annual: { population: { years: [...] } } }
+```
+
+`wrap` 不是裝飾。不包回去的話 metricId 會變成 `years.people_total` 而不是
+`annual.population.people_total`，於是 `ANALYTICS_METRIC_META`、關鍵字表、
+預先算的 fingerprint 全部對不上 —— 而症狀是「本機驗過但線上不一樣」。
+這個假設有對照過真正的寫入端（`modules/analytics_lambda/lambda/dynamodb_projection.py`），
+不只是 seed 腳本。
+
+驗證用 `npm run dev:dynamo-check`，它會把兩種來源的 metricId 逐一比對。
+
+**目前的落差**（`ANALYSIS#*` 那 6 筆還沒接，隊友在補）：
+
+| 主題 | DynamoDB | 本機快照 | 只在本機 |
+|---|---|---|---|
+| employment | 53 種 | 68 種 | 17（scatter 迴歸、policyOutcomes、`knowledge_job_ratio`、`estimated_wage`）|
+| fertility | 54 種 | 95 種 | 48（`citySummary.*`、`daycareCoverage`、`fafi*`）|
+
+反過來 DynamoDB 有兩個本機沒有的：`youthBoroughChiefRatioPercent`、`yrr` ——
+那是 projection 把 111 年的青年里長資料投影成逐區純量，本機要自己從
+`elections.v1_borough_chief.years[]` 挖。
 
 ### analytics published snapshot 怎麼讀
 
@@ -960,8 +997,12 @@ input token 砍掉將近一半，延遲只降 3–26%（而且 n=1，坪林那�
   fallback 成名稱規則，再不行就保守標 `context_only`（不可當青年專屬數據解讀）。
   pipeline 新增指標時，指標會自動被納入 evidence，但**單位會是 null** ——
   這不會壞掉，只是模型少了單位資訊。要精確就得補這張表。
-- DynamoDB evidence repository。架構上正式路徑仍然是 DynamoDB，目前是直接讀
-  analytics 發布出來的快照檔案。
+- **DynamoDB 的 `ANALYSIS#*` 那 6 筆還沒接**（隊友在補）。employment 主題少 17 種
+  指標、fertility 少 48 種，清單見上面「DynamoDB」那節。employment 類的問題可以
+  直接用 `dynamo`，生育／家庭友善會明顯變弱。
+- **`yoiComponents.*` 五個子分數只對焦點行政區取。** 所以問「這區的就業子分數排第幾」
+  時模型會誠實說無法確認 —— 那是刻意的取捨（5 個 × 29 區 = 145 筆 evidence），
+  不是 bug。真的需要就把它們移進 `metricIds` 並重量延遲。
 - RAG。
 - `shared/` 的型別提案還沒同步 `computation` 與 `analytics_metric` 這兩個新增內容。
 - **搜尋 query 在問句已經提到城市時不會補行政區錨點。** `buildSearchQuery()` 為了避免

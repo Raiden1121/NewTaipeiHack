@@ -65,6 +65,9 @@ ai-service/sonnet-*.md
 ai-service/.precomputed/
 # Lambda 的 esbuild bundle（terraform apply 每次自己重建，1.4 MB）
 ai-service/dist-lambda/
+# 把 dev 腳本輸出導向檔案時的暫存（_audit.txt 之類），不是產出物
+ai-service/_*.txt
+ai-service/*.log
 
 #data
 /data-pipeline/data/curated

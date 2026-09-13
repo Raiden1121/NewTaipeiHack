@@ -1,17 +1,28 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useYouthKeywordFrequency } from "@/lib/api/queries";
 import type { YouthKeywordFrequencyAnalysis } from "@/lib/api/types";
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+// 字級縮小、字重降低：懷疑被切到是粗體大字在瀏覽器算合成粗體（synthetic bold）
+// 時，實際筆畫寬度比字型量測值更寬所致，先用較小字級＋較輕字重降低風險，
+// 待之後有瀏覽器可實測時再回頭精修。
 const FONT_SIZE: Record<number, number> = {
-  5: 32,
-  4: 25,
-  3: 20,
-  2: 16,
-  1: 13,
+  5: 80,
+  4: 70,
+  3: 60,
+  2: 50,
+  1: 45,
 };
+
+function fontWeightFor(weight: number) {
+  return weight >= 4 ? 700 : weight >= 3 ? 600 : 500;
+}
 
 // 僅使用 tailwind theme token 對應的 fill 類別（不寫死色碼）。
 const FILL_PALETTE = [
@@ -37,6 +48,9 @@ interface PlacedWord {
   weight: number;
   rotate: number;
   fill: string;
+  termFrequency: number;
+  boxW: number;
+  boxH: number;
 }
 
 interface Box {
@@ -46,20 +60,40 @@ interface Box {
   h: number;
 }
 
+interface ViewBoxBounds {
+  minX: number;
+  minY: number;
+  width: number;
+  height: number;
+}
+
+// 詞與詞之間額外保留的間距。
+const WORD_GAP = 14;
+
+// 曾嘗試用 getBBox() 量測瀏覽器實際渲染出的字寬字高取代估算值，
+// 但在實測環境下反而更不穩定（懷疑跟量測時機／隱藏容器有關，未能在此環境定位根因）。
+// 改回單純估算，但大幅放寬安全係數，寧可留白多一點也不要有任何重疊或被裁切的風險：
+// 寬度用 1.4 倍字寬 + 較大固定內距，高度同樣加大，外加 14px 額外間距緩衝。
+function estimateTextBox(term: string, fontSize: number) {
+  return {
+    width: term.length * fontSize * 1.4 + 24,
+    height: fontSize * 1.5 + 16,
+  };
+}
+
 // 依重要程度由大到小，沿螺旋外擴尋找不與既有詞碰撞的位置（AABB 碰撞偵測）。
 function layoutWordCloud(topics: { label: string; weight: number }[]): {
   placed: PlacedWord[];
-  viewBox: string;
+  bounds: ViewBoxBounds;
 } {
-  const sorted = [...topics].sort((a, b) => b.weight - a.weight);
+  const sorted = [...keywords].sort((a, b) => b.weight - a.weight);
   const boxes: Box[] = [];
   const placed: PlacedWord[] = [];
 
-  sorted.forEach((topic, index) => {
-    const fontSize = FONT_SIZE[topic.weight] ?? FONT_SIZE[1];
+  sorted.forEach((keyword, index) => {
+    const fontSize = FONT_SIZE[keyword.weight] ?? FONT_SIZE[1];
     const vertical = seededUnit(index * 3 + 1) > 0.88;
-    const textW = topic.label.length * fontSize + 14;
-    const textH = fontSize + 12;
+    const { width: textW, height: textH } = estimateTextBox(keyword.term, fontSize);
     const w = vertical ? textH : textW;
     const h = vertical ? textW : textH;
 
@@ -67,28 +101,44 @@ function layoutWordCloud(topics: { label: string; weight: number }[]): {
     let radius = 0;
     let x = 0;
     let y = 0;
+    let placedSafely = false;
 
-    for (let iter = 0; iter < 8000; iter += 1) {
+    for (let iter = 0; iter < 20000; iter += 1) {
       x = Math.cos(angle) * radius;
       y = Math.sin(angle) * radius * 0.6;
       const hit = boxes.some(
         (b) =>
-          Math.abs(b.x - x) * 2 < b.w + w && Math.abs(b.y - y) * 2 < b.h + h,
+          Math.abs(b.x - x) * 2 < b.w + w + WORD_GAP * 2 &&
+          Math.abs(b.y - y) * 2 < b.h + h + WORD_GAP * 2,
       );
-      if (!hit) break;
-      angle += 0.22;
-      radius += 0.5;
+      if (!hit) {
+        placedSafely = true;
+        break;
+      }
+      angle += 0.18;
+      radius += 0.6;
+    }
+
+    // 理論上 20000 步、半徑可達數千單位，不該發生找不到空位；萬一真的發生，
+    // 寧可把詞硬塞到目前群集最外緣正右方，也不要用最後一次仍相撞的座標。
+    if (!placedSafely) {
+      const farRight = boxes.length > 0 ? Math.max(...boxes.map((b) => b.x + b.w / 2)) : 0;
+      x = farRight + w / 2 + WORD_GAP * 2;
+      y = 0;
     }
 
     boxes.push({ x, y, w, h });
     placed.push({
-      label: topic.label,
+      label: keyword.term,
       x,
       y,
       fontSize,
-      weight: topic.weight,
+      weight: keyword.weight,
       rotate: vertical ? -90 : 0,
       fill: FILL_PALETTE[index % FILL_PALETTE.length],
+      termFrequency: keyword.term_frequency,
+      boxW: w,
+      boxH: h,
     });
   });
 
@@ -100,7 +150,7 @@ function layoutWordCloud(topics: { label: string; weight: number }[]): {
 
   return {
     placed,
-    viewBox: `${minX} ${minY} ${maxX - minX} ${maxY - minY}`,
+    bounds: { minX, minY, width: maxX - minX, height: maxY - minY },
   };
 }
 
@@ -126,6 +176,26 @@ export default function YouthTopicWordCloud() {
       : null;
   }, [analysis]);
   const yearRange = coveredYearRange(analysis?.source_periods);
+
+  const hoveredWord =
+    layout && hoveredIndex !== null ? layout.placed[hoveredIndex] : null;
+  // 字級放大很多之後，tooltip 也跟著放大，避免相對於文字雲顯得過小。
+  const tooltipW = 340;
+  const tooltipH = 92;
+  const tooltip =
+    layout && hoveredWord
+      ? {
+          x: clamp(
+            hoveredWord.x - tooltipW / 2,
+            layout.bounds.minX + 2,
+            layout.bounds.minX + layout.bounds.width - tooltipW - 2,
+          ),
+          y: Math.max(
+            layout.bounds.minY + 2,
+            hoveredWord.y - hoveredWord.boxH / 2 - tooltipH - 14,
+          ),
+        }
+      : null;
 
   return (
     <Card>
@@ -156,12 +226,12 @@ export default function YouthTopicWordCloud() {
           <>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <svg
-                viewBox={layout.viewBox}
+                viewBox={`${layout.bounds.minX} ${layout.bounds.minY} ${layout.bounds.width} ${layout.bounds.height}`}
                 className="block h-auto max-h-[380px] w-full"
                 role="img"
-                aria-label="青年關注議題重要程度文字雲"
+                aria-label="青年關注議題重要程度文字雲，滑鼠移至字詞可查看出現次數"
               >
-                {layout.placed.map((word) => (
+                {layout.placed.map((word, index) => (
                   <text
                     key={word.label}
                     x={word.x}
@@ -169,19 +239,56 @@ export default function YouthTopicWordCloud() {
                     textAnchor="middle"
                     dominantBaseline="central"
                     fontSize={word.fontSize}
-                    fontWeight={
-                      word.weight >= 4 ? 800 : word.weight >= 3 ? 700 : 600
-                    }
-                    className={word.fill}
+                    fontWeight={fontWeightFor(word.weight)}
+                    className={cn(word.fill, "cursor-default")}
                     transform={
                       word.rotate
                         ? `rotate(${word.rotate} ${word.x} ${word.y})`
                         : undefined
                     }
+                    onMouseEnter={() => setHoveredIndex(index)}
+                    onMouseLeave={() => setHoveredIndex(null)}
                   >
+                    <title>
+                      {word.label}：出現次數 {word.termFrequency.toLocaleString("zh-Hant-TW")}
+                    </title>
                     {word.label}
                   </text>
                 ))}
+
+                {hoveredWord && tooltip && (
+                  <g pointerEvents="none">
+                    <rect
+                      x={tooltip.x}
+                      y={tooltip.y}
+                      width={tooltipW}
+                      height={tooltipH}
+                      rx={14}
+                      fill="#10233f"
+                    />
+                    <text
+                      x={tooltip.x + tooltipW / 2}
+                      y={tooltip.y + 36}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fill="#ffffff"
+                      fontSize={32}
+                      fontWeight={700}
+                    >
+                      {hoveredWord.label}
+                    </text>
+                    <text
+                      x={tooltip.x + tooltipW / 2}
+                      y={tooltip.y + 68}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fill="#cbd5e1"
+                      fontSize={22}
+                    >
+                      出現次數 {hoveredWord.termFrequency.toLocaleString("zh-Hant-TW")}
+                    </text>
+                  </g>
+                )}
               </svg>
             </div>
             <p className="text-[11px] text-slate-400">

@@ -135,7 +135,10 @@ export default function ParticipationHotspotList({
                         </span>
                       </span>
                       <span className="text-sm font-bold text-slate-900">
-                        {district.youthCandidacyRatePer100k ?? "—"}
+                        {district.youthCandidacyRatePer100k === null ||
+                        district.youthCandidacyRatePer100k === undefined
+                          ? "—"
+                          : Math.round(district.youthCandidacyRatePer100k)}
                       </span>
                     </button>
                   </li>

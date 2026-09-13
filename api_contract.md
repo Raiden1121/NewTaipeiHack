@@ -27,23 +27,22 @@ Backend API 的形狀（endpoint、envelope、錯誤碼）已由下列文件定�
 | `ai-service` | 政策問答、RAG、Bedrock | 統計指標 |
 | `frontend` | 只做呈現 | 抓 open data、算指數、ETL |
 
-指標的數值計算一律由 `data-pipeline/src/analytics/` 完成。對本契約指定固定年份的 KPI，Backend 可在 snapshot loader／projection 階段固定讀取年份並做 response shape projection 與欄位映射（例如 YRR 固定取 111 年）；request-time handler **不得重新計算指標**，前端也不得從這類 Series 自行挑年份或計算。
+指標一律由 `data-pipeline/src/analytics/` 算完才發布。Backend 在 request 期間**不做任何計算**，前端也不做。
 
 ### 0.3 資料現況基準
 
 本文件所有「現況」欄位，比對的是這份實際產出：
 
 ```
-data-pipeline/data/analytics/published/dev-full-youth-keyword-20260913/
+data-pipeline/data/analytics/published/dev-homepage-20260911/
 ├── manifest.json
 ├── dashboard_overview.json      (578 KB)
 └── district_details.json        (147 KB)
 ```
 
-- `snapshot_id`: `dev-full-youth-keyword-20260913`
-- `generated_at`: `2026-09-12T17:41:50.918015+00:00`
-- `manifest.schema_version`: `1`
-- `dashboard_overview.calculation_version`: `"2"`（`calculation_version` 是 artifact-level metadata，不是 manifest 的 snapshot-level 欄位）
+- `snapshot_id`: `dev-homepage-20260911`
+- `generated_at`: `2026-09-11T13:12:09Z`
+- `calculation_version`: `1`
 - `time_policy.annual_years_roc`: `[110, 111, 112, 113, 114]`
 - `time_policy.election_years_roc`: `[103, 107, 111]`
 - 29 區齊全，`districts[]` 內**沒有任何 null 欄位**
@@ -71,8 +70,8 @@ data-pipeline/data/analytics/published/dev-full-youth-keyword-20260913/
   "data": { },
   "meta": {
     "api_version": "v1",
-    "snapshot_id": "dev-full-youth-keyword-20260913",
-    "generated_at": "2026-09-12T17:41:50.918015+00:00",
+    "snapshot_id": "dev-homepage-20260911",
+    "generated_at": "2026-09-11T13:12:09Z",
     "as_of": null,
     "warnings": ["incomplete_village_population_coverage"]
   }
@@ -129,8 +128,8 @@ response 不得包含 `raw_record`、`raw_records`、本地路徑或 stack trace
 
 **本次修正的具體案例**（都是「Series 有了，但沒人告訴前端該怎麼收斂成 Scalar」造成的）：
 
-1. **青年動態文字雲**：pipeline 將所有可用年度合併成一個全期間 keyword payload，API 不帶年份選擇器，也不回傳 `years[]`。`keywords[].term` 是唯一 canonical 欄位；`topics[].label` 只是舊版消費端的相容命名，不代表另一份資料。舊的 `/api/v1/analyses/youth-topic-weight` 只保留為相容 alias，canonical analysis 是 `youth-keyword-frequency`，見 §6.4。
-2. **青年里長占比**：overview 的 `elections.borough_chief_v1[]` 是 3 屆 Series，但前端 KPI 卡不負責挑年份。Backend 必須從 `analyses/participation.json.elections.v1_borough_chief.years[].districts[]` 固定解析 `year_roc = 111`，再將結果投影成 `districts[].youthBoroughChiefRatioPercent`（純量，固定 111 年屆）與 `elections.borough_chief_v1_citywide`（純量，全市加總），見 §6.2。
+1. **`youth-topic-weight`**：底層 pipeline 產出是 5 年 Series（110–114），但 UI 拿掉年份選擇器後只要 1 年。契約已決議：**API 對外固定收斂成 Scalar 輸出**（`{ analysis_id, year_roc: 114, topics: [] }`，不帶 `years` 包裝），底層 Series 留在 pipeline 內部，不對外暴露。見 §6.4。
+2. **青年里長占比**：`elections.borough_chief_v1[]` 是 3 屆 Series，但契約從沒說過 KPI 卡該挑哪一屆——這正是導致它從沒被前端消費、永遠顯示「資料待補」的原因（並非缺資料，是缺「怎麼收斂」的規格）。已補上 `districts[].youthBoroughChiefRatioPercent`（純量，固定 111 年屆）與 `elections.borough_chief_v1_citywide`（純量，全市加總），見 §6.2。
 3. **`policy-outcomes.desiredDirection`**：不是時間維度問題，但同一類錯誤——欄位語意（方向）沒寫清楚，前端只好自己寫死猜測，猜錯一次就對調成 bug。見 §8.1。
 
 **規則**：新增任何「底層有多年資料」的欄位時，契約必須同時回答：(a) 這個欄位是 Scalar 還是 Series；(b) 如果是 Scalar，取的是哪一年／哪一屆、為什麼；(c) 如果是 Series，前端該把它整包畫成圖，還是只是保留供未來使用（不該有任何元件從 Series 裡「挑一個」當作現在的值——這個收斂邏輯永遠該在 Backend 做，不在前端）。
@@ -416,19 +415,19 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 | UI 顯示 | 選取行政區時 | 未選取（全市）時 | 現況 |
 |---|---|---|---|
 | 服務涵蓋率 | `data.metrics.serviceCoverageRate` | `data.service_coverage.value` | ⚠️ **`partial`**。29 區中位數為 **0**，只有少數區有值（板橋 90.79、三重 86.08、中和 90.80、永和 55.13、新莊 41.55）。原因：`youth_service_points` 只有 **9 個據點**（`verified_point_count: 9`），半徑 2500m。全市值 49.23。 |
-| 青年里長占比 | `districts[].youthBoroughChiefRatioPercent`（純量，%）| `elections.borough_chief_v1_citywide.ratio_percent`（純量，%）| ⚠️ `participation` analysis 已有 111 年資料；Backend 尚需固定解析 `year_roc=111` 並投影成這兩個 API Scalar。`ParticipationKpiGrid.tsx` 不得自行從 Series 選年份。 |
-| YRR | `districts[].yrr`（純量）| `elections.borough_chief_v1_citywide.yrr`（純量）| ⚠️ **資料源已存在**：`data-pipeline/src/analytics/youth_participation.py` 的 `calculate_youth_borough_metrics()` 已算出每區每屆的 `yrr`（`(青年當選席次占比) ÷ (青年人口占比)`，`proxy: true` 標記使用人口占比代替真實選舉人年齡結構），發佈於 `analyses/participation.json.elections.v1_borough_chief.years[].districts[].yrr`。目前缺的是 Backend 將固定 111 年結果投影進 `dashboard_overview`，不是 analysis 資料。 |
+| 青年里長占比 | `districts[].youthBoroughChiefRatioPercent`（純量，%）| `elections.borough_chief_v1_citywide.ratio_percent`（純量，%）| ⚠️ **Mock/種子資料層已接上**（`ParticipationKpiGrid.tsx` 已改讀這兩個欄位），但**真實 pipeline 尚未輸出**——見下方「⚠️ 待 pipeline 補上」。 |
+| YRR | `districts[].yrr`（純量）| `elections.borough_chief_v1_citywide.yrr`（純量）| ⚠️ **2026-09-13 發現：資料源其實已經存在**，不是原本以為的「完全無資料源」。`data-pipeline/src/analytics/youth_participation.py` 的 `calculate_youth_borough_metrics()` 已經算出每區每屆的 `yrr`（`(青年當選席次占比) ÷ (青年人口占比)`，`proxy: true` 標記使用人口占比代替真實選舉人年齡結構），已發布在 `dev-full-20260912-farmland-weights` 快照的 `analyses/participation.json.elections.v1_borough_chief.years[].districts[].yrr`。但**這條計算路徑沒有接進 `dashboard_overview.districts[]`**——`homepage.py` 組 `districts[]` 時呼叫的是另一個更簡單的函式（`elections.py` 的 `calculate_youth_candidacy()`），兩條路徑各自獨立，從未接在一起。 |
 
-> 📌 **青年里長占比／YRR 的時間粒度（見 §1.5）**：overview 的 `elections.borough_chief_v1[]` 底層是 **3 屆 Series**（103／107／111 年，共 87 筆，每區各一筆）；其 authoritative analysis source 是 `analyses/participation.json.elections.v1_borough_chief.years[].districts[]`。這些明細保留給未來歷年比較用。**Backend 必須固定解析 `year_roc = 111`；前端不得從這個陣列自己挑一筆。** 契約定義三組 Scalar 欄位讓前端直接用：
+> 📌 **青年里長占比／YRR 的時間粒度（見 §1.5）**：`elections.borough_chief_v1[]` 底層是 **3 屆 Series**（103／107／111 年，共 87 筆，每區各一筆），但這只是保留給未來歷年比較用的明細，**KPI 卡不該從這個陣列裡自己挑一筆**。契約定義四個 Scalar 欄位讓前端直接用：
 > - `districts[].youthBoroughChiefRatioPercent: number | null` — 該區青年里長席次占比純量，選取行政區時用。
 > - `districts[].yrr: number | null` — 該區 YRR 純量，選取行政區時用。
-> - `elections.borough_chief_v1_citywide: { year_roc, elected_count, youth_elected_count, ratio_percent, yrr, denominator_type, proxy }` — 全市加總純量，未選取時用。`yrr` 全市值**不是**「29 區 yrr 平均」，是先把 `youth_elected_count`／`elected_seat_count`／`youth_population_18_35`／`population_total` 分別加總成全市總數，再套用同一條公式算一次（避免 Simpson's paradox 式的平均誤差）。`proxy` 與 `denominator_type` 沿用 analysis 的來源語意。
+> - `elections.borough_chief_v1_citywide: { year_roc, elected_count, youth_elected_count, ratio_percent, yrr }` — 全市加總純量，未選取時用。`yrr` 全市值**不是**「29 區 yrr 平均」，是先把 `youth_elected_count`／`elected_seat_count`／`youth_population_18_35`／`population_total` 分別加總成全市總數，再套用同一條公式算一次（避免 Simpson's paradox 式的平均誤差）。
 >
 > 全部固定取 **111 年**：103／107 年雖然有候選人與當選人計數，但沒有可靠的候選人年齡分母核對來源，只有 111 年可信賴，跟 `districts[].youthCandidacyRatePer100k`（同樣是里長 V1 資料，只是分母換成青年人口而非總當選席次）用同一屆是一致的——注意 `youthCandidacyRatePer100k`、`youthBoroughChiefRatioPercent`、`yrr` 三者語意都不同（分別是參選密度／席次占比／代表性比值），不要混用。103／107 兩屆的明細留在 `borough_chief_v1[]` 裡不丟棄。
 >
-> `ParticipationKpiGrid.tsx` 已改為讀這幾個 Scalar 欄位（2026-09-12）。Frontend 不帶年份選擇器；Backend 負責從既有 analysis Series 固定取 111 年並回傳上述欄位。
+> `ParticipationKpiGrid.tsx` 已改為讀這幾個 Scalar 欄位（2026-09-12），但目前只有 mock/種子資料層有值，真實 pipeline 資料要等下方待辦完成。
 
-> ⚠️ **Backend projection 責任（2026-09-13）**：Backend 的 snapshot loader／projection stage 讀取既有 `participation` analysis 的 `elections.v1_borough_chief.years[]`，固定篩選 `year_roc = 111`，依 `district_id` 對應 `dashboard_overview.districts[]`，將 `youth_borough_chief_ratio` 映射為 `youthBoroughChiefRatioPercent`、將 `yrr` 映射為 `yrr`。同一批 111 年資料產生 `elections.borough_chief_v1_citywide`：先加總 29 區的 `elected_seat_count`、`youth_elected_count`、`youth_population_18_35`、`population_total`，再計算：`ratio_percent = youth_elected_count / elected_seat_count × 100`；`yrr = (youth_elected_count / elected_seat_count) / (youth_population_18_35 / population_total)`。任一必要分母缺值或為 0 時，對應結果回 `null`；不得平均 29 區的 `yrr`。這是 API shape projection，不修改 `calculate_youth_borough_metrics()` 的計算邏輯；request-time handler 只讀取已投影的 Scalar，不自行挑年份或重新計算。
+> ⚠️ **待 pipeline 補上（2026-09-13 已提供規格給 pipeline 負責人，尚未實作）**：在 `homepage.py` 的 `generate_homepage_data()` 裡額外呼叫一次 `calculate_youth_borough_metrics(election_records, population_records, election_years_roc=config.election_years_roc, districts=resolver.districts)`，取 111 年那筆，把 `youth_borough_chief_ratio` 寫進 `districts[].youthBoroughChiefRatioPercent`、`yrr` 寫進 `districts[].yrr`；並新增 `elections.borough_chief_v1_citywide`（格式仿照既有的 `city_councilor_t1_citywide`），做法見上一條說明的全市加總公式。
 
 `service_coverage` 物件另提供診斷欄位：`radius_m`、`verified_point_count`、`excluded_point_count`、`population_coverage_ratio`（0.9933）、`boundary_village_count`（1039）、`joined_village_count`（1032）、`blocking_reasons`。
 
@@ -442,86 +441,73 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 |---|---|---|
 | 青年局各科別預算比例（長條）| `budget_by_department[]`（`label`、`amount_thousand`、`share_percent`）| ✅ **Pipeline 已有對應資料源**。`participation.json.budget_allocation.items[]` 的 01～04 明細會由 DynamoDB projection 轉成 API shape：`name → label`、`amount ÷ 1000 → amount_thousand`、`share_percent` 原值保留。資料為民國 116 年預算案；DynamoDB writer 尚需部署／執行後 API 才會讀到這批資料。|
 | 年度總預算趨勢（折線）| `data.policy.budgetTrend[]` | ⚠️ 圖表軸標籤已明確標「億元」，確認就是總預算（原本「補助金額 vs 預算」的概念疑慮已解除）。但**佔位數值量級對不上**：前端寫死 110–114 為 52／60／68／82／96 億，實際 `policy.budgetTrend` 只有 112–114 有值且為 **1.49／1.59／1.96 億**，差了 40–50 倍，接上真資料後折線會幾乎貼底 |
-| 青年局預算執行率（環圈）| `data.policy.executionRate` ＋ `data.policy.executionRateYearRoc` | ⚠️ 114 年前年度決算摘要已存在：`source_execution_ratio_percent=93.20`、`settlement_amount=183,283,665`；目前 published snapshot 仍為 `null`，因後補資料尚未完成 authoritative curated replay／analytics projection。另須把「最新法定預算年」與「最新有執行率年」分開查找。 |
+| 青年局預算執行率（環圈）| `data.policy.executionRate` ＋新增 `data.policy.executionRateYearRoc` | ⚠️ **2026-09-13 更正**：113 年執行率其實**已經算出來了**（`87.38%`，`analyses/participation.json.budget.trend[]` 裡 `year_roc:113` 那筆，`settlement_amount: 151,676,193`），上一版契約寫「113 年執行率未計算」是舊資訊。111/112/114 仍是 `null`（111/112 決算 PDF 影像型待 OCR；114 決算本來就還沒出）。**真正的問題是 `_build_homepage_policy()` 的邏輯 bug**：它把「最新法定預算年」（114）跟「最新有執行率的一年」耦合在一起，直接從 114 那列讀 `execution_rate`，而 114 沒有值，所以永遠是 `null`，113 年的真實數字從沒被撈出來過。 |
 
-> ✅ **2026-09-13 已決議**：甜甜圈圖顯示**最新可得的執行率**；目前依已處理來源應為 114 年 `93.20%`，畫面標示「114 年執行率」。113 年 `87.38%` 保留於歷史序列，不作為首頁 Scalar。
+> ✅ **2026-09-13 已決議**：甜甜圈圖顯示**最新可得的執行率**（目前是 113 年 87.38%），不強制對齊「現在」（114 年）——政府決算落後法定預算 1–2 年是正常現象，用最新可得值比空白更有用。畫面上需標明「113 年執行率」而非暗示是本年度。
 >
-> ⚠️ **待 pipeline 補上（2026-09-13 已提供規格，尚未實作）**：`_build_homepage_policy()` 需把「最新法定預算年」（給 `currentBudget`／`budgetYoY` 用，114 不變）跟「最新有執行率的一年」拆成兩個獨立查找；`executionRate`／`executionRateYearRoc` 應取最新可用值 114／`93.20`。對 `prior_year_settlement_summary`，應使用來源提供的 `source_execution_ratio_percent`，保留來源類型與品質資訊，不得拿目前法定預算作為該摘要的分母；在重新發布前，current snapshot 仍可能是 `null`。
+> ⚠️ **待 pipeline 補上（2026-09-13 已提供規格，尚未實作）**：`_build_homepage_policy()` 需把「最新法定預算年」（給 `currentBudget`／`budgetYoY` 用，114 不變）跟「最新有執行率的一年」拆成兩個獨立查找；`executionRate` 改抓 113 年的值，並新增 `executionRateYearRoc: 113` 供前端標註年份。
 
-### 6.4 青年議題全期間動態文字雲（`YouthKeywordWordCloud`）
+### 6.4 青年關注議題文字雲（`YouthTopicWordCloud`）
 
-canonical endpoint 是：
+`GET /api/v1/analyses/youth-topic-weight`（不再帶 `year` 參數，見下方決議）
 
-```text
-GET /api/v1/analyses/youth-keyword-frequency
-```
+⚠️ **這是最接近可用的一項**：analytics 已經跑出來了，只是沒發布進 snapshot。
 
-相容 endpoint 保留：
+> ✅ **2026-09-12 已決議**：前端已拿掉年份選擇器（`YouthTopicWordCloud.tsx` 不再有 `YEARS`/`setYear`），改為單一固定文字雲。**API 固定回傳最新一年（114）的 `topics[]`**，不需要 `year` query 參數。
+>
+> `youth_topic_weight/all.json` 底層仍保留 110–114 完整五年資料，這份歷史序列不丟棄——只是目前 UI 不消費，未來若要做「議題歷年變化」之類的功能可以直接復用，不需重新計算。
 
-```text
-GET /api/v1/analyses/youth-topic-weight
-```
-
-兩個 URL 都讀取同一筆 `ANALYSIS#youth-keyword-frequency`。DynamoDB 不得為舊 endpoint 複製另一筆 keyword item；相容 alias 只做 URL resolution，response 仍回傳 canonical `analysis_id` 與 canonical payload，不回傳舊的 `topics[]` 或 `year_roc`。
-
-#### Canonical response policy
-
-- canonical response 的資料來源、資料欄位與顯示語意以 `keywords[]` 為準；其中 `keywords[].term` 是文字雲顯示文字，`keywords[].weight` 是顯示字級。
-- `topics[].label` 與 `keywords[].term` 在「單一關鍵字文字」的值可以相同，但 `topics[]`／`label` 不是 canonical API 欄位，也不得要求 pipeline 或 DynamoDB 另外產生一份資料。
-- 若仍有舊消費端需要 `{ topics: [{ label, ... }] }`，只能在 API 或 client adapter 邊界將 `keywords[].term` 暫時映射成 `label`；不得因此改變 `analysis_id`、`period_scope`、年度涵蓋範圍或重新計算 `weight`。
-- canonical payload 的 `period_scope` 固定為 `all_available`。因此相容 alias 也不得補寫 `year_roc: 114` 或宣稱這是單一年度資料。
-- 新的 Backend、DynamoDB writer 與 frontend integration 一律使用 `/api/v1/analyses/youth-keyword-frequency` 與 `keywords[].term`；舊 endpoint 僅供既有客戶過渡。
-
-pipeline 使用 `join_proposals` 與 `youth_council_minutes` 的所有可用資料，於 analytics 層進行格式／人名／行政詞清洗、分詞、停用詞過濾與候選詞篩選。raw／curated 內容不修改。
-
-API 對外 payload：
+底層 pipeline 產出（`data-pipeline/data/analytics/youth_topic_weight/all.json`）仍是完整 5 年包：
 
 ```jsonc
 {
-  "analysis_id": "youth-keyword-frequency",
-  "calculation_version": "7",
-  "config_version": "7",
+  "metric_id": "youth_topic_weight",
+  "calculation_version": "1",
   "source_datasets": ["join_proposals", "youth_council_minutes"],
-  "period_scope": "all_available",
-  "source_periods": {
-    "join_proposals": ["109", "110", "111", "112", "113", "114", "115"],
-    "youth_council_minutes": ["109", "110", "111", "112", "113", "114", "115"]
-  },
-  "normalization": "global_max",
-  "weight_normalization": "selected_min_max",
-  "candidate_mode": "policy_relevant",
-  "keywords": [
-    {
-      "term": "居住正義",
-      "weight": 5,
-      "signal": "minutes",
-      "term_frequency": 12,
-      "document_count": 7,
-      "join_mentions": 4,
-      "minutes_mentions": 3,
-      "join_support_score": 36.7,
-      "resolved": true,
-      "escalated": false,
-      "frequency_score": 1.0,
-      "raw_score": 4.2,
-      "ranking_score": 5.0,
-      "policy_relevance": 1.0,
-      "topic_mentions": 3
-    }
+  "normalization": "yearly_max",
+  "years": [
+    { "year_roc": 110, "topics": [
+      { "label": "社會住宅", "weight": 5, "signal": "minutes",
+        "join_mentions": 0, "minutes_mentions": 1,
+        "resolved": true, "escalated": false,
+        "join_support_score": 0.0, "raw_score": 3.0 }
+    ]}
+    // …110–114 共 5 筆
   ]
 }
 ```
 
-`term_frequency`、`document_count`、兩類 mention 與 JOIN 支持度都是跨年度累計。候選詞先通過 `candidate_mode=policy_relevant`：政策詞典命中、政策錨點與標題／議題證據優先；口語／泛用詞與行政詞不因高頻而保留。再從有實際文字證據的候選詞依 `ranking_score` 選最多 23 個，`weight` 只在這批入選詞內以 `selected_min_max` 標準化到 1–5，不補固定議題列。
+**API 對外回傳的形狀**（backend 從上面挑出 `year_roc === 114` 那筆，拆掉 `years` 包裝）：
 
-| UI 顯示 | 欄位 | 規則 |
+```jsonc
+{
+  "analysis_id": "youth-topic-weight",
+  "year_roc": 114,
+  "topics": [
+    { "label": "社會住宅", "weight": 5, "signal": "minutes",
+      "join_mentions": 0, "minutes_mentions": 1,
+      "resolved": true, "escalated": false }
+  ]
+}
+```
+
+| UI 顯示 | 欄位 | 現況 |
 |---|---|---|
-| 關鍵詞文字 | `keywords[].term` | 實際出現在兩個資料源的清洗後文字 |
-| 字級（1–5） | `keywords[].weight` | 入選政策詞的 `selected_min_max` 標準化權重 |
-| 資料涵蓋期間 | `source_periods` | 顯示各來源實際可讀的年度；未知年度仍納入文字統計並記在 quality |
-| 年份選擇器 | — | 不提供；這是全期間 aggregate |
+| 議題文字 | `topics[].label`（取 `years[].year_roc === 114` 該筆）| ✅ |
+| 字級（1–5）| `topics[].weight` | ✅ |
+| ~~年份選擇器 110–114~~ | ~~`years[].year_roc`~~ | 🗑️ **UI 已移除**，不再需要前端切換；backend 固定取 114 |
 
-缺少來源、資料不足或清洗後沒有候選詞時，使用 published quality／API status 表達，不以 `raw_score: 0` 補造不存在的 keyword。`keywords.length` 為符合政策相關性條件的候選數量與 23 的較小值。
+**待辦**：把 `youth_topic_weight` 加進 `manifest.artifacts.analyses`，`publish_homepage_snapshot()` 目前只寫 `dashboard_overview` 與 `district_details`。發布時只需固定取 `years[].year_roc === 114` 那一筆的 `topics[]`，不必整包 5 年都送到前端。
+
+> 另有 `youth_keyword_frequency/all.json`（`calculation_version: 5`），但其 top terms 是「問題／台灣／以及／工作／應該／一個」等**未濾除的常見詞**，不適合直接當文字雲。文字雲請用 `youth_topic_weight`（22 個固定議題詞），不要用 keyword_frequency。
+
+### 6.5 AI 語言模型回答（各區塊 AI 解讀 + 頁面級政策建議）
+
+**不在本契約範圍**，形狀定義於 **[`ai-service/ai_api_contract.md`](ai-service/ai_api_contract.md)**。
+
+摘要：前端不直接呼叫 ai-service，一律經 `POST /api/v1/assistant`（backend 代理，**backend 尚未實作此 route**）；action 為 `explain`（§6.1–§6.4 四個區塊各一張）與 `policyCopilot`（頁面級一張）。因單次生成實測 50–58 秒、超過 API Gateway HTTP API 固定的 30 秒上限，這兩個 action **只讀預先算好的結果**，未命中回 `503 AI_RESULT_NOT_READY`，不即時計算。
+
+本節（§6.1–§6.4）定義的欄位語意就是那些 AI 卡的 evidence 來源。兩份文件對同一欄位的說明必須一致；語意有變動時**兩邊都要改**，否則模型會拿正確的數字配錯誤的解讀。
 
 ---
 
@@ -618,7 +604,7 @@ API 對外 payload：
 >
 > 🔴 **新增 `desiredDirection` 欄位，原因**：`PolicyOutcomeTracker.tsx` 的 `trendColor()` 對 up/down 只有一套寫死的顏色規則，但這兩張卡的「好壞方向」相反——薪資漲是好事（`up` 該綠）、青年人口跌才是被追蹤的警訊（`down` 才是壞事，`up` 才該綠）。2026-09-12 的改動把 up/down 顏色對調了一次，套用到兩張卡上必有一張會判斷反：現況是「薪資成長 +2.8%」被畫成警示色（`text-risk-high`），看起來像壞消息。契約補一個 `desiredDirection: "up"|"down"` 每指標各自標明，前端依此決定顏色，不要用共用的 `trend` 欄位硬判。
 >
-> ⚠️ **Mock/種子資料層已有這個欄位**（前端也已接上），**但真實 pipeline 尚未輸出**——2026-09-13 查證 `dev-full-youth-keyword-20260913` 快照的 `analyses/policy_support.json.policyOutcomes` 完全沒有 `desiredDirection`。
+> ⚠️ **Mock/種子資料層已有這個欄位**（前端也已接上），**但真實 pipeline 尚未輸出**——2026-09-13 查證 `dev-full-20260912-farmland-weights` 快照的 `analyses/policy_support.json.policyOutcomes` 完全沒有 `desiredDirection`。
 >
 > ⚠️ **待 pipeline 補上（2026-09-13 已提供規格，尚未實作）**：在 `data-pipeline/src/analytics/policy_support.py` 的 `generate_policy_support_data()` 裡，回傳的物件（目前有 `wageTrend`／`populationTrend`／`currentWageGrowth`／`currentPopGrowth`）加一個同層級的欄位：`"desiredDirection": {"wageGrowth": "up", "populationChange": "up"}`（語意固定、非資料，不需查任何資料源）。
 
@@ -634,7 +620,7 @@ API 對外 payload：
 
 ## 9. 資料現況 Checklist
 
-### ✅ 真值已在 published snapshot，可立即串接（11 項）
+### ✅ 真值已在 published snapshot，可立即串接（13 項）
 
 - [x] 主頁 KPI — 新北青年人口、佔比、YoY
 - [x] 主頁 29 區機會指數地圖（⚠️ 需重訂著色門檻）
@@ -647,9 +633,12 @@ API 對外 payload：
 - [x] 主頁 青年總預算＋YoY＋近五年趨勢（⚠️ 單位千元、110/111 為 null）
 - [x] 施政 人口走勢圖（資料在 `annual.population`，只差組陣列）
 - [x] 施政 人口成長率大字 `currentPopGrowth`（2026-09-12 已在 API 產出，與 `kpis.cityYouthPopulationYoY` 一致）
-### ✅ analytics 已算出並以 canonical 形狀發布（1 項）
+- [x] 參政 青年里長占比（2026-09-12 修好：新增 `districts[].youthBoroughChiefRatioPercent` 與 `elections.borough_chief_v1_citywide`，`ParticipationKpiGrid.tsx` 已接上，見 §6.2）——⚠️ 僅 mock/種子資料層，真實 pipeline 尚未輸出，見下方「⚠️ 已提供 pipeline 規格」
+- [x] 施政 `desiredDirection`（2026-09-12 API 已產出並接上 `PolicyOutcomeTracker.tsx`，見 §8.1）——⚠️ 僅 mock/種子資料層，真實 pipeline 尚未輸出，見下方「⚠️ 已提供 pipeline 規格」
 
-- [x] **參政 青年議題全期間動態文字雲** — `youth_keyword_frequency` 已改為全期間聚合，清洗後發布 `keywords[]`；`keywords[].term` 是 canonical 顯示欄位；舊 `youth-topic-weight` URL 只讀同一筆 `ANALYSIS#youth-keyword-frequency` 並回傳 canonical payload，不回傳 `topics[]`／`year_roc`
+### ⚠️ analytics 已算出，但未發布進 snapshot（1 項）
+
+- [ ] **參政 青年關注議題文字雲** — `youth_topic_weight/all.json` 已有資料；UI 年份選擇器已移除（2026-09-12），只需固定發布 114 年那筆 `topics[]` 進 `manifest.artifacts.analyses`
 
 ### ⚠️ 部分可用，資料覆蓋不足（2 項）
 
@@ -662,9 +651,9 @@ API 對外 payload：
 
 ### ⚠️ 資料源已存在，已提供 pipeline 規格但尚未實作（2026-09-13，4 項）
 
-- [ ] **參政 YRR ＋ 青年里長占比接進 `dashboard_overview`** — analysis 已有每區每屆 `yrr`／`youth_borough_chief_ratio`；Backend 尚未依本契約固定解析 `year_roc=111`，並投影至 overview 的 district／citywide Scalar。規格見 §6.2。
+- [ ] **參政 YRR ＋ 青年里長占比接進 `dashboard_overview`** — `youth_participation.py` 的 `calculate_youth_borough_metrics()` 已算出每區每屆 `yrr`／`youth_borough_chief_ratio`（`dev-full-20260912-farmland-weights` 快照可查證），但 `homepage.py` 組 `districts[]` 時走的是另一條沒有這兩個欄位的路徑。規格見 §6.2。
 - [ ] **生育「較平均」×2**（`birthsVsCityAvg`／`youthShareVsCityAvg`）— city／district 原始值都已在 response 裡，只差 backend 算兩個衍生欄位。規格見 §7.2。
-- [ ] **參政 預算執行率資料接線與年份選擇** — 114 年前年度決算摘要及來源執行率 `93.20%` 已存在 raw／curated staging，但 current published snapshot 仍為 `null`；`_build_homepage_policy()` 必須分開選取最新法定預算（114）與最新可用執行率（114），並輸出 `executionRateYearRoc: 114`。規格見 §6.3。
+- [ ] **參政 預算執行率年份耦合 bug** — 113 年執行率（87.38%）其實已算出來，但 `_build_homepage_policy()` 誤把它跟「最新法定預算年」（114，無執行率）綁在一起，永遠讀到 null。規格見 §6.3。
 - [ ] **施政 `desiredDirection`** — 語意固定不需查資料源，只是 `policy_support.py` 的 `generate_policy_support_data()` 從沒輸出這個欄位。規格見 §8.1。
 
 ### ❌ 算法已定義，但欄位未產出（5 項）
@@ -675,9 +664,10 @@ API 對外 payload：
 - [ ] **生育 FaFI 友善度** — 三項輸入只有 `housing` 齊備
 - [ ] **施政 薪資成長率＋走勢** — `wages` 110–113 已有，只差 analytics
 
-### ❌ 無資料源，需新建 collector（1 項）
+### ❌ 無資料源，需新建 collector（2 項）
 
 - [ ] **參政 青年局各科別預算比例**（2026-09-12 取代原「補助地區分布」）— `youth_budgets` 的 `business_plan` 只有 3 類，對不上前端 4 個新科別名稱，需向青年局確認是否有更細的科別／計畫別決算拆分
+- [ ] **參政 預算執行率 111/112/114** — 111/112 決算 PDF 為影像型待 OCR；114 決算本來就還沒出。113 年**已有真值**，見上方「⚠️ 已提供 pipeline 規格」
 
 ### ❌ 前端硬編、pipeline 無對應概念（4 項）
 
@@ -705,17 +695,17 @@ API 對外 payload：
 | 11 | `EDGRDESC`（職缺學歷）未在 curated keys | `job_vacancies` transform | 確認是否穩定輸出 |
 | 12 | 年齡口徑文案殘留 20–39 / 20–35 | 生育頁、施政頁 | 全部改 18–35 |
 | 13 | `yoiComponents.talent` 仍含學校所在地 proxy | `college_majors` 為學校所在地；人口欄位為結構與變動訊號，不等同人才品質 | 已改為青年人口佔比 0.4、青年人口 YoY 0.4、大專學生密度 0.2；總權重 0.15，UI 可加註 |
-| 14 | 青年動態文字雲需排除常見詞、人名與行政格式 | `youth_keyword_config.json`、`youth_keyword_cleaning.json` | 已改為全期間清洗後的 canonical `keywords[]`，保留政策複合詞；舊 URL 只作讀取同一 canonical item 的 API alias，不產生 `topics[]` 副本 |
+| 14 | `youth_keyword_frequency` top terms 為未濾除常見詞 | `youth_keyword_config.json` | 文字雲改用 `youth_topic_weight` |
 | 15 | 就業散佈圖 Plot 2 的 `yLabel` 仍是「房價所得比（倍）」，未跟上文件決議的「每坪平均房價」 | `CrossAnalysisScatter.tsx` | 已於 2026-09-12 決議採文件版並改字串，已完成 |
-| 16 | 文字雲年份選擇器／年度分組已移除 | `youth_keyword_frequency` analytics、`api_contract.md` §6.4 | 已改為全期間 canonical `keywords[]` 契約；不得由 alias 或 adapter 補回 `year_roc`；消費端同步不改變 canonical contract |
+| 16 | 文字雲年份選擇器已移除，UI 改為單一固定畫面 | `YouthTopicWordCloud.tsx` | 已於 2026-09-12 決議固定回傳 114 年，見 §6.4；`year` query 參數不再需要 |
 | 17 | 「資源投入與產出」第一張圖從地區別補助換成部門別預算比例，且新科別名稱對不上 `youth_budgets.business_plan` 既有 3 類 | `ResourceIoCharts.tsx` | 見 §6.3；需與青年局確認決算科別拆分口徑 |
 | 18 | `PolicyOutcomeTracker` 的 up/down 顏色寫死且方向對調，兩張卡好壞方向相反卻共用同一規則，薪資成長 +2.8% 現顯示為警示色 | `PolicyOutcomeTracker.tsx` | ✅ 2026-09-12 已修：API 加 `desiredDirection`，前端改讀它，拿掉本地寫死常數 |
-| 19 | **Repo 與部署可能脫鉤**：API contract 的 canonical keyword response 是 `youth-keyword-frequency`／`keywords[].term`；`youth-topic-weight` 只能解析到同一筆 canonical item，不得回復成 `topics[]`／`year_roc` 舊格式。正式環境是否已部署到此契約，必須以實際 API response 驗證，不能只依 repo 或 frontend fixture 推定 | `handler.py`、DynamoDB writer、部署環境 | 部署與 writer 必須同時遵守 §6.4 的 canonical response policy；若實際環境仍回傳舊格式，視為部署／資料投影未完成，不修改 canonical contract |
-| 20 | 青年里長占比的 3 屆 Series 不由前端挑選；Backend 必須固定解析 111 年並投影為 KPI Scalar | `Backend projection`、`ParticipationKpiGrid.tsx` | ✅ 契約已固定 `year_roc=111`，前端改讀 `districts[].youthBoroughChiefRatioPercent` 與 `elections.borough_chief_v1_citywide`，見 §6.2；真實 Backend projection 尚待接上 |
+| 19 | **Repo 與正式部署脫鉤**：`infrastructure/modules/api/lambda/handler.py` 唯一一次 commit（`fee5418`）的內容，與 `frontend/.env` 指向的正式 API Gateway 實際回傳的內容不一致——正式環境已經是對的（`youth-topic-weight` 攤平格式、`budget_by_department`、`desiredDirection` 都在），但 repo 裡的原始碼還是舊的錯誤版本。代表有人手動改過部署但沒 commit，下次 `terraform apply` 會把正式環境打回錯誤格式 | `handler.py` | ✅ 2026-09-12 已修：重寫 `handler.py` 對齊正式環境的回應，另外補上 `youthBoroughChiefRatioPercent`／`borough_chief_v1_citywide`（正式環境目前還沒有，需要重新部署）；**部署本身需要另外執行 `terraform apply`，本次只改了原始碼，沒有觸發部署** |
+| 20 | 青年里長占比從未被前端消費：`elections.borough_chief_v1[]` 資料齊全，但契約沒寫「KPI 卡該收斂成哪一年」，導致沒人接，永遠顯示「資料待補」——這是 §1.5 新增時間粒度規則要解決的典型案例 | `ParticipationKpiGrid.tsx` | ✅ 2026-09-12 已修：新增 `districts[].youthBoroughChiefRatioPercent` 與 `elections.borough_chief_v1_citywide` 兩個 Scalar 欄位（固定 111 年屆），前端改讀這兩個欄位，見 §6.2 |
 | 21 | `PoliticsResourceIoAnalysis` 型別的 `geo_level` 寫 `"district"`、`grants_by_district: unknown[]` 是從未用過的死欄位，跟正式環境實際回傳的 `geo_level: "county"`（且無此欄位）不符 | `frontend/src/lib/api/types.ts` | ✅ 2026-09-12 已修：`geo_level` 改 `"county"`，`grants_by_district` 刪除，`budget_by_department` 改為必要欄位（不再是 optional）|
 | 22 | **Lambda 已改架構，但正式環境目前吃的是測試種子資料**：`infrastructure/modules/api/lambda/handler.py` 已重寫為純粹從 DynamoDB 讀取、原樣轉發（不再有任何寫死 mock 產生邏輯），架構上是對的——但目前 `/api/v1/catalog` 回傳 `snapshot_id: "local-test-data"`、`calculation_version: "test"`，代表 DynamoDB 裡現在存的是 `infrastructure/scripts/seed_test_data.py` 灌的測試資料，不是 data-pipeline 真正算出來的 snapshot。連帶地，`types.ts`／本文件已經寫了的 6 個較新欄位（`yoiRaw`、`youth_ratio`、`youth_yoy`、`vacancies_per_km2`、`salary_sample_size`、`salary_median_shrunk`）目前**不存在**於任何一筆正式回應——種子腳本與現有 Lambda 都完全沒提到這幾個名字，不是 Lambda 忘記轉發，是這幾個欄位根本還沒進到 DynamoDB。好消息是沒有任何前端元件已經在讀這 6 個欄位（已逐一 grep 確認），所以現在不是活躍 bug，只是「還沒串到正式資料」的已知狀態 | DynamoDB 資料、`seed_test_data.py` | ⏳ 待處理：需要一支「把 data-pipeline 的 published snapshot 寫進 DynamoDB」的載入程式（`handler.py` 開頭註解已預留這個角色，但 repo 裡還找不到這支程式，只有測試用的 seed script）；寫入之後這 6 個欄位會直接透過既有 Lambda 原樣出現，不需要再改 Lambda 程式碼 |
-| 23 | **`dev-full-youth-keyword-20260913` 快照形狀跟契約定義的扁平 API 形狀不一樣**：pipeline 的五個 analyses 檔案（`employment.json`／`fertility.json`／`participation.json`／`policy_support.json`／`keyword_frequency.json`）是「一頁一個大檔、巢狀塞多個分析」的結構，跟契約定義的以 `analysis_id` 為單位的扁平端點完全不同（例如 `participation.json.budget_allocation.items[]` vs 契約要的 `budget_by_department[]`）。直接把這些檔案灌進 DynamoDB 不會自動可用，需要一層轉換／載入程式 | 尚無載入程式 | ⏳ 待處理：需要寫一支把巢狀 pipeline 輸出映射成契約扁平形狀的轉換層，同時解決 #22 的「灌真資料進 DynamoDB」 |
-| 24 | **YRR／青年里長占比／執行率／`desiredDirection` 四項，資料源都已存在或欄位已定義，但沒有接進最終輸出**——YRR 與青年里長占比已算出，但尚未依 Backend 固定 111 年的規則投影進 `dashboard_overview`；114 年決算摘要及 `93.20%` 已存在 raw／curated staging，但尚未進入 current published snapshot，且最新法定預算與最新執行率必須分開選取；`desiredDirection` 純語意欄位但 `policy_support.py` 從沒輸出。共同點是資料或邏輯不缺，缺的是最後的 response 接線 | `Backend projection`、`homepage.py`、`policy_support.py` | 📋 2026-09-13 已將責任與欄位規格寫入 §6.2／§6.3／§8.1，尚未完成實作 |
+| 23 | **`dev-full-20260912-farmland-weights` 快照形狀跟契約定義的扁平 API 形狀不一樣**：pipeline 的六個 analyses 檔案（`employment.json`／`fertility.json`／`participation.json`／`policy_support.json`／`topic_weight.json`／`keyword_frequency.json`）是「一頁一個大檔、巢狀塞多個分析」的結構，跟契約定義的以 `analysis_id` 為單位的扁平端點完全不同（例如 `participation.json.budget_allocation.items[]` vs 契約要的 `budget_by_department[]`）。直接把這些檔案灌進 DynamoDB 不會自動可用，需要一層轉換/載入程式 | 尚無載入程式 | ⏳ 待處理：需要寫一支把巢狀 pipeline 輸出映射成契約扁平形狀的轉換層，同時解決 #22 的「灌真資料進 DynamoDB」 |
+| 24 | **YRR／青年里長占比／執行率／`desiredDirection` 四項，真實 pipeline 的資料源都已存在或欄位已定義，但沒有接進最終輸出**——YRR 與青年里長占比算完了但沒進 `dashboard_overview.districts[]`（`homepage.py` 走了另一條沒有這兩個欄位的路徑）；執行率 113 年真值存在但被 `_build_homepage_policy()` 的年份耦合 bug 蓋住；`desiredDirection` 純語意欄位但 `policy_support.py` 從沒輸出。三者共同點：資料或邏輯都不缺，缺的是「接線」，跟 #20 同一類問題，只是這次發生在 pipeline 內部而非前端 | `homepage.py`、`policy_support.py` | 📋 2026-09-13 已把三份規格交給 pipeline 負責人（見 §6.2／§6.3／§8.1 的「待 pipeline 補上」），尚未實作。Claude 曾直接改過 `annual_metrics.py`／`homepage.py`，因 pipeline 非 Claude 維護而 revert，改用文字規格取代 |
 
 ---
 

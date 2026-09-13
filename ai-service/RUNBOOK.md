@@ -122,6 +122,31 @@ npm run dev:metric-audit -- --strict   # 有指標不在對照表就 exit 1（�
 （`retentionRiskLevel=low` 這類分級字串、Shannon 指數、迴歸的 r²），
 所以 `--strict` 只看 `missingFromMeta`，不看 `noUnit`。
 
+### 讀 DynamoDB（正式路徑）
+
+```powershell
+# DynamoDB 只認 SigV4，BEDROCK_AUTH=bearer 對它沒有用
+$env:AWS_ACCESS_KEY_ID="..."
+$env:AWS_SECRET_ACCESS_KEY="..."
+$env:AWS_SESSION_TOKEN="..."
+$env:ANALYTICS_TABLE_NAME="newtaipei-youth-analytics"
+
+npm run dev:dynamo-check                    # 驗連線 + 比對 metricId
+npm run dev:dynamo-check -- 板橋區 fertility  # 換主題看落差
+
+$env:AI_EVIDENCE_SOURCE="dynamo"
+npm run dev:ask -- "為什麼樹林區的青年機會指數這麼高？" 樹林區 employment
+```
+
+`dev:dynamo-check` 的重點是**跟本機快照比對 metricId**。兩邊不一致代表切換來源會
+讓預先算的 fingerprint 失效、prompt 內容改變、關鍵字表對不上指標。
+
+實測（板橋區 / employment）：一次 `BatchGetItem` 1,167 ms、83 筆 evidence。
+
+**憑證是兩套,不要混淆**：Bedrock 用 `BEDROCK_AUTH=bearer`（`CLAUDE_KEY`），
+DynamoDB 只能用 SigV4。臨時憑證（`ASIA` 開頭）過期的症狀是
+`The security token included in the request is expired`。
+
 ### 驗證模型有沒有守規矩
 
 ```powershell
@@ -142,7 +167,8 @@ npm run dev:bedrock-smoke      # 最小的一次真實呼叫，確認憑證與�
 |---|---|---|
 | `BEDROCK_AUTH` | 自動 | 設 `bearer` 用 `CLAUDE_KEY`；臨時憑證過期時用 |
 | `AI_PRECOMPUTE_DIR` | 未設＝關閉 | 預先算結果的位置 |
-| `AI_EVIDENCE_SOURCE` | `analytics` | `curated` / `composite` 可切換 |
+| `AI_EVIDENCE_SOURCE` | `analytics` | `dynamo` / `curated` / `composite` 可切換 |
+| `ANALYTICS_TABLE_NAME` | — | `AI_EVIDENCE_SOURCE=dynamo` 時必要 |
 | `AI_ANALYTICS_SNAPSHOT_ID` | `current.json` 指定的 | 指定讀哪個快照 |
 | `AI_DATA_DIR` | `../data-pipeline/data` | 資料目錄 |
 | `WEB_SEARCH_SCOPE` | `all` | 設 `trusted` 只搜 `gov.tw` / `edu.tw` |

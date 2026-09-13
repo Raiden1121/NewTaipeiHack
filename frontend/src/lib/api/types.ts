@@ -240,12 +240,18 @@ export interface YouthKeyword {
   /** 1–5 顯示字級。 */
   weight: number;
   signal: string;
+  term_frequency: number;
+  document_count: number;
   join_mentions: number;
   minutes_mentions: number;
+  join_support_score: number;
   resolved: boolean;
   escalated: boolean;
-  join_support_score: number;
+  frequency_score: number;
   raw_score: number;
+  ranking_score: number;
+  policy_relevance: number;
+  topic_mentions: number;
 }
 
 // canonical 全期間 payload，見 api_contract.md §6.4：沒有 year_roc，也沒有 topics[]。
