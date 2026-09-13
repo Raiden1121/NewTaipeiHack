@@ -62,7 +62,7 @@ export default function ParticipationOverviewCard() {
               </span>
             </div>
             <p className="mt-1 text-[11px] text-slate-400">
-              民國 {latestCandidacy?.year_roc ?? "—"} 年，僅此屆有完整人口分母可計算
+              民國 111 年，僅此屆有完整人口分母可計算
             </p>
           </div>
           <div className="rounded-xl bg-slate-50 p-3">
