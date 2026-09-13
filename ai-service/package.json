@@ -19,10 +19,15 @@
     "precompute": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/precompute/runBatch.ts",
     "dev:precompute-check": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runPrecomputeCheck.ts",
     "dev:metric-audit": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runMetricMetaAudit.ts",
+    "dev:ask": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runAsk.ts",
+    "sync:metric-config": "tsx src/dev/syncAnalyticsConfig.ts",
+    "dev:dynamo-check": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/runDynamoCheck.ts",
     "dev:dump-prompt": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dev/dumpPrompt.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.700.0",
+    "@aws-sdk/client-dynamodb": "3.1130.0",
+    "@aws-sdk/lib-dynamodb": "3.1130.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

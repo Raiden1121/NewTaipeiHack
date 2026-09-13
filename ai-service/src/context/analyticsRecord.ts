@@ -426,12 +426,10 @@ export const ANALYTICS_METRIC_META: Readonly<Record<string, MetricMeta>> = {
   cityYouthPopulation: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
   cityYouthPopulationShare: { unit: '%', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
   cityYouthPopulationYoY: { unit: '%', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
-  // kpis.nationalYouthPopulationQuality 實測是 'proxy'，所以全國值只能當代理值。
-  nationalYouthPopulation: {
-    unit: '人',
-    youthEligibility: 'proxy_only',
-    ageScope: 'official_age_group_proxy',
-  },
+  // 全國值由 data-pipeline 的 national_population（ODRP014 全國村里 18–35 歲加總）計算，
+  // 口徑與 cityYouthPopulation 相同。只有該資料缺漏時 homepage 才退回常數並標
+  // kpis.nationalYouthPopulationQuality = 'proxy'，那時要以該欄位為準。
+  nationalYouthPopulation: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
   youth_population_18_35: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
 
   // --- 就業機會（api_contract.md §3.1 單位表）---
@@ -741,6 +739,21 @@ export const ANALYTICS_METRIC_META: Readonly<Record<string, MetricMeta>> = {
   amount: { unit: 'TWD', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
   total_amount: { unit: 'TWD', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
   share_percent: { unit: '%', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+
+  // --- 青年議題關鍵詞的評分（keyword_frequency 分析）---
+  // 這 6 個是 dev-full-youth-keyword-20260913 這份快照才開始產出的，
+  // 稽核（npm run dev:metric-audit）抓到的 —— 正是這張表會默默過期的典型例子。
+  // 全部是無量綱的合成分數，所以 unit 是 null 而不是硬填一個單位。
+  join_support_score: {
+    unit: null,
+    youthEligibility: 'context_only',
+    ageScope: 'not_age_specific',
+  },
+  raw_score: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  frequency_score: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  ranking_score: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  policy_relevance: { unit: null, youthEligibility: 'context_only', ageScope: 'not_age_specific' },
+  topic_mentions: { unit: '次', youthEligibility: 'context_only', ageScope: 'not_age_specific' },
 
   // --- 提案漏斗 ---
   count: { unit: '件', youthEligibility: 'context_only', ageScope: 'not_age_specific' },

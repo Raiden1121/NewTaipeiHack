@@ -260,7 +260,7 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 
 | UI 顯示 | 欄位 | 現況 |
 |---|---|---|
-| 全台 18–35 歲青年人口 | `data.kpis.nationalYouthPopulation` = `4820000` | ⚠️ **硬編常數**，`nationalYouthPopulationQuality: "proxy"`。無全國人口 collector。|
+| 全台 18–35 歲青年人口 | `data.kpis.nationalYouthPopulation` | `national_population`（ODRP014 全國村里 18–35 歲加總，與 `cityYouthPopulation` 同月份），`nationalYouthPopulationQuality: "observed"`。該資料缺漏時退回常數 `4820000` 並標 `"proxy"`。|
 | 全台佔比 | — | ❌ 前端 `20.6%` 為寫死，pipeline 無此欄位 |
 | 新北市青年佔總人口比例 | `data.kpis.cityYouthPopulationShare` = `20.914` | ✅ |
 | 新北市青年人口 | `data.kpis.cityYouthPopulation` = `845938` | ✅ |
@@ -671,7 +671,7 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 
 ### ❌ 前端硬編、pipeline 無對應概念（4 項）
 
-- [ ] 主頁 全台青年人口 `4,820,000`（`quality: "proxy"`，無全國人口 collector）
+- [ ] 主頁 全台青年人口為 `national_population` 計算值（`quality: "observed"`）；若顯示 `4,820,000` 且 `quality: "proxy"`，代表 national_population 未上傳或不完整
 - [ ] 主頁 全台佔比 `20.6%`
 - [ ] 主頁 生育卡「對全市平均比 92%」（全市層級無比較對象，應改顯示 YoY）
 - [ ] `policySupportScore` 欄位（只存在於 `districts.csv` fixture）

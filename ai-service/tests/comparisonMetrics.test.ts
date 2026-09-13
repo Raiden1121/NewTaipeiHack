@@ -42,18 +42,57 @@ describe('inferComparisonMetrics', () => {
   });
 
   /**
-   * 跨區指標刻意只放「真的需要排名」的那一兩個，因為每個都會 ×29 筆。
-   * 同主題的其他指標歸 `inferFocusMetrics()`，只對焦點行政區取。
+   * 跨區指標刻意只放「真的需要排名」的那幾個，因為每個都會 ×29 筆 evidence，
+   * 而 input token 直接影響延遲。
+   *
+   * 上限從 3 放寬到 4：薪資那條加了 `adjusted_youth_wage`。理由是使用者說
+   * 「青年薪資」時，誠實的指標是它（youthEligibility=eligible），而
+   * `salary_median` 是全體職缺統計（context_only）。只有它跨區可比，
+   * 模型才能回答「這區的青年實質薪資排第幾」而不是拿全年齡數字代答。
+   *
+   * 這個上限是預算而不是禁令：要再加就要有同等級的理由，並重量延遲。
    */
   it('跨區指標保持精簡（每個都會乘上 29 區）', () => {
     for (const question of ['哪一區薪資最高？', '哪一區租金最貴？', '哪一區生育率最低？']) {
-      expect(inferComparisonMetrics(question).length).toBeLessThanOrEqual(3);
+      expect(inferComparisonMetrics(question).length).toBeLessThanOrEqual(4);
     }
   });
 
-  it('同主題的輔助指標歸 focusMetrics，不進跨區查詢', () => {
-    expect(inferComparisonMetrics('哪一區房價最高？')).not.toContain('yoiComponents.housing');
-    expect(inferFocusMetrics('哪一區房價最高？')).toContain('yoiComponents.housing');
+  /**
+   * 面向分數（`yoiComponents.*`）**要**跨區，輔助指標留在 focus。
+   *
+   * 實測踩到的：「為什麼八里區的青年薪資分數這麼高？」原本 `yoiComponents.salary`
+   * 只在 focusMetricIds，模型只拿到八里自己的 68.12 分，於是回答「無法確認排名」——
+   * 而它其實是 29 區第 2 高。使用者問「分數為什麼高」，問的就是那個分數的排名。
+   */
+  it('面向分數要跨區，但單位換算等輔助指標留在 focus', () => {
+    const comparison = inferComparisonMetrics('哪一區房價最高？');
+    expect(comparison).toContain('yoiComponents.housing');
+    // house_price_median_wan 只是同一個數字換成「萬元」，不需要 29 區都拿
+    expect(comparison).not.toContain('house_price_median_wan');
+    expect(inferFocusMetrics('哪一區房價最高？')).toContain('house_price_median_wan');
+  });
+
+  /**
+   * 這兩題是實測答錯的問法，直接寫成回歸測試。
+   */
+  it('「宜居度」要能命中機會指數（實測漏過）', () => {
+    const metrics = inferComparisonMetrics('怎麼可能新莊的宜居度比板橋還低？板橋房價那麼貴耶');
+
+    expect(metrics).toContain('opportunityIndex');
+    // 句子裡有「房價」，所以住宅分數也要跨區才能比較兩區的居住面向
+    expect(metrics).toContain('yoiComponents.housing');
+  });
+
+  it('「薪資分數」要把分數本身納入跨區（實測漏過）', () => {
+    const metrics = inferComparisonMetrics('為什麼八里區的青年薪資分數這麼高？');
+
+    expect(metrics).toContain('yoiComponents.salary');
+  });
+
+  it('「分數」「指數」本身就算比較意圖（一個 0-100 分單獨看沒有意義）', () => {
+    expect(hasComparisonIntent('八里的薪資分數為什麼這麼高')).toBe(true);
+    expect(hasComparisonIntent('樹林的機會指數怎麼算的')).toBe(true);
   });
 
   it('沒有指名指標但有比較意圖時，給頭條指標', () => {

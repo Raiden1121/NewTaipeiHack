@@ -25,7 +25,7 @@ variable "cloudfront_price_class" {
 variable "bedrock_model_id" {
   description = "Bedrock model / inference profile ID for the AI Service Lambda. See infrastructure/modules/ai_service/variables.tf for the latency tradeoffs behind the default."
   type        = string
-  default     = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+  default     = "us.anthropic.claude-sonnet-4-6"
 }
 
 variable "tavily_api_key" {

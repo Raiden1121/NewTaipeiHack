@@ -21,6 +21,7 @@ from .housing import transform_house_prices, transform_rentals
 from .labor import transform_job_vacancies, transform_job_vacancy_salaries, transform_wages
 from .life_events import transform_births, transform_marriages
 from .mobility import transform_movement
+from .national_population import transform_national_population
 from .population import transform_population
 from .population_villages import transform_population_villages
 from .training import transform_talent_demand, transform_training_numbers, transform_vt_courses
@@ -79,6 +80,7 @@ _GEOGRAPHIC_TRANSFORMS = {
     "youth_grants": transform_youth_grants,
 }
 _PLAIN_TRANSFORMS = {
+    "national_population": transform_national_population,
     "graduate_majors": transform_graduate_majors,
     "training_numbers": transform_training_numbers,
     "talent_demand": transform_talent_demand,

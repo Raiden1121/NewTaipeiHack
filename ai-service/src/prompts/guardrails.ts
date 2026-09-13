@@ -2,6 +2,7 @@ import { evidenceScopeLabel, type AiContext, type AiEvidence } from '../types/ai
 import type { WebFinding } from '../types/webFinding.js';
 import { DISCLAIMER_KEYWORD } from '../types/structuredOutput.js';
 import { SOURCE_REGISTRY } from '../types/sourceAttribution.js';
+import { formatMetricDefinitions } from '../context/metricDefinitions.js';
 
 /**
  * 三個功能（Data Explanation / Policy Copilot / Data Q&A）共用的規則區塊。
@@ -180,6 +181,12 @@ export function buildUserPrompt(context: AiContext, leadingLines: readonly (stri
           '因此 basis 必須留空，所有論點只能引用下方的網路搜尋結果（webReferences），' +
           '並且 limitations 必須明確寫出「本次沒有資料管線的官方統計，以下內容僅來自網路搜尋」。',
     formatEvidenceForPrompt(context.evidence),
+    // 複合指標的算法。放在 evidence **之後**：先看到數字，再看到「這個數字怎麼算的」，
+    // 順序反過來的話模型會先讀一堆公式而不知道要用在哪。
+    //
+    // 只列這次真的用到的指標，而且每個指標只講一次（不隨行政區重複）——
+    // 公式塞進每筆 evidence 的話，同一串字會出現 29 次。
+    formatMetricDefinitions(context.evidence),
     // 網路結果放在 evidence 之後：讓模型先建立「官方資料說什麼」的基準，
     // 再看補充資料。順序反過來會讓網路內容framing整個回答。
     formatWebFindings(context.webFindings),

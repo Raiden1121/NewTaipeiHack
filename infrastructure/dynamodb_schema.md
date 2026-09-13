@@ -1,6 +1,11 @@
 # DynamoDB Schema — Analytics Store
 
-儲存 data-pipeline 發布的 analytics snapshot，供 `infrastructure/modules/api/lambda/handler.py` 讀取後回應 `api_contract.md` 的 5 個端點。`handler.py` 只負責讀；把資料寫進這張表是另一支程式的責任（data-pipeline 把 published snapshot 依下面的 item 清單寫入），本檔案是雙方共用的 schema 定義。表目前是空的：任何端點在 `META/MANIFEST` 不存在時都回 503 `SNAPSHOT_UNAVAILABLE`（`/health` 除外，它回 200 並標示 `manifest_readable: false`）。
+儲存 data-pipeline 發布的 analytics snapshot，供 `infrastructure/modules/api/lambda/handler.py` 讀取後回應 `api_contract.md` 的 5 個端點。本檔案是讀寫兩端共用的 schema 定義：
+
+- **讀**：`handler.py`，只讀不算。
+- **寫**：`modules/analytics_lambda/`（entrypoint `modules/analytics_lambda/lambda/handler.py`），從 transformed data bucket 讀 curated 資料、跑完 analytics 後，由 `modules/analytics_lambda/lambda/dynamodb_projection.py` 依下面的 item 清單投影寫入。
+
+在寫入端跑過一次之前表是空的：任何端點在 `META/MANIFEST` 不存在時都回 503 `SNAPSHOT_UNAVAILABLE`（`/health` 除外，它回 200 並標示 `manifest_readable: false`）。
 
 ## 設計原則
 
@@ -66,6 +71,7 @@ YRR／青年里長占比是固定 111 年的 projection 規則：loader 從 `ana
 - `elections.borough_chief_v1_citywide` 必須使用同一批 111 年 29 區資料，先分別加總 `elected_seat_count`、`youth_elected_count`、`youth_population_18_35`、`population_total`，再寫入：`ratio_percent = youth_elected_count / elected_seat_count × 100`；`yrr = (youth_elected_count / elected_seat_count) / (youth_population_18_35 / population_total)`。不得平均 29 區的 `yrr`；必要分母缺值或為 0 時，對應結果為 `null`。
 - 預算執行率與最新法定預算分開選取：`currentBudget`／`budgetYoY` 取最新法定預算（目前 114），`executionRate`／`executionRateYearRoc` 取最新可用執行率（目前 114／93.20）。`prior_year_settlement_summary` 使用來源的 `source_execution_ratio_percent`，不得用目前法定預算重新當分母。
 - `keywords[]` 只寫入 canonical `ANALYSIS#youth-keyword-frequency` item；`keywords[].term` 是顯示文字。舊 endpoint 的 alias resolution 必須由讀取路由處理，DynamoDB 不建立 `topics[]`／`label` 的 duplicate item。
+- 另外三處也是 projection 補的，因為 published snapshot 的形狀跟契約不同：`ANALYSIS#policy-outcomes` 的 `desiredDirection`（§8.1 的固定語意常數，不是資料）、`ANALYSIS#politics-resource-io` 的 `budget_by_department[]`（來源是 `participation.budget_allocation.items[]`，`amount` 單位是元，契約要千元）、`ANALYSIS#fertility-family-friendliness` 的 `districts[]`（來源 `fertility.fafi.districts` 是以 district_id 為 key 的物件、欄位是 camelCase 的 `fafiScore`／`fafiLevel`）。
 
 ## 讀取端
 

@@ -34,6 +34,13 @@ _ANALYSIS_EXTRA_KEYS = {
     "policy-outcomes": ("DASHBOARD", "POPULATION_TREND"),
 }
 
+# Legacy URL -> canonical analysis_id. Aliases resolve to the same item and
+# return the canonical payload; the table never holds a copy under the old id
+# (api_contract.md §6.4).
+_ANALYSIS_ALIASES = {
+    "youth-topic-weight": "youth-keyword-frequency",
+}
+
 
 class _DecimalEncoder(json.JSONEncoder):
     def default(self, o):
@@ -170,7 +177,7 @@ def _handle_district(match, qs, request_id):
 
 
 def _handle_analysis(match, qs, request_id):
-    analysis_id = match.group(1)
+    analysis_id = _ANALYSIS_ALIASES.get(match.group(1), match.group(1))
     keys = [("META", "MANIFEST"), (f"ANALYSIS#{analysis_id}", "DATA")]
     extra_key = _ANALYSIS_EXTRA_KEYS.get(analysis_id)
     if extra_key:
@@ -190,6 +197,7 @@ def _handle_analysis(match, qs, request_id):
         policy = fetch.get(("DASHBOARD", "POLICY"), {})
         data["budgetTrend"] = policy.get("budgetTrend")
         data["executionRate"] = policy.get("executionRate")
+        data["executionRateYearRoc"] = policy.get("executionRateYearRoc")
     elif analysis_id == "policy-outcomes":
         # populationTrend[] isn't stored on the analysis item (see
         # dynamodb_schema.md) — reshaped here from DASHBOARD/POPULATION_TREND.
@@ -199,9 +207,12 @@ def _handle_analysis(match, qs, request_id):
         population_trend = []
         prev = None
         for y in pop_years:
-            pop = y["city"]["youth_population"]
-            yoy = round((pop - prev) / prev * 100, 2) if prev else None
-            population_trend.append({"year_roc": y["year_roc"], "population": pop, "yoy": yoy})
+            city = y.get("city") or {}
+            # The pipeline's annual.population city row carries youth_18_35_total;
+            # seed_test_data.py writes youth_population. Accept both so neither 500s.
+            pop = city.get("youth_18_35_total", city.get("youth_population"))
+            yoy = round((pop - prev) / prev * 100, 2) if pop is not None and prev else None
+            population_trend.append({"year_roc": y.get("year_roc"), "population": pop, "yoy": yoy})
             prev = pop
         data["populationTrend"] = population_trend
 

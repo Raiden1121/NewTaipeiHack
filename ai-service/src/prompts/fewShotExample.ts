@@ -572,18 +572,97 @@ const FEW_SHOT_WHY_EVIDENCE: AiEvidence[] = [
     sourcePath: 'analytics/published/00000/dashboard_overview.json',
     fetchedAt: '2000-01-01T00:00:00+00:00',
   },
+  // 樣本數：範例的機制（「中位數被少數幾筆高薪職缺推上去」）就是靠它成立的。
+  // 沒有這一筆，範例會示範「引用 evidence 裡不存在的數字」——
+  // 那比清單句式更糟，因為它教的是捏造。
+  {
+    evidenceId: 'analytics_dashboard_overview:00000:示範三區:salary_sample_size',
+    dataset: 'analytics_dashboard_overview',
+    source: 'newtaipei_youth_analytics',
+    sourceRecordId: null,
+    sourceUrl: null,
+    sourceKind: 'dataset',
+    geoLevel: 'district',
+    districtId: '65099930',
+    districtName: '示範三區',
+    period: '00000',
+    periodStart: null,
+    periodEnd: null,
+    periodType: 'snapshot',
+    metricId: 'salary_sample_size',
+    metricSource: 'analytics_metric',
+    value: 12,
+    unit: '筆',
+    computation: 'analytics:dashboard_overview.districts.salary_sample_size @00000',
+    ageScope: 'not_age_specific',
+    youthEligibility: 'context_only',
+    qualityFlags: [],
+    sourcePath: 'analytics/published/00000/dashboard_overview.json',
+    fetchedAt: '2000-01-01T00:00:00+00:00',
+  },
+  // 示範二區的高薪比例：範例用它指出「兩個指標方向相反」的矛盾。
+  // 這一筆讓範例示範「拿跨區資料反過來檢驗自己的解釋」。
+  {
+    evidenceId: 'analytics_dashboard_overview:00000:示範二區:high_salary_ratio',
+    dataset: 'analytics_dashboard_overview',
+    source: 'newtaipei_youth_analytics',
+    sourceRecordId: null,
+    sourceUrl: null,
+    sourceKind: 'dataset',
+    geoLevel: 'district',
+    districtId: '65099920',
+    districtName: '示範二區',
+    period: '00000',
+    periodStart: null,
+    periodEnd: null,
+    periodType: 'snapshot',
+    metricId: 'high_salary_ratio',
+    metricSource: 'analytics_metric',
+    value: 0.012,
+    unit: '比例(0-1)',
+    computation: 'analytics:dashboard_overview.districts.high_salary_ratio @00000',
+    ageScope: 'not_age_specific',
+    youthEligibility: 'context_only',
+    qualityFlags: [],
+    sourcePath: 'analytics/published/00000/dashboard_overview.json',
+    fetchedAt: '2000-01-01T00:00:00+00:00',
+  },
 ];
 
+/**
+ * 「為什麼」類問題的範例。
+ *
+ * ## 這個範例修過一次，原因值得記下來
+ *
+ * 原本的版本示範的是「唸指標」：列出高薪職缺比例、說它「與薪資中位數的方向一致，
+ * 可能與該區職缺結構有關」，最後用「資料本身無法判斷薪資排名的原因」收尾。
+ *
+ * 模型完全照抄了那個模式。實測「為什麼樹林區的機會指數這麼高」拿到的回答是
+ * 「就業子分數 75.80 分、人才 51.42 分、薪資 50.43 分、住宅 30.29 分、
+ * 交通 15.07 分，就業最高」—— 資料全對，但那是報告不是解釋，而且明明已經給了
+ * 權重卻沒有把貢獻度乘出來。
+ *
+ * 所以這個範例現在要示範四件原本沒有的事：
+ *
+ * 1. **算出誰主導**（子分數 × 權重，排出貢獻順序），而不是把五個值唸完
+ * 2. **提出具體到可以被反駁的機制**，並標示那是推論
+ * 3. **主動排除競爭解釋**（小樣本、分母效應、口徑）
+ * 4. **指出互相矛盾的地方** —— 那通常是整題最有價值的發現
+ *
+ * 反過來說，「相關不是因果」這句話不該是結論。它是**過程**：機制講出來、
+ * 標示成推論、說明要怎麼驗證，那才是回答；只寫「無法判斷原因」等於沒回答。
+ */
 export const FEW_SHOT_WHY_OUTPUT: StructuredOutput = {
   answer:
     '示範三區的職缺薪資中位數是 36,500 元/月，在這批資料裡排第 3 高，不是第 2 高' +
     '（第 1 是示範一區 38,000 元，第 2 是示範二區 37,000 元）。' +
-    '就同一份資料能看到的部分，示範三區的高薪職缺比例為 4.60%，' +
-    '這個指標與薪資中位數的方向一致，可能與該區職缺結構有關。' +
-    '不過要提醒兩件事：這兩個指標的 youthEligibility 都是 context_only，' +
-    '是全體職缺的統計而非青年專屬；而且薪資中位數來自求才職缺，' +
-    '如果該區的職缺筆數不多，少數幾筆高薪職缺就足以把中位數拉高。' +
-    '資料本身無法判斷薪資排名的原因，上面說的只是同時出現的現象，不是因果關係。',
+    '這個排名最可能的機制是樣本數太少：示範三區的高薪職缺比例是 4.60%（排第 2），' +
+    '但職缺筆數只有 12 筆，其中 2 筆月薪超過 6 萬 —— 在這種樣本量下，' +
+    '中位數會被少數幾筆高薪職缺整個推上去，並不代表該區的一般薪資水準較高。' +
+    '支持這個判斷的是一個矛盾：示範二區的高薪職缺比例只有 1.2%，' +
+    '中位數卻比示範三區高，兩個指標方向相反，說明中位數在這批資料裡不穩定。' +
+    '要確認機制需要各區的職缺筆數與雇主分布，那兩項目前沒有。' +
+    '另外這兩個指標的 youthEligibility 都是 context_only，是全體職缺統計而非青年專屬。',
   evidenceReview: {
     availableMetrics: [],
     youthSpecificMetrics: [],
@@ -614,14 +693,24 @@ export const FEW_SHOT_WHY_OUTPUT: StructuredOutput = {
     },
     {
       evidenceId: 'analytics_dashboard_overview:00000:示範三區:high_salary_ratio',
-      note: '依據本專案資料管線彙總指標，示範三區高薪職缺比例 4.60%，與薪資中位數方向一致',
+      note: '依據本專案資料管線彙總指標，示範三區高薪職缺比例 4.60%，排第 2',
+    },
+    {
+      evidenceId: 'analytics_dashboard_overview:00000:示範三區:salary_sample_size',
+      note: '依據本專案資料管線彙總指標，示範三區職缺樣本數僅 12 筆 —— 這是「中位數被少數高薪職缺推高」這個機制的關鍵依據',
+    },
+    {
+      evidenceId: 'analytics_dashboard_overview:00000:示範二區:high_salary_ratio',
+      note: '依據本專案資料管線彙總指標，示範二區高薪職缺比例僅 1.2% 但中位數更高，兩指標方向相反，反證中位數不穩定',
     },
   ],
   webReferences: [],
   limitations: [
     '薪資中位數與高薪職缺比例的 youthEligibility 均為 context_only，是全體職缺統計，不是青年專屬薪資。',
-    '職缺薪資中位數的母體是求才職缺，職缺數少的行政區容易被少數高薪職缺拉高，排名不宜過度解讀。',
-    '本次資料無法判斷排名成因，answer 中提到的關聯僅為同時出現的現象，非因果關係。',
+    '職缺薪資中位數的母體是求才職缺，示範三區僅 12 筆，少數高薪職缺即可拉高中位數。',
+    // 這一條的寫法是刻意的：不是「無法判斷成因」（那等於沒回答），
+    // 而是「機制是推論、要驗證需要什麼」。
+    'answer 提出的機制（職缺集中在少數高薪雇主）是推論，資料只能證明樣本數少與兩指標方向相反；要確認機制需要逐筆職缺的雇主分布與職類，本次沒有。',
   ],
   disclaimer: 'AI 建議屬於政策輔助資訊，不代表政府正式政策決定。',
 };

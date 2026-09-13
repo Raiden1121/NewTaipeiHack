@@ -175,7 +175,7 @@ transport = 0.35 公車 + 0.40 軌道 + 0.25 YouBike
 
 **其他 homepage 區塊**
 
-- `kpi.cityYouthPopulation`：114 年最後一個有資料月份的 29 區 `youth_18_35_total` 加總；`YoY` 對 113 年同口徑。`nationalYouthPopulation` 是**寫死常數 4,820,000**，已標 `proxy`。
+- `kpi.cityYouthPopulation`：114 年最後一個有資料月份的 29 區 `youth_18_35_total` 加總；`YoY` 對 113 年同口徑。`nationalYouthPopulation` 取 `national_population`（ODRP014 全國村里 18–35 歲加總）與全市同月份的值，標 `observed`；該資料缺漏或帶 `incomplete_coverage` 時才退回常數 4,820,000 並標 `proxy`。
 - `annual.population`：每個 ROC 年取「該年最後一個有資料的月份」為年值。
 - `annual.fertility`：`18–35 歲母親生育數 ÷ 該年 18–35 歲女性「月平均」人口 × 1000`（分母 = 該年各月加總 ÷ 有資料月數）；`fertilityVsCityAvg = 區 ÷ 全市 × 100`。
 - `annual.budget_trend` / `budget_execution`：法定預算與決算**分開**。`execution_rate = realized_amount ÷ 法定預算 × 100`，且單位不同時先換算（`TWD_thousand → TWD` 乘 1000），單位不相容則回 null 並記 `incompatible_budget_units`。
@@ -292,7 +292,7 @@ weight         = clamp(1,5, floor(1 + 4·ranking_score/max + 0.5))，同樣套 �
 | `vt_course_count` | 缺區補「觀測最小值」 | **29** |
 | `rent_median` | 缺區補全市最小值 | 依資料 |
 | `house_price_median` | 缺區補住宅類最小值；平溪區改用全類型 | 依資料 |
-| 全國青年人口 | 寫死 4,820,000 | 1 |
+| 全國青年人口 | `national_population` 缺漏時才退回 4,820,000 | 0（有資料時） |
 | YRR 分母 | 人口占比取代選舉人名冊 | **87** |
 | 里內人口分布 | 假設均勻，按面積比例分攤 | 全里 |
 
@@ -354,7 +354,7 @@ elections.blocking_reasons → []
 | 14 | 會議紀錄解析品質差 | **50/55 筆 `manual_review_required`**、`resolved` 僅 5 筆、`escalated` 0 筆 | 漏斗 stage 3 只有 5、`escalated` 硬規則（weight=5）從未觸發 |
 | 15 | `join_proposals` 近年幾近空白 | 2021:3082、2022:1516、2023:2356、2024:2727、**2025:19、2026:3** | ROC 114/115 的議題權重幾乎沒有 join 訊號 |
 | 16 | 提案追蹤資料集不存在 | 無此 dataset | 漏斗 **stage 4 tracked / 5 implemented 永遠 null**（設計如此，需新資料源才能解） |
-| 17 | 全國青年人口無資料源 | 寫死 4,820,000 | `kpi.nationalYouthPopulation` 標 `proxy` |
+| 17 | ~~全國青年人口無資料源~~ 已由 `national_population` 補上 | 缺漏時退回 4,820,000 | 只有退回時 `kpi.nationalYouthPopulation` 才標 `proxy` |
 | 18 | `bus_stops` 走 legacy 平面檔 | `curated/bus_stops.json`（2026-09-04），不在 index | `source_period` 標 `legacy_flat_snapshot`，且 4,149 筆對不到區 |
 
 **缺的 7 個里**（里界有、114 年里人口沒有，多為新設里）：

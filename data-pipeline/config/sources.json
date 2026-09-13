@@ -95,6 +95,7 @@
   "dataset_defaults": {
     "population": "moi_household_registration",
     "population_villages": "moi_household_registration",
+    "national_population": "moi_household_registration",
     "movement": "moi_household_registration",
     "births": "moi_household_registration",
     "marriages": "moi_household_registration",

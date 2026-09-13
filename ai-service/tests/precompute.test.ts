@@ -324,6 +324,42 @@ describe('Q&A answer 字數上限', () => {
    * 343 字（沒有超過上限），但完全沒有回答「為什麼」。
    * 它砍掉的是解釋，不是鋪陳，正好跟指示相反。
    */
+  /**
+   * 實測抓到的：模型把「為什麼」答成指標清單。
+   *
+   * 「為什麼樹林區的機會指數這麼高」拿到的是「就業 75.80、人才 51.42、薪資 50.43、
+   * 住宅 30.29、交通 15.07，就業最高」—— 資料全對，但那是報告不是解釋，
+   * 而且明明已經給了權重卻沒有把貢獻度乘出來。
+   *
+   * 根因有兩個，都在 prompt 裡：
+   * 1. 結構要求寫的是「列出方向一致的指標」，那就是在叫它做清單
+   * 2. 「不可講因果」讓它只能退回「兩個指標方向一致」這種安全但無用的句式
+   */
+  it('prompt 要求算出主導因素，不是列出所有因素', () => {
+    const prompt = buildDataQaPrompt(makeRequestContext({ question: '為什麼樹林機會指數高？' }));
+
+    expect(prompt.system).toContain('哪個因素主導');
+    expect(prompt.system).toContain('貢獻度乘出來');
+    // 明確禁止清單句式
+    expect(prompt.system).toContain('清單句式');
+  });
+
+  it('prompt 要求提出機制並標示成推論（不是禁止機制）', () => {
+    const prompt = buildDataQaPrompt(makeRequestContext({ question: '為什麼八里薪資高？' }));
+
+    expect(prompt.system).toContain('最可能的機制');
+    expect(prompt.system).toContain('因果語言是允許的');
+    // 「只說無法判斷原因」等於沒回答，這條要寫出來
+    expect(prompt.system).toContain('等於沒有回答');
+  });
+
+  it('prompt 要求檢查競爭解釋與指出矛盾', () => {
+    const prompt = buildDataQaPrompt(makeRequestContext({ question: '為什麼坪林薪資最高？' }));
+
+    expect(prompt.system).toContain('競爭解釋');
+    expect(prompt.system).toContain('矛盾');
+  });
+
   it('prompt 明確說更正前提不算回答完畢', () => {
     const prompt = buildDataQaPrompt(makeRequestContext({ question: '為何坪林薪資最高？' }));
     expect(prompt.system).toContain('更正前提不算回答完畢');

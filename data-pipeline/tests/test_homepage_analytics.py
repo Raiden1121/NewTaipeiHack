@@ -27,6 +27,8 @@ class FakeHomepageResolver:
             {"district_id": f"65000{index:03d}0", "district_name": f"第{index}區"}
             for index in range(1, 30)
         ]
+        # period -> (youth_18_35_total, quality_flags); empty means no national data.
+        self.national_youth_by_period = {}
 
     def available_periods(self, dataset, periods):
         records = []
@@ -125,6 +127,22 @@ class FakeHomepageResolver:
                     "period_start": f"{int(period) + 1911}-08-01",
                 }
                 for index, district in enumerate(self.districts, start=1)
+            ]
+        if dataset == "national_population":
+            if period not in self.national_youth_by_period:
+                return []
+            value, flags = self.national_youth_by_period[period]
+            year = int(period[:3]) + 1911
+            month = int(period[3:])
+            return [
+                {
+                    "metric_id": "youth_18_35_total",
+                    "geo_level": "national",
+                    "district_id": None,
+                    "period_start": f"{year:04d}-{month:02d}-01",
+                    "value": value,
+                    "quality_flags": list(flags),
+                }
             ]
         raise AssertionError(f"unexpected period dataset: {dataset}")
 
@@ -475,6 +493,42 @@ class TestHomepageAnalytics(unittest.TestCase):
 
         first = result["current_yoi"]["districts"][0]
         self.assertAlmostEqual(first["high_salary_ratio"], 10 / 101)
+
+    def test_national_youth_population_uses_national_dataset_for_city_month(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+        resolver = FakeHomepageResolver()
+        # The fake city population covers every month, so the city KPI month is 11412.
+        resolver.national_youth_by_period = {"11406": (5_100_000, []), "11412": (5_000_000, [])}
+
+        result = generate_homepage_data(resolver=resolver, config=config)
+
+        self.assertEqual(result["kpi"]["nationalYouthPopulation"], 5_000_000)
+        self.assertEqual(result["kpi"]["nationalYouthPopulationQuality"], "observed")
+        self.assertNotIn(
+            "national_youth_population",
+            [row["metric"] for row in result["_quality"]["proxy_usage"]],
+        )
+
+    def test_national_youth_population_falls_back_to_proxy_without_complete_data(self):
+        config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"
+        config = load_homepage_analytics_config(config_path)
+        for national in ({}, {"11412": (5_000_000, ["incomplete_coverage"])}):
+            resolver = FakeHomepageResolver()
+            resolver.national_youth_by_period = national
+
+            result = generate_homepage_data(resolver=resolver, config=config)
+
+            self.assertEqual(result["kpi"]["nationalYouthPopulation"], 4_820_000)
+            self.assertEqual(result["kpi"]["nationalYouthPopulationQuality"], "proxy")
+            self.assertIn(
+                {
+                    "metric": "national_youth_population",
+                    "reason": "homepage_fallback_constant",
+                    "value": 4_820_000,
+                },
+                result["_quality"]["proxy_usage"],
+            )
 
     def test_generates_homepage_contract_and_writes_finite_json(self):
         config_path = Path(__file__).resolve().parents[1] / "config" / "homepage_analytics.json"

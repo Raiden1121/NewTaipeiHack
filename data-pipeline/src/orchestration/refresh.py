@@ -23,6 +23,7 @@ PROFILE_NAMES: tuple[str, ...] = ("daily", "weekly", "monthly")
 SUPPORTED_DATASETS: tuple[str, ...] = (
     "population",
     "population_villages",
+    "national_population",
     "movement",
     "births",
     "marriages",

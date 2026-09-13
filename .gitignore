@@ -36,9 +36,13 @@ cdk.out/
 **/.terraform/
 *.tfstate
 *.tfstate.*
-**/modules/api/lambda.zip
 *.tfplan
 **/.terraform.tfstate.lock.info
+# Lambda 封裝產物：每次 terraform apply 由 archive_file 重新產生。
+# 限定在 modules/ 底下，避免誤傷 docs/ 裡當資料來源的 zip。
+**/modules/*/*.zip
+# analytics Lambda 的 pip 暫存目錄（約 100 MB，build.py 每次重建）
+**/modules/analytics_lambda/build/
 
 # Browser verification artifacts
 .playwright-cli/
@@ -61,6 +65,9 @@ ai-service/sonnet-*.md
 ai-service/.precomputed/
 # Lambda 的 esbuild bundle（terraform apply 每次自己重建，1.4 MB）
 ai-service/dist-lambda/
+# 把 dev 腳本輸出導向檔案時的暫存（_audit.txt 之類），不是產出物
+ai-service/_*.txt
+ai-service/*.log
 
 #data
 /data-pipeline/data/curated
