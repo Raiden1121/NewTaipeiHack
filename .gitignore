@@ -36,9 +36,13 @@ cdk.out/
 **/.terraform/
 *.tfstate
 *.tfstate.*
-**/modules/api/lambda.zip
 *.tfplan
 **/.terraform.tfstate.lock.info
+# Lambda 封裝產物：每次 terraform apply 由 archive_file 重新產生。
+# 限定在 modules/ 底下，避免誤傷 docs/ 裡當資料來源的 zip。
+**/modules/*/*.zip
+# analytics Lambda 的 pip 暫存目錄（約 100 MB，build.py 每次重建）
+**/modules/analytics_lambda/build/
 
 # Browser verification artifacts
 .playwright-cli/

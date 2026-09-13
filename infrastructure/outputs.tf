@@ -33,3 +33,7 @@ output "analytics_table_name" {
 output "ai_service_lambda_name" {
   value = module.ai_service.lambda_function_name
 }
+
+output "analytics_lambda_name" {
+  value = module.analytics_lambda.lambda_function_name
+}

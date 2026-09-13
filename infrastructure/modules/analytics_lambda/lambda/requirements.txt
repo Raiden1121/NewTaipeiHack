@@ -1,0 +1,9 @@
+# Only what the analytics import graph actually reaches at runtime.
+# data-pipeline/requirements.txt also lists jieba, pypdf and pyshp; none of
+# them load here -- jieba is imported lazily inside a function this Lambda
+# never calls, and pypdf/pyshp are only used by collectors/. Verified by
+# importing handler.py and inspecting sys.modules.
+#
+# Keep the version ranges in step with data-pipeline/requirements.txt.
+shapely>=2.0,<3
+pyproj>=3.6,<4
