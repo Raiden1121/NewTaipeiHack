@@ -40,22 +40,62 @@ api（Python Lambda + API Gateway）、analytics_table（DynamoDB）、raw_data�
 
 ---
 
+## 0. evidence 從哪裡來
+
+⚠️ **先講一件容易誤會的事：`handler` 目前不會自己去查 DynamoDB。**
+
+`src/handlers/lambda.ts` 的 evidence **只從 request body 進來**，
+它沒有呼叫 `buildAiContext()` 也沒有碰任何 repository。所以下面那些
+DynamoDB 的設定**在 request 路徑上不會被讀到** —— 它們是為了兩件事先準備好的：
+
+1. **`npm run precompute`**（批次預先算 explain / policyCopilot）會用 repository
+2. **未來 handler 若要自己查表**，設定與權限已經到位，不必再動 Terraform
+
+真正決定線上 evidence 的是**呼叫端**。架構圖上那是 Backend：
+`DynamoDB → Backend API Lambda → （組好 AiRequestContext）→ AI Service Lambda`。
+那段程式碼還沒寫（見 `infrastructure.md` 的 Responsibilities）。
+
+### DynamoDB 這條路已經實作、也實測過了
+
+`DynamoEvidenceRepository`（`src/context/dynamoRepository.ts`）＋
+`AI_EVIDENCE_SOURCE=dynamo`。本機實測（`npm run dev:dynamo-check`）：
+一次 `BatchGetItem` 讀 8 筆 item、1,167 ms、83 筆 evidence（板橋區 / employment）。
+
+Terraform 已經把設定與權限接好（`module.ai_service` 收 `module.analytics_table`
+的 `table_name` 與 `table_arn`）：
+
+- `ANALYTICS_TABLE_NAME` 與 `AI_EVIDENCE_SOURCE=dynamo` 兩個環境變數
+- `dynamodb:GetItem` / `dynamodb:BatchGetItem` 的**唯讀**權限，範圍限定那張表
+
+刻意只給唯讀：寫入是 data-pipeline 的責任（`modules/analytics_lambda`），
+ai-service 拿到寫入權限的話，prompt 層的 bug 就有可能污染 dashboard 的資料來源。
+也刻意不給 `Query` / `Scan`：表的 schema 設計成每個查詢都是 key 查詢
+（見 `infrastructure/dynamodb_schema.md`），給 Scan 是把便宜的請求變貴的方法。
+
+**目前的落差**：`ANALYSIS#*` 那 6 筆還沒接，所以 employment 主題比本機快照少
+17 種指標、fertility 少 48 種（`citySummary.*`、`daycareCoverage`、`fafi*` 都在
+那幾筆裡）。employment 類的問題可以直接用，生育／家庭友善會明顯變弱。
+
+---
+
 ## 1. 這個 Lambda 不讀檔案
 
 先講清楚，因為最容易誤會：
 
-`src/handlers/lambda.ts` 的 evidence **全部從 request body 進來**，
-它不會去讀 `data-pipeline/data/`。所以：
+它**不讀 `data-pipeline/data/`**。所以：
 
-- 不用把 curated 資料打包進 deployment package
+- 不用把 curated 資料打包進 deployment package（那是 450 MB）
 - 不用掛 EFS、不用 S3 讀取權限
 - 不用設 `AI_DATA_DIR`
 
-`CuratedFileEvidenceRepository`（會讀本機檔案的那個）只在本機開發腳本
-（`npm run dev:explain`）用到，**不在 Lambda 的執行路徑上**。
+`handler` 的 evidence **只從 request body 進來**（呼叫端已經查好）。
+`AI_EVIDENCE_SOURCE=dynamo` 那條路目前只有 `npm run precompute` 與 dev 腳本會走，
+不在 request 路徑上 —— 見第 0 節。
 
-至於 evidence 是誰查出來的：架構圖上是 Backend API 從 DynamoDB 撈出來、
-組成 request 打給 AI Service。那部分還沒接（DynamoDB repository 尚未實作）。
+`CuratedFileEvidenceRepository` 與 `AnalyticsSnapshotEvidenceRepository`
+（會讀本機檔案的那兩個）只在本機開發腳本用到，**不在 Lambda 的執行路徑上** ——
+`AI_EVIDENCE_SOURCE` 的預設值是後者，所以部署時一定要覆寫成 `dynamo`
+（Terraform 已經幫你設了）。
 
 ---
 
@@ -148,6 +188,8 @@ Resource = [
 | `WEB_SEARCH_SCOPE` | ✖ | `trusted` 把預設改成只搜 `gov.tw` / `edu.tw`；預設 `all` |
 | `WEB_SEARCH_PROVIDER=off` | ✖ | 全域關閉網路搜尋（預設開啟，這是唯一的全域關法） |
 | `TAVILY_TIMEOUT_MS` | ✖ | 預設 8000，算進 Lambda timeout |
+| `ANALYTICS_TABLE_NAME` | ✅ | analytics DynamoDB 表名。Terraform 已自動帶入（`module.analytics_table.table_name`），同時會設 `AI_EVIDENCE_SOURCE=dynamo` |
+| `AI_EVIDENCE_SOURCE` | ✅ | Lambda 要設 `dynamo`。預設是 `analytics`（讀本機快照檔），而 **Lambda 沒有檔案系統** |
 | `AI_PRECOMPUTE_DIR` | ⚠️ 強烈建議 | 預先算結果的位置。**沒設就是關閉** → `explain` / `policyCopilot` 會即時算 50–58 秒 → 被 HTTP API 的 30 秒切斷 |
 | `AI_PRECOMPUTE_WRITE_THROUGH` | ✖ | 設 `1` 讓 miss 之後把結果寫回快取。預設關閉（理由見下） |
 | `AI_DATA_DIR` | ✖ | 批次腳本讀 data-pipeline 資料的位置。**Lambda 不需要**（evidence 從 request body 進來） |

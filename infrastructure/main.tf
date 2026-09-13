@@ -40,6 +40,12 @@ module "ai_service" {
   bedrock_model_id         = var.bedrock_model_id
   tavily_api_key           = var.tavily_api_key
   backend_lambda_role_name = module.api.lambda_role_name
+  # ai-service 讀 evidence 的來源跟 backend 是同一張表。傳表名會讓它切成
+  # AI_EVIDENCE_SOURCE=dynamo，傳 ARN 是為了把唯讀 IAM 權限限定在那張表。
+  # ⚠️ 目前只有 `npm run precompute` 與 dev 腳本會用到 —— handler 的 evidence
+  # 從 request body 進來，見 modules/ai_service/variables.tf 的說明。
+  analytics_table_name = module.analytics_table.table_name
+  analytics_table_arn  = module.analytics_table.table_arn
 
   # frontend/ and ai-service/ are npm workspaces sharing one node_modules at
   # the repo root, so this module's `npm ci` wipes and reinstalls the very tree

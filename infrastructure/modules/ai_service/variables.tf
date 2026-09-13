@@ -84,6 +84,33 @@ variable "web_search_provider" {
   default     = ""
 }
 
+variable "analytics_table_name" {
+  description = <<-EOT
+    Name of the analytics DynamoDB table (module.analytics_table.table_name).
+
+    Setting this also sets AI_EVIDENCE_SOURCE=dynamo, because those two are only
+    useful together: ai-service defaults to reading data-pipeline's published
+    snapshot files, which do not exist in Lambda (no filesystem, and the 450MB
+    data directory is deliberately not packaged).
+
+    NOTE: the request handler does not read this table today. `lambda.ts` takes
+    evidence from the request body and never calls buildAiContext(), so these
+    settings currently affect only `npm run precompute` and the dev scripts.
+    They are wired up now so that (a) the batch job has what it needs and (b)
+    whoever makes the handler self-serve does not have to touch Terraform.
+    Deciding who reads DynamoDB -- backend before the call, or ai-service
+    itself -- is still open; see infrastructure.md's Responsibilities.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "analytics_table_arn" {
+  description = "ARN of the analytics DynamoDB table (module.analytics_table.table_arn), used to scope the read-only IAM grant. Leave empty to skip granting -- only useful if analytics_table_name is also empty."
+  type        = string
+  default     = ""
+}
+
 variable "backend_lambda_role_name" {
   description = "IAM role name of the backend API Lambda (module.api's aws_iam_role.lambda_exec name, exposed as module.api.lambda_role_name), granted lambda:InvokeFunction on this AI Service Lambda so backend can call it directly once it implements that call. Leave empty to skip granting -- nothing invokes this Lambda yet (see infrastructure.md)."
   type        = string
