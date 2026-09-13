@@ -29,23 +29,23 @@
 
 ## System Architecture
 
-以下為目標架構；標示 ✅ 的部分已用 Terraform 部署到 AWS，其餘仍在規劃：
+以下為目標架構；標示 [已部署] 的部分已用 Terraform 部署到 AWS，其餘仍在規劃：
 
 ```text
 Open Data Sources
        ↓
 Automated Data Pipeline (data-pipeline/, 尚未部署為雲端資源)
        ↓
-S3 Raw ✅ / Transformed ✅ Data
+S3 Raw / Transformed Data [已部署]
        ↓
 Deterministic Analytics
        ↓
-DynamoDB ✅ (analytics table，目前是空的)
+DynamoDB [已部署] (analytics table，目前是空的)
        ↓
-API Gateway + Lambda ✅ (Python) ─────→ React Dashboard ✅ (S3 + CloudFront)
-       ↓                                              ↓
-AI Context / Evidence                       AI Policy Copilot
-       ↓                              (ai-service/ 已有實作，尚未部署)
+API Gateway + Lambda [已部署] (Python) ─────→ React Dashboard [已部署] (S3 + CloudFront)
+       ↓                                                    ↓
+AI Context / Evidence                             AI Policy Copilot
+       ↓                                    (ai-service/ 已有實作，尚未部署)
 Amazon Bedrock
 ```
 
@@ -132,14 +132,14 @@ AI 回覆應盡可能符合以下原則：
 
 | Layer | Technology | Status |
 | --- | --- | --- |
-| Frontend | React, Vite, D3 Geo, TopoJSON | ✅ 已部署（S3 + CloudFront） |
-| API | Python（`infrastructure/modules/api/lambda/handler.py`）+ Amazon API Gateway (HTTP API) | ✅ 已部署，讀取 DynamoDB（表目前是空的） |
+| Frontend | React, Vite, D3 Geo, TopoJSON | 已部署（S3 + CloudFront） |
+| API | Python（`infrastructure/modules/api/lambda/handler.py`）+ Amazon API Gateway (HTTP API) | 已部署，讀取 DynamoDB（表目前是空的） |
 | Backend | TypeScript, Node.js（`backend/`） | Scaffold / planned，未實際使用——正式 API 由上面的 Python Lambda 提供 |
 | AI | Amazon Bedrock, RAG / Knowledge Base | 程式碼已實作（`ai-service/`），尚未部署雲端資源 |
 | Data | Python, Pandas / GeoPandas（`data-pipeline/`） | 已實作 ETL 與 analytics，尚未部署為雲端排程 |
-| Storage | Amazon S3（raw / transformed / frontend）, DynamoDB | ✅ 已部署 |
+| Storage | Amazon S3（raw / transformed / frontend）, DynamoDB | 已部署 |
 | Workflow | EventBridge, Step Functions | Architecture / planned |
-| Infrastructure | **Terraform**（`infrastructure/`） | ✅ 使用中；`AWS CDK`（`cdk.json`/`bin`/`lib`）為未使用的舊 placeholder |
+| Infrastructure | **Terraform**（`infrastructure/`） | 使用中；`AWS CDK`（`cdk.json`/`bin`/`lib`）為未使用的舊 placeholder |
 
 ## Development Status
 
