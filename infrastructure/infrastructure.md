@@ -39,7 +39,7 @@ aws lambda invoke --function-name "$(terraform output -raw analytics_lambda_name
   --cli-read-timeout 900 --payload '{}' out.json && cat out.json
 ```
 
-回應會帶 `snapshot_id`、`items_written`、`elapsed_seconds`。要指定分析年度可帶 `{"annual_end_roc": 114}`，預設是「今年民國年減一」（最後一個完整年度）。
+回應會帶 `snapshot_id`、`items_written`、`elapsed_seconds` 與 `input_failures`（各 analytics 讀不到的 curated 輸入，依 dataset 分組；例如 `national_population` 出現在這裡代表 `curated/national_population/{yyyMM}.json` 沒上傳到 bucket，首頁全國青年人口會退回 proxy 常數）。要指定分析年度可帶 `{"annual_end_roc": 114}`，預設是「今年民國年減一」（最後一個完整年度）。
 
 `terraform apply` 會執行 `modules/analytics_lambda/build.py` 重組這支 Lambda 的 zip（需要機器上有 `python` 與網路可連 PyPI，不需要 Docker）。build 的觸發條件是 `data-pipeline/src`、`data-pipeline/config`、`modules/analytics_lambda/lambda/` 與 `build.py` 的內容雜湊，原始碼沒變就不會重 build。
 

@@ -191,16 +191,41 @@ def calculate_budget_series(
         settlement = settlements.get(year)
         amount = legal_row.get("_amount") if legal_row else None
         realized = _number(settlement.get("realized_amount")) if settlement else None
-        execution_denominator, conversion = _execution_denominator(amount, legal_row, settlement)
-        execution = (
-            None
-            if execution_denominator in (None, 0) or realized is None
-            else realized / execution_denominator * 100
+        source_execution_ratio = (
+            _number(settlement.get("source_execution_ratio_percent"))
+            if settlement
+            else None
         )
+        source_record_type = _source_record_type(settlement) if settlement else None
+        execution_source = None
+        if (
+            source_record_type == "prior_year_settlement_summary"
+            and source_execution_ratio is not None
+        ):
+            # This is an official ratio reported in a prior-year summary. Its
+            # settlement and budget amounts do not share the legal-budget
+            # denominator used by the normal realised-amount calculation.
+            execution = source_execution_ratio
+            execution_source = "source_execution_ratio_percent"
+            execution_denominator = None
+            execution_denominator_unit = None
+            conversion = None
+        else:
+            execution_denominator, conversion = _execution_denominator(
+                amount, legal_row, settlement
+            )
+            execution_denominator_unit = settlement.get("unit") if settlement else None
+            execution = (
+                None
+                if execution_denominator in (None, 0) or realized is None
+                else realized / execution_denominator * 100
+            )
+            if execution is not None:
+                execution_source = "realized_amount"
         failure = None
         if settlement is None:
             failure = "final_settlement_unavailable"
-        elif realized is None:
+        elif execution is None and realized is None:
             failure = "realized_amount_unparsed"
         trend.append(
             {
@@ -211,7 +236,7 @@ def calculate_budget_series(
                 "budget_yoy_percent": _yoy(amount, previous_amount),
                 "realized_amount": realized,
                 "legal_budget_amount_for_execution": execution_denominator,
-                "execution_denominator_unit": settlement.get("unit") if settlement else None,
+                "execution_denominator_unit": execution_denominator_unit,
                 "execution_unit_conversion": conversion,
                 "settlement_amount": _number(settlement.get("settlement_amount")) if settlement else None,
                 "payable_amount": _number(settlement.get("payable_amount")) if settlement else None,
@@ -219,6 +244,8 @@ def calculate_budget_series(
                 "surplus_amount": _number(settlement.get("surplus_amount")) if settlement else None,
                 "execution_rate": execution,
                 "execution_failure": failure,
+                "execution_rate_source": execution_source,
+                "execution_source_record_type": source_record_type,
                 "source_period": [str(year)],
                 "period_type": "annual",
                 "quality_status": "observed" if legal_row else "unavailable",
@@ -259,6 +286,14 @@ def _number(value: Any) -> float | None:
     except (TypeError, ValueError):
         return None
     return number if number == number and abs(number) != float("inf") else None
+
+
+def _source_record_type(row: Mapping[str, Any]) -> str | None:
+    raw_record = row.get("raw_record")
+    if isinstance(raw_record, Mapping) and raw_record.get("source_record_type") is not None:
+        return str(raw_record["source_record_type"])
+    value = row.get("source_record_type")
+    return str(value) if value is not None else None
 
 
 def _int(value: Any) -> int | None:

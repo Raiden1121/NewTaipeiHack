@@ -120,6 +120,29 @@ def _quality_dataset_names(quality: Any) -> list[str]:
     return [str(dataset) for dataset in source_periods]
 
 
+def _input_failures(*qualities: Any) -> dict[str, list[str]]:
+    """Curated inputs the analytics could not load, grouped by dataset.
+
+    The S3 backing turns a missing object into an unreadable path, so an object
+    that was never uploaded surfaces here (e.g. no `national_population` month
+    means the homepage KPI fell back to its proxy constant) instead of only as a
+    silently degraded DynamoDB item.
+    """
+
+    failures: dict[str, list[str]] = {}
+    for quality in qualities:
+        inputs = quality.get("inputs") if isinstance(quality, Mapping) else None
+        if not isinstance(inputs, Mapping):
+            continue
+        for dataset, entry in inputs.items():
+            reasons = entry.get("failures") if isinstance(entry, Mapping) else None
+            for reason in reasons or []:
+                known = failures.setdefault(str(dataset), [])
+                if reason not in known:
+                    known.append(reason)
+    return failures
+
+
 def _snapshot_id(generated_at: str) -> str:
     parsed = datetime.fromisoformat(str(generated_at).replace("Z", "+00:00"))
     if parsed.tzinfo is None:
@@ -244,4 +267,5 @@ def handler(event, context):
         "annual_end_roc": end_roc,
         "items_written": written,
         "elapsed_seconds": round(time.monotonic() - started, 1),
+        "input_failures": _input_failures(homepage.get("_quality"), *analysis_quality.values()),
     }

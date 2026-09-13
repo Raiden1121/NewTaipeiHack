@@ -426,12 +426,10 @@ export const ANALYTICS_METRIC_META: Readonly<Record<string, MetricMeta>> = {
   cityYouthPopulation: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
   cityYouthPopulationShare: { unit: '%', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
   cityYouthPopulationYoY: { unit: '%', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
-  // kpis.nationalYouthPopulationQuality 實測是 'proxy'，所以全國值只能當代理值。
-  nationalYouthPopulation: {
-    unit: '人',
-    youthEligibility: 'proxy_only',
-    ageScope: 'official_age_group_proxy',
-  },
+  // 全國值由 data-pipeline 的 national_population（ODRP014 全國村里 18–35 歲加總）計算，
+  // 口徑與 cityYouthPopulation 相同。只有該資料缺漏時 homepage 才退回常數並標
+  // kpis.nationalYouthPopulationQuality = 'proxy'，那時要以該欄位為準。
+  nationalYouthPopulation: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
   youth_population_18_35: { unit: '人', youthEligibility: 'eligible', ageScope: 'derived_18_35' },
 
   // --- 就業機會（api_contract.md §3.1 單位表）---
