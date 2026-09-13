@@ -2,5 +2,9 @@
   "name": "@newtaipei-youth/infrastructure",
   "version": "0.0.0",
   "private": true,
-  "description": "AWS CDK infrastructure boundary"
+  "description": "AWS CDK infrastructure boundary",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1130.0",
+    "@aws-sdk/lib-dynamodb": "^3.1130.0"
+  }
 }
