@@ -67,6 +67,8 @@ export interface DistrictSummary {
   youthCandidacyRatePer100k: number | null;
   /** 青年里長占比（%），僅民國 111 年屆有效；來自 elections.borough_chief_v1，見 api_contract.md §6.2。 */
   youthBoroughChiefRatioPercent: number | null;
+  /** YRR 純量，民國 111 年屆；分母以青年人口占比代替選舉人占比（proxy），見 api_contract.md §6.2。 */
+  yrr: number | null;
   qualityStatus: QualityStatus;
   sourcePeriods: Record<string, unknown>;
 }
@@ -132,7 +134,11 @@ export interface BoroughChiefCitywide {
   year_roc: number;
   elected_count: number;
   youth_elected_count: number;
-  ratio_percent: number;
+  ratio_percent: number | null;
+  /** 全市加總後再算一次的 YRR（不是 29 區平均），見 api_contract.md §6.2。 */
+  yrr: number | null;
+  denominator_type: string;
+  proxy: boolean;
 }
 
 export interface ServiceCoverage {
@@ -150,6 +156,10 @@ export interface ServiceCoverage {
 export interface BudgetTrendPoint {
   year_roc: number;
   value_thousand: number | null;
+  budget_yoy_percent?: number | null;
+  quality_status?: "observed" | "unavailable";
+  /** 該年數值來自法定預算或預算案；趨勢圖兩者都當一般值畫。 */
+  document_status?: "legal_budget" | "proposed_budget" | null;
 }
 
 export interface PolicyBlock {
@@ -224,8 +234,10 @@ export interface PoliticsResourceIoAnalysis {
   executionRate: number | null;
 }
 
-export interface YouthTopicWeightTopic {
-  label: string;
+export interface YouthKeyword {
+  /** canonical 顯示文字，見 api_contract.md §6.4。 */
+  term: string;
+  /** 1–5 顯示字級。 */
   weight: number;
   signal: string;
   join_mentions: number;
@@ -236,11 +248,13 @@ export interface YouthTopicWeightTopic {
   raw_score: number;
 }
 
-// 攤平形狀，見 api_contract.md §6.4：backend 已固定回傳最新一年（114）的 topics[]。
-export interface YouthTopicWeightAnalysis {
-  analysis_id: "youth-topic-weight";
-  year_roc: number;
-  topics: YouthTopicWeightTopic[];
+// canonical 全期間 payload，見 api_contract.md §6.4：沒有 year_roc，也沒有 topics[]。
+export interface YouthKeywordFrequencyAnalysis {
+  analysis_id: "youth-keyword-frequency";
+  period_scope: "all_available";
+  /** dataset -> 涵蓋的民國年（字串）。 */
+  source_periods: Record<string, string[]>;
+  keywords: YouthKeyword[];
 }
 
 export interface FertilityOverlayAnalysis {

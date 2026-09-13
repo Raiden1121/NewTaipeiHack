@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { useYouthTopicWeight } from "@/lib/api/queries";
-import type { YouthTopicWeightTopic } from "@/lib/api/types";
+import { useYouthKeywordFrequency } from "@/lib/api/queries";
+import type { YouthKeywordFrequencyAnalysis } from "@/lib/api/types";
 
 const FONT_SIZE: Record<number, number> = {
   5: 32,
@@ -47,7 +47,7 @@ interface Box {
 }
 
 // 依重要程度由大到小，沿螺旋外擴尋找不與既有詞碰撞的位置（AABB 碰撞偵測）。
-function layoutWordCloud(topics: YouthTopicWeightTopic[]): {
+function layoutWordCloud(topics: { label: string; weight: number }[]): {
   placed: PlacedWord[];
   viewBox: string;
 } {
@@ -104,13 +104,28 @@ function layoutWordCloud(topics: YouthTopicWeightTopic[]): {
   };
 }
 
-export default function YouthTopicWordCloud() {
-  const { data: analysis, isLoading, isError, error, refetch } = useYouthTopicWeight();
+// source_periods 是 dataset -> 民國年清單；文字雲是全期間合併，只顯示涵蓋的年度範圍。
+function coveredYearRange(sourcePeriods: YouthKeywordFrequencyAnalysis["source_periods"] | undefined): string | null {
+  const years = Object.values(sourcePeriods ?? {})
+    .flat()
+    .map(Number)
+    .filter(Number.isFinite);
+  if (years.length === 0) return null;
+  const min = Math.min(...years);
+  const max = Math.max(...years);
+  return min === max ? `${min}` : `${min}–${max}`;
+}
 
-  const layout = useMemo(
-    () => (analysis && analysis.topics.length > 0 ? layoutWordCloud(analysis.topics) : null),
-    [analysis],
-  );
+export default function YouthTopicWordCloud() {
+  const { data: analysis, isLoading, isError, error, refetch } = useYouthKeywordFrequency();
+
+  const layout = useMemo(() => {
+    const keywords = analysis?.keywords ?? [];
+    return keywords.length > 0
+      ? layoutWordCloud(keywords.map((keyword) => ({ label: keyword.term, weight: keyword.weight })))
+      : null;
+  }, [analysis]);
+  const yearRange = coveredYearRange(analysis?.source_periods);
 
   return (
     <Card>
@@ -170,7 +185,9 @@ export default function YouthTopicWordCloud() {
               </svg>
             </div>
             <p className="text-[11px] text-slate-400">
-              資料為民國 {analysis?.year_roc} 年議題重要程度分數。
+              {yearRange
+                ? `資料為民國 ${yearRange} 年所有可用提案與會議紀錄合併的議題關鍵字重要程度。`
+                : "資料為所有可用提案與會議紀錄合併的議題關鍵字重要程度。"}
             </p>
           </>
         )}

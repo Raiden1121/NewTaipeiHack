@@ -179,7 +179,7 @@ function LineChart({ trend }: { trend: BudgetTrendPoint[] }) {
       viewBox={`0 0 ${vbW} ${vbH}`}
       className="block h-auto w-full"
       role="img"
-      aria-label="年度總預算趨勢折線圖，近五年"
+      aria-label="年度總預算趨勢折線圖"
     >
       <defs>
         <marker

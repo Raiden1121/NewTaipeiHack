@@ -8,7 +8,7 @@ import type {
   FertilityOverlayAnalysis,
   PoliticsResourceIoAnalysis,
   PolicyOutcomesAnalysis,
-  YouthTopicWeightAnalysis,
+  YouthKeywordFrequencyAnalysis,
 } from "./types";
 
 // 404 / 503 是「這個 endpoint 現在就是沒有資料」，重試沒有意義。
@@ -55,12 +55,12 @@ export function usePoliticsResourceIo() {
   });
 }
 
-// 見 api_contract.md §6.4：backend 固定回傳最新一年（114）的攤平 topics[]，不帶 year 參數。
-export function useYouthTopicWeight() {
+// 見 api_contract.md §6.4：canonical 全期間 keywords[]；舊 youth-topic-weight URL 只是相容 alias。
+export function useYouthKeywordFrequency() {
   return useQuery({
-    queryKey: ["analysis", "youth-topic-weight"],
+    queryKey: ["analysis", "youth-keyword-frequency"],
     queryFn: async () =>
-      (await apiFetch<YouthTopicWeightAnalysis>("/api/v1/analyses/youth-topic-weight")).data,
+      (await apiFetch<YouthKeywordFrequencyAnalysis>("/api/v1/analyses/youth-keyword-frequency")).data,
     retry: shouldRetry,
   });
 }

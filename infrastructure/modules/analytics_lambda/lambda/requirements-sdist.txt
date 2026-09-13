@@ -1,0 +1,9 @@
+# Pure-Python dependencies that PyPI only ships as sdists, installed by build.py
+# without --platform/--only-binary. Must stay pure Python.
+#
+# jieba: youth_participation computes keyword frequency inline; without jieba
+# the analytics silently fall back to character n-grams and publish fragments
+# such as 心理健／理健康 to the word cloud.
+#
+# Keep the version range in step with data-pipeline/requirements.txt.
+jieba>=0.42,<1

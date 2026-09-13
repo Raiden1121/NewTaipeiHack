@@ -21,6 +21,7 @@ Environment:
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import shutil
@@ -143,6 +144,21 @@ def _input_failures(*qualities: Any) -> dict[str, list[str]]:
     return failures
 
 
+def _require_jieba() -> None:
+    """Refuse to run when keyword tokenization would silently degrade.
+
+    Without jieba, youth_keyword_frequency falls back to character n-grams and
+    the published word cloud fills with fragments (心理健, 理健康, 北市政). Failing
+    before any DynamoDB write keeps the previous, correctly tokenized snapshot.
+    """
+
+    if importlib.util.find_spec("jieba") is None:
+        raise RuntimeError(
+            "jieba is not packaged; refusing to publish fallback-tokenized keywords "
+            "(see lambda/requirements-sdist.txt and build.py)"
+        )
+
+
 def _snapshot_id(generated_at: str) -> str:
     parsed = datetime.fromisoformat(str(generated_at).replace("Z", "+00:00"))
     if parsed.tzinfo is None:
@@ -241,6 +257,7 @@ def _write_items(table_name: str, items: list[dict[str, Any]]) -> int:
 
 def handler(event, context):
     started = time.monotonic()
+    _require_jieba()
     bucket = os.environ["TRANSFORMED_BUCKET"]
     table_name = os.environ["ANALYTICS_TABLE_NAME"]
     prefix = os.environ.get("TRANSFORMED_PREFIX", "")
