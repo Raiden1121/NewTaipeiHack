@@ -40,6 +40,11 @@ module "ai_service" {
   bedrock_model_id         = var.bedrock_model_id
   tavily_api_key           = var.tavily_api_key
   backend_lambda_role_name = module.api.lambda_role_name
+  # ai-service reads evidence from the same table backend reads, at request time.
+  # Passing the name switches it to AI_EVIDENCE_SOURCE=dynamo; passing the ARN
+  # scopes its read-only IAM grant. See modules/ai_service/variables.tf.
+  analytics_table_name = module.analytics_table.table_name
+  analytics_table_arn  = module.analytics_table.table_arn
 }
 
 module "transformed_data" {
