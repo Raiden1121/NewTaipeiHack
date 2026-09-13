@@ -70,7 +70,7 @@ Content-Type: application/json
 |---|---|---|---|
 | `action` | `"explain" \| "policyCopilot"` | ✅ | 對應 `AI_ACTIONS`（`src/handlers/lambda.ts`）。本頁不使用 `qa`。 |
 | `focusArea` | `string` | ✅ | 決定讀哪些 analytics artifact，見 §6。 |
-| `focusDistrict` | `string \| null` | ✅ | 新北市 29 區中文名（對照表見 `api_contract.md` 附錄 A）。`null` 代表全市，語意與 `ParticipationKpiGrid` 未選取行政區時一致。 |
+| `focusDistrict` | `string \| null` | ✅ | 新北市 29 區中文名（對照表見 `api_contract.md` 附錄 A）。`null` 代表全市，語意與 `ParticipationKpiGrid` 未選取行政區時一致。⚠️ **全市目前一定拿不到預先算結果**（批次腳本不支援，見 §5.4），也就是說「使用者剛進頁面、還沒點行政區」這個預設狀態會直接得到 `503 AI_RESULT_NOT_READY`。前端要嘛接受那個狀態的空卡片，要嘛在 `runBatch` 支援全市之前不要在未選取時發請求。 |
 
 **前端不得傳的欄位**（傳了一律 `400`）：
 
@@ -84,7 +84,16 @@ Content-Type: application/json
 
 所以：`explain` / `policyCopilot` 的 `webSearch` 由 **backend 固定帶入，且必須與批次預先算時使用的設定完全相同**。前端這兩張卡不提供上網搜尋開關。
 
-> ⚠️ `buildAiContext()` 的 `webSearch` **預設是開啟**（`enabled: true, contextSize: 'low', scope: 'all'`）。backend 與 `npm run precompute` 必須明確帶同一組值，不能一邊用預設一邊手寫——那會靜默地永遠 miss。建議把該組設定寫成單一常數，兩邊都引用它。
+> ⚠️ **兩層的預設值是相反的，這是最容易踩的坑。**
+>
+> - `AiRequestContextSchema.webSearch` 的 default 是 `{ enabled: false, contextSize: 'low' }`（`scope` 由 `WebSearchSettingsSchema` 補 `'all'`）——**backend 不傳 `webSearch` 給 lambda，就是關閉。**
+> - `buildAiContext()` 的 `webSearch` default 是 `{ enabled: true, contextSize: 'low', scope: defaultWebSearchScope() }`——**批次腳本不傳，就是開啟。**
+>
+> 所以「兩邊都不傳」不是安全做法，而是保證 `webSearchEnabled` 一個 true 一個 false → 指紋永遠不同 → 永遠 miss。
+>
+> 另外 `scope` 的預設還會被伺服器端的 `WEB_SEARCH_SCOPE` 環境變數影響（`trusted` / 其他值都當 `all`），所以跑批次的機器與跑 backend 的機器**環境變數也必須一致**。
+>
+> 結論：把 `{ enabled, contextSize, scope }` 寫成單一常數，backend 與 `npm run precompute` 兩邊都明確帶入、都引用它，不要依賴任何一層的預設。
 
 ### 2.4 Response（成功）
 
@@ -94,7 +103,7 @@ Content-Type: application/json
 {
   "data": {
     "action": "explain",
-    "generatedBy": "bedrock:apac.anthropic.claude-sonnet-4-6(ap-northeast-1)",
+    "generatedBy": "bedrock(apac.anthropic.claude-sonnet-4-6, ap-northeast-1, auth=bearer)",
     "cache": "hit",
     "precomputedAt": "2026-09-13T02:11:40.512Z",
     "output": { /* StructuredOutput，見 §4 */ },
@@ -113,11 +122,11 @@ Content-Type: application/json
 | `data` 欄位 | 型別 | 說明 |
 |---|---|---|
 | `action` | `"explain" \| "policyCopilot"` | 回聲，前端可用來對應是哪張卡 |
-| `generatedBy` | `string` | `BedrockClient.description`，含模型 id 與 region。**Mock client 時這裡會寫明是 mock**——demo 當天忘了設環境變數，靠這個欄位才看得出畫面上是假分析 |
+| `generatedBy` | `string` | `BedrockClient.description`。實際格式是 `bedrock({modelId}, {region}, auth={sigv4\|bearer})`，mock 是 `mock(no network)`（`src/bedrock/client.ts`）。**Mock client 時這裡會寫明是 mock**——demo 當天忘了設環境變數，靠這個欄位才看得出畫面上是假分析。前端**只當它是一段給人看的字串**，不要剖析模型 id 或 region（格式沒有契約保證）|
 | `cache` | `"hit" \| "miss" \| "disabled" \| "bypass"` | 見 §5 |
 | `precomputedAt` | `string \| null` | ISO 時間。**這是這份結果當初產生的時間，不是現在。** `cache != "hit"` 時為 `null` |
 | `output` | `StructuredOutput` | §4 |
-| `sources` | `SourceAttribution[]` | §4.3。**每個回應一定有這個欄位**；沒引用任何資料時是 `[]`，那種情況 `output.dataSufficiency` 必為 `insufficient` |
+| `sources` | `SourceAttribution[]` | §4.3。**每個回應一定有這個欄位**；沒引用任何資料時是 `[]`。⚠️ **`[]` 不代表資料不足**——「四塊全空 + `dataSufficiency: "partial"` + `limitations` 非空」也是合法輸出（schema 只要求「有結論才要有引用」），那時 `sources` 同樣是 `[]`。要不要畫「資料不足」一律看 `dataSufficiency`，見 §4.2 |
 
 ### 2.5 錯誤
 
@@ -189,13 +198,13 @@ backend 呼叫 `buildAiContext(repository, options)`（`src/context/buildContext
 
 來源：`src/types/structuredOutput.ts`。欄位順序有意義（模型依序生成），前端渲染順序可自訂，但**不可省略任何一項的呈現責任**。
 
-### 4.1 八個欄位
+### 4.1 十一個欄位
 
 | 欄位 | 型別 | `/politics` 怎麼渲染 |
 |---|---|---|
 | `evidenceReview` | `{ availableMetrics[], youthSpecificMetrics[], contextOnlyMetrics[], missingForQuestion[] }` | **預設收起**，放在「查看依據」展開區。前三個陣列由**程式**盤點（模型碰不到），`missingForQuestion` 是模型判斷的 |
 | `dataSufficiency` | `"sufficient" \| "partial" \| "insufficient"` | 決定整張卡的呈現模式，見 §4.2。**不要自己去讀 `limitations` 的中文猜有沒有資料** |
-| `answer` | `string \| null` | 這兩個 action **固定 `null`**。前端不渲染 |
+| `answer` | `string \| null` | 這兩個 action **約定為 `null`**，前端不渲染。⚠️ 這是約定不是 schema 保證：六塊 schema 的 `answer` 只有 `.nullable().default(null)`，沒有任何 refine 擋住 explain / policyCopilot 回非 null。前端遇到非 null 時忽略即可，不要當成錯誤 |
 | `issues` | `string[]` | 「問題辨識」條列 |
 | `strengths` | `string[]` | 「發展優勢」條列 |
 | `resourceGaps` | `string[]` | 「資源缺口」條列 |
@@ -282,22 +291,30 @@ schema 層已保證的不變式，前端可以依賴、不必自己再驗：
 
 ### 5.4 批次怎麼跑
 
+**現在真的跑得起來的只有既有的 `participation` 主題**（§6.1 的四個細分值還沒實作）：
+
 ```bash
 # ai-service/
-npm run precompute -- --dry --all --areas=participation_hotspot,participation_kpi,participation_resource,participation_voice
-npm run precompute -- --all --areas=participation_hotspot,participation_kpi,participation_resource,participation_voice --actions=explain
-npm run precompute -- --districts=  --areas=participation --actions=policyCopilot   # 全市層級
+npm run precompute -- --dry --all --areas=participation --actions=explain,policyCopilot
+npm run precompute -- --all --areas=participation --actions=explain,policyCopilot --concurrency=3
 ```
 
-需要的組數：`explain` 4 個區塊 × 30（29 區 + 全市）＝ **120 組**，加 `policyCopilot` 30 組，共 **150 組**。以每組約 55 秒估，`--concurrency=3` 下約 **46 分鐘**，並產生對應的 Bedrock 費用。**先用 `--dry` 確認組數再跑。**
+`src/precompute/runBatch.ts` 有兩個限制會直接影響上面的指令怎麼寫：
 
-> ⚠️ 現階段先跑 `participation_hotspot` / `participation_kpi` / `participation_resource` 三個（90 組，約 28 分鐘）。`participation_voice` 要等 `api_contract.md` §6.4 的文字雲期間語意定案，理由見 §6.2。
+1. **未實作的 `focusArea` 會被硬性擋掉，`--dry` 也一樣。** areas 驗證排在 dry-run 分支**之前**，所以送 `participation_hotspot` 之類的值會印「主題 … 沒有對應的 analytics 範圍設定」然後 `exit 1`——連「先用 `--dry` 估組數」都做不到。
+   這跟 lambda 路徑**行為不同**：lambda 收到未知 `focusArea` 會落到 `selectArtifacts()` 的寬鬆分支（讀全部 analytics ＋ 留一條 note，見 §6.1），批次腳本則是直接拒絕。
+2. **不支援全市（`focusDistrict: null`）。** job 展開是 `for district of districts` 的三層迴圈，`focusDistrict` 永遠是字串；`--districts=` 傳空值會被 `parseList()` 當成「沒給」，於是落到「要指定 `--districts=…` 或 `--all`」而 `exit 1`。
+   也就是說**全市層級的卡片目前無法預先算**，正式路徑上它只會是 `miss` → `503 AI_RESULT_NOT_READY`（§5.1）。要支援得先在 `runBatch` 加一個全市模式。
+
+組數（假設四個細分 `focusArea` 已加入、全市仍不支援）：`explain` 29 區 × 4 個區塊 ＝ **116 組**，加 `policyCopilot` 29 組，共 **145 組**。以每組約 55 秒、`--concurrency=3` 估約 **45 分鐘**，並產生對應的 Bedrock 費用。**先用 `--dry` 確認組數再跑。**
+
+> ⚠️ 現階段先跑 `participation_hotspot` / `participation_kpi` / `participation_resource` 三個（87 組，約 27 分鐘）。`participation_voice` 兩個理由都還不能跑：`api_contract.md` §6.4 的文字雲期間語意未定案，而且 `weight` 的單位標註目前是錯的，見 §6.2。
 
 ---
 
 ## 6. 青年參政頁的四張 AI 解讀卡
 
-`/politics` 目前四個區塊（見 `frontend/src/features/politics/PoliticsPage.tsx`）各配一張 `explain` 卡，頁面另有一張 `policyCopilot`。
+`/politics`（`frontend/src/features/politics/PoliticsPage.tsx`）目前是 3 個 `Section`、5 個資料元件：`ParticipationHotspotMap` ＋ `ParticipationHotspotList` ＋ `ParticipationKpiGrid`（同一個 Section）、`ResourceIoCharts`、`YouthTopicWordCloud`。下表把它們歸成**四個解讀單位**，各配一張 `explain` 卡，頁面另有一張 `policyCopilot`。
 
 ### 6.1 `focusArea` 合法值與 analytics 範圍
 
@@ -311,26 +328,48 @@ npm run precompute -- --districts=  --areas=participation --actions=policyCopilo
 
 **為什麼要細分而不是全頁共用一張 `explain`**：預先算的鍵是 `(action, focusDistrict, focusArea)` 的指紋，**沒有「區塊」這個維度**。不細分的話四張卡會拿到同一份文字。而且文字雲那張卡的解讀不該去讀預算數字——`participation_voice` 只讀 `keyword_frequency`，模型就不可能拿預算執行率去解釋青年關注議題。
 
-> ⚠️ **未實作（ai-service 待辦）**：`ANALYTICS_ARTIFACTS_BY_FOCUS_AREA`（`src/context/analyticsSnapshotRepository.ts:145`）目前只有 `participation` 一個值，上表的四個細分值**尚未加入**。在加入之前，送這些值會落到 `selectArtifacts()` 的「沒有對應設定」分支：讀取**全部** analytics 並在 `knownLimitations` 留一條 note——結果會是「能跑但很慢很貴、而且四張卡看的資料一樣」。
+> ⚠️ **未實作（ai-service 待辦）**：`ANALYTICS_ARTIFACTS_BY_FOCUS_AREA`（`src/context/analyticsSnapshotRepository.ts:145`）現在有 11 個 key（`employment` / `jobs` / `talent` / `housing` / `transport` / `population` / `retention` / `fertility` / `resources` / `participation` / `policy`），但**參政系列只有 `participation` 一個**，上表的四個細分值尚未加入。
+>
+> 加入之前，兩條路徑的行為**不一樣**，不要混用：
+> - **經 lambda**：落到 `selectArtifacts()` 的「沒有對應設定」分支——讀取**全部** analytics 並在 `knownLimitations` 留一條 note。能跑，但很慢很貴，而且四張卡看的資料一樣。
+> - **經批次腳本**：`runBatch.ts` 直接 `exit 1`，見 §5.4。
+>
+> 加 key 時順便注意：現有的 `resources` 與 `participation` 的 artifact 清單**完全相同**（`dashboard_overview` / `participation` / `topic_weight` / `keyword_frequency`），細分之後要決定 `resources` 跟著改還是維持原樣。
 
 ### 6.2 各卡的資料語意提醒
 
-這些是 `api_contract.md` §6 已經寫明、但模型只看得到 evidence 的數字，所以**必須靠 `knownLimitations` 傳達**的語意：
+這些是 `api_contract.md` §6 已經寫明、但模型只看得到 evidence 的數字，所以必須由 ai-service 主動傳達的語意。
 
-| 卡片 | 必須讓模型知道的事 |
-|---|---|
-| 參政熱點 | `youthCandidacyRatePer100k` 是**青年里長候選人數 ÷ 青年人口 × 100,000**，單位 `per_100k_youth`，**不是 0–100 指數**，也不是市議員參選率；只有 111 年一屆為 `observed`，實際值域 0–64.68、中位數 6.27 |
-| 三大 KPI | `youthBoroughChiefRatioPercent`（席次占比）、`yrr`（代表性比值，`proxy: true`）、`youthCandidacyRatePer100k`（參選密度）**三者語意不同，不可互相代換**；服務涵蓋率是 `partial`，29 區中位數為 0，來自只有 9 個據點的 `youth_service_points` |
-| 資源投入產出 | `budget_by_department` 是**民國 116 年預算案**；執行率取最新可得年度並標示年份；`budgetTrend` 只有 112–114 有值 |
-| 青年聲音 | `weight` 是標準化後的字級（1–5），**不是原始頻次**，不可拿來比較絕對熱度；資料涵蓋期間必須讓模型知道，否則它會把累計值講成「今年的熱度」 |
+**先講清楚傳達管道，因為這件事很容易指錯地方：`knownLimitations` 不負責這個。** `buildAiContext()` 產生的 `knownLimitations` 只有四類內容——repository 的 notes（取樣截斷、缺 artifact、快照 warnings）、跨區比較 note、指標收斂 note、以及「本次沒有任何 evidence」。**沒有任何路徑會產生「某個指標的口徑是什麼」這種說明。**
+
+真正傳達指標語意的是三個地方：
+
+| 管道 | 內容 | 在哪 |
+|---|---|---|
+| evidence 的 `unit` / `youthEligibility` / `ageScope` | 單位與青年適用性。analytics 快照**沒有**這三個欄位（實測 8 個 artifact 全部沒有），所以那張手寫表是唯一來源 | `ANALYTICS_METRIC_META`（`src/context/analyticsRecord.ts:423`）；查不到時走 `inferMeta()` 的名稱猜測 |
+| prompt 的「指標算法」段 | 複合指標的公式、正規化、口徑陷阱（`caveat`） | `METRIC_DEFINITIONS`（`src/context/metricDefinitions.ts`），只印這批 evidence 真的用到的指標 |
+| evidence 的 `computation` | 這個數字來自哪個 analytics 路徑、哪個快照、哪些上游 dataset | `analyticsRecord.ts` 的 computation 組裝 |
+
+所以要讓下表的語意真的到得了模型，該補的是 `ANALYTICS_METRIC_META` 與 `METRIC_DEFINITIONS`。
+
+| 卡片 | 必須讓模型知道的事 | 實作現況 |
+|---|---|---|
+| 參政熱點 | `youthCandidacyRatePer100k` 是**青年里長候選人數 ÷ 青年人口 × 100,000**，單位 `per_100k_youth`，**不是 0–100 指數**，也不是市議員參選率；只有 111 年一屆為 `observed`，實際值域 0–64.68、中位數 6.27 | ❌ **沒傳到。** 這個 metricId 不在 `ANALYTICS_METRIC_META`，`inferMeta()` 只因名字含 `youth` 標成 `{ unit: null, youthEligibility: 'eligible' }`——**單位是 `null`**。也不在 `METRIC_DEFINITIONS`。更麻煩的是 deprecated alias `youthParticipationIndex`（同值、名字帶 Index）**同時**進 context 且同樣沒有單位，模型很容易把它讀成指數 |
+| 三大 KPI | `youthBoroughChiefRatioPercent`（席次占比）、`yrr`（代表性比值，`proxy: true`）、`youthCandidacyRatePer100k`（參選密度）**三者語意不同，不可互相代換**；服務涵蓋率是 `partial`，29 區中位數為 0，來自只有 9 個據點的 `youth_service_points` | ❌ 部分沒傳到。`youthBoroughChiefRatioPercent` 不在 meta 表（unit `null`，應為 `%`）；`yrr` 也不在 meta 表，因名字不含 `youth` 被 `inferMeta()` 保守標成 `context_only`（一個青年代表性指標被標成「不可當青年數據解讀」）——但 `METRIC_DEFINITIONS.yrr` 有公式與 caveat，這半邊是通的。`proxy` / `denominator_type` 有沒有進 evidence 沒有保證。`serviceCoverageRate` 的 meta（`%`、`eligible`）與 formula 都有，但「只有 9 個據點、29 區中位數 0」屬資料品質事實，只能靠快照 warnings 進 notes，實作沒有保證會出現 |
+| 資源投入產出 | `budget_by_department` 是**民國 116 年預算案**；執行率取最新可得年度並標示年份；`budgetTrend` 只有 112–114 有值 | ⚠️ 年度只靠 evidence 的 `period` 與 `computation` 表達，沒有額外標註。年度是 data-pipeline 決定的，ai-service 只照抄 |
+| 青年聲音 | `weight` 是標準化後的字級（1–5），**不是原始頻次**，不可拿來比較絕對熱度；資料涵蓋期間必須讓模型知道，否則它會把累計值講成「今年的熱度」 | 🔴 **實作標錯，比沒標更糟。** `ANALYTICS_METRIC_META.weight` 是 `{ unit: '權重(0-1)' }`（`analyticsRecord.ts:598`），而現行快照 `dev-full-youth-keyword-20260913` 的 `keyword_frequency.keywords[].weight` 與 `topic_weight` 的 `topics[].weight` 實際值都是 **1–5 的整數**。模型會拿到「weight=5，單位 權重(0-1)」。另外 meta 表的 key 是**葉欄位名**，兩個 artifact 共用 `weight`，現在無法分別標註 |
 
 > 🔴 **青年聲音這張卡目前無法定案**：`api_contract.md` §6.4 的文字雲來源在本次對話進行中被改動過，工作目錄版本與 HEAD 版本互相矛盾——
 > - HEAD 版：canonical 是 `youth-keyword-frequency`，`period_scope: "all_available"`（全期間累計），欄位是 `keywords[].term`
 > - 目前工作目錄版：用 `youth_topic_weight`（22 個固定議題詞），backend 固定取 `year_roc = 114`（單一年度），欄位是 `topics[].label`
 >
-> 兩者的**期間語意完全相反**（全期間累計 vs 單一年度）。在 §6.4 定案之前，`participation_voice` 這張卡的 `knownLimitations` 無法寫對，**不要先跑它的預先算批次**——寫錯期間語意的解讀會比沒有解讀更糟。另外三張卡不受影響。
+> 兩者的**期間語意完全相反**（全期間累計 vs 單一年度）。在 §6.4 定案之前，這張卡要餵給模型的期間語意無法確定該怎麼寫（不論是寫進 `ANALYTICS_METRIC_META` 的單位、`METRIC_DEFINITIONS` 的 caveat，還是靠 artifact 自己的 `period_scope`），**所以不要先跑它的預先算批次**——寫錯期間語意的解讀會比沒有解讀更糟。另外三張卡不受影響。
+>
+> 一個線索：現行快照的 `keyword_frequency` 帶的是 `period_scope: "all_available"`，也就是 HEAD 那個版本的語意。
 
-> 這些語意由 data-pipeline 的 `computation` 欄位與 context builder 的 `knownLimitations` 傳達。**backend 不得在 prompt 層另外手寫**——手寫的說明不會跟著資料更新走。
+> 這些語意由 `ANALYTICS_METRIC_META`、`METRIC_DEFINITIONS` 與 evidence 的 `computation` 傳達（見上面的管道表）。**backend 不得在 prompt 層另外手寫**——手寫的說明不會跟著資料更新走，而且 backend 只送 context，本來就碰不到 prompt。
+>
+> 稽核方式：`npm run dev:metric-audit` 會比對 `ANALYTICS_METRIC_META` 對現行快照的覆蓋率。上表那幾個 ❌ 正是這支腳本要抓的東西——那張表是手寫的，快照一長出新指標它就會默默過期。
 
 ---
 
@@ -349,12 +388,17 @@ npm run precompute -- --districts=  --areas=participation --actions=policyCopilo
 
 | 項目 | 負責 | 說明 |
 |---|---|---|
-| `POST /api/v1/assistant` route | backend | §2。目前 backend **完全沒有這個 route** |
-| 四個細分 `focusArea` | ai-service | §6.1。`ANALYTICS_ARTIFACTS_BY_FOCUS_AREA` 加四個 key |
-| `webSearch` 固定設定常數 | ai-service + backend | §2.3。兩邊必須引用同一個常數，否則永遠 miss |
-| 四張 AI 卡的前端元件 | frontend | `PoliticsPage.tsx` 目前四個區塊**都沒有任何 AI 區塊** |
-| 150 組預先算批次 | ai-service | §5.4。約 46 分鐘 + Bedrock 費用 |
+| `POST /api/v1/assistant` route | backend | §2。目前 backend **完全沒有這個 route**（`backend/` 下沒有任何 `assistant` 字樣）|
+| 四個細分 `focusArea` | ai-service | §6.1。`ANALYTICS_ARTIFACTS_BY_FOCUS_AREA` 加四個 key，並決定 `resources` 要不要跟著調整 |
+| `weight` 的單位修正 | ai-service | §6.2。`ANALYTICS_METRIC_META.weight` 現在標 `權重(0-1)`，實際值是 1–5。**這條擋住 `participation_voice` 卡，而且與 §6.4 的期間爭議無關，可以先修** |
+| 參政指標補進 `ANALYTICS_METRIC_META` | ai-service | §6.2。`youthCandidacyRatePer100k`、`youthBoroughChiefRatioPercent`、`yrr` 三個都缺，單位全是 `null` |
+| deprecated alias `youthParticipationIndex` | ai-service | §6.2。與 `youthCandidacyRatePer100k` 同值卻名字帶 Index，建議在 flatten 層擋掉，否則模型會把參選密度讀成指數 |
+| `webSearch` 固定設定常數 | ai-service + backend | §2.3。兩層預設相反（request schema 關、context builder 開），兩邊必須引用同一個常數並對齊 `WEB_SEARCH_SCOPE`，否則永遠 miss |
+| 四張 AI 卡的前端元件 | frontend | `PoliticsPage.tsx` 目前 3 個 Section／5 個資料元件，**沒有任何 AI 區塊** |
+| `runBatch` 的全市模式 | ai-service | §5.4。目前無法產生 `focusDistrict: null` 的預先算結果，全市卡片一定 `miss` |
+| 145 組預先算批次 | ai-service | §5.4。約 45 分鐘 + Bedrock 費用（不含全市） |
 | Lambda 授權 | infra + backend | `lambda.ts` 目前**無任何 authentication**。backend 代理是第一層防護，但 Lambda 本身仍需 IAM／API key |
+| `generatedBy` 的 auth 模式遮蔽 | backend | §2.4。實際值含 `auth=bearer`，原樣轉發等於把認證模式吐到瀏覽器 |
 
 ### ❌ 本次不做
 
@@ -366,7 +410,9 @@ npm run precompute -- --districts=  --areas=participation --actions=policyCopilo
 
 ## 8. 已知風險
 
-1. **snapshot 一更新，150 組預先算全部失效。** 指紋含 evidence 的 `value`，這是刻意的（見 §5.3），但代表 data-pipeline 每次重新發布都要重跑批次約 46 分鐘。Demo 前的發布時程要把這段算進去。
+1. **snapshot 一更新，145 組預先算全部失效。** 指紋含 evidence 的 `value`，這是刻意的（見 §5.3），但代表 data-pipeline 每次重新發布都要重跑批次約 45 分鐘。Demo 前的發布時程要把這段算進去。
+   **這件事已經發生過了**：`ai-service/.precomputed` 現有的 4 筆是 `dev-full-20260912-farmland-weights` 產生的（`focusArea: employment`），而現行 published 是 `dev-full-youth-keyword-20260913`——那 4 筆已經是死的。
 2. **`AI_PRECOMPUTE_WRITE_THROUGH=1` 不要在正式環境開。** 開了之後「第一個打進來的使用者」會決定所有人之後看到的卡片內容，包含模型那次剛好答得差的版本，而且沒有人會知道。
-3. **`api_contract.md` §6.4 文字雲來源尚未定案**（見 §6.2 的紅字）。工作目錄版與 HEAD 版對「全期間累計 vs 單一年度 114」的說法相反，`participation_voice` 卡在定案前不應產生預先算結果。
-4. **細分 `focusArea` 未實作前的靜默退化。** 送 `participation_voice` 給現在的 ai-service 不會報錯，它會讀取全部 analytics——能跑，但慢、貴、而且四張卡內容雷同。這種失敗不會有錯誤訊息，只會在 `knownLimitations` 留一條 note。
+3. **`api_contract.md` §6.4 文字雲來源尚未定案**（見 §6.2 的紅字）。工作目錄版與 HEAD 版對「全期間累計 vs 單一年度 114」的說法相反，`participation_voice` 卡在定案前不應產生預先算結果。順帶一提，現行快照的 `keyword_frequency` 帶的是 `period_scope: "all_available"`，也就是 HEAD 那個版本的語意。
+4. **細分 `focusArea` 未實作前的靜默退化，只發生在 lambda 路徑。** 送 `participation_voice` 給現在的 lambda 不會報錯，它會讀取全部 analytics——能跑，但慢、貴、而且四張卡內容雷同，這種失敗沒有錯誤訊息，只在 `knownLimitations` 留一條 note。批次腳本相反，是硬性 `exit 1`（§5.4）。**兩條路徑對同一個未知值的反應不一致**，除錯時要先確認自己走的是哪一條。
+5. **指標語意的唯一來源是一張手寫表。** `ANALYTICS_METRIC_META` 決定模型看到的單位與青年適用性，而快照本身沒有這些欄位（§6.2）。表沒跟上快照時的失敗方式是「模型拿著錯的單位講得很有信心」——`weight` 就是現行的實例。每次 data-pipeline 加指標都要跑 `npm run dev:metric-audit`。
