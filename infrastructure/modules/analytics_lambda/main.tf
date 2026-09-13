@@ -2,72 +2,60 @@
 # same analytics as `data-pipeline/src/run_analytics.py`, and writes the
 # DynamoDB items defined by infrastructure/dynamodb_schema.md.
 #
-# Container image rather than a zip: the analytics needs shapely/pyproj native
-# wheels, and the job needs the large ephemeral storage and memory that only
-# make sense paired with an image. It is deliberately NOT on a schedule or an
-# endpoint — invoke it explicitly (see infrastructure.md), because a run reads
-# gigabytes of curated data and rewrites the whole table.
+# A plain zip, not a container image: the only native dependencies the analytics
+# import graph reaches are shapely and pyproj (~114MB unzipped, well under the
+# 250MB limit), and pip fetches their Linux wheels from any build machine, so
+# nothing here needs Docker. Large memory and /tmp are configurable on zip
+# functions just as they are on image ones.
+#
+# It is deliberately NOT on a schedule or an endpoint -- invoke it explicitly
+# (see infrastructure.md), because a run reads gigabytes of curated data and
+# rewrites the whole table.
 
 locals {
-  # Everything the image is built from: the handler here, plus the analytics
+  pipeline_dir = "${path.module}/../../../data-pipeline"
+  build_dir    = "${path.module}/build"
+
+  # Everything the payload is built from: the handler here, plus the analytics
   # package and config it imports out of data-pipeline/. __pycache__ churns on
-  # every local run, so hashing it would rebuild the image for no source change.
+  # every local run, so hashing it would rebuild for no source change.
   source_files = concat(
     [
-      for file in fileset("${var.pipeline_dir}", "src/**") : "${var.pipeline_dir}/${file}"
+      for file in fileset(local.pipeline_dir, "src/**") : "${local.pipeline_dir}/${file}"
       if !strcontains(file, "__pycache__")
     ],
-    [for file in fileset("${var.pipeline_dir}", "config/**") : "${var.pipeline_dir}/${file}"],
+    [for file in fileset(local.pipeline_dir, "config/**") : "${local.pipeline_dir}/${file}"],
     [
       for file in fileset("${path.module}/lambda", "**") : "${path.module}/lambda/${file}"
       if !strcontains(file, "__pycache__")
     ],
-    ["${var.pipeline_dir}/requirements.txt", "${path.module}/Dockerfile"],
+    [
+      "${path.module}/build.py",
+      # districts.json's boundary_file points at this, so it ships too.
+      "${path.module}/../../../frontend/public/Map_NewTaipei.json",
+    ],
   )
 
-  image_tag     = substr(sha1(join("", [for file in local.source_files : filesha1(file)])), 0, 16)
-  image_uri     = "${aws_ecr_repository.analytics.repository_url}:${local.image_tag}"
-  registry_host = split("/", aws_ecr_repository.analytics.repository_url)[0]
-  dockerfile    = "${path.module}/Dockerfile"
+  source_hash = sha1(join("", [for file in local.source_files : filesha1(file)]))
 }
 
-resource "aws_ecr_repository" "analytics" {
-  name = "${var.project_name}-analytics"
-
-  # Images are rebuilt from source on demand, so keeping them past a destroy
-  # buys nothing and blocks the repository from being removed.
-  force_delete = true
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  tags = {
-    Project     = var.project_name
-    Environment = var.environment
-  }
-}
-
-# Tagged by source hash, so an unchanged tree neither rebuilds nor redeploys.
-resource "null_resource" "build_image" {
+# Rebuilds only when the sources above change.
+resource "null_resource" "build_package" {
   triggers = {
-    image_tag = local.image_tag
+    source_hash = local.source_hash
   }
 
   provisioner "local-exec" {
-    command = "aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${local.registry_host}"
+    command = "python ${abspath("${path.module}/build.py")} --out ${abspath(local.build_dir)}"
   }
+}
 
-  # Context is the repo root: the image needs this module's handler and
-  # data-pipeline/ together. .dockerignore keeps data-pipeline/data/ out.
-  provisioner "local-exec" {
-    working_dir = var.repo_root
-    command     = "docker build --platform linux/amd64 -f ${abspath(local.dockerfile)} -t ${local.image_uri} ."
-  }
+data "archive_file" "analytics" {
+  type        = "zip"
+  source_dir  = local.build_dir
+  output_path = "${path.module}/lambda.zip"
 
-  provisioner "local-exec" {
-    command = "docker push ${local.image_uri}"
-  }
+  depends_on = [null_resource.build_package]
 }
 
 resource "aws_iam_role" "analytics_exec" {
@@ -120,12 +108,14 @@ resource "aws_iam_role_policy" "analytics_data" {
 }
 
 resource "aws_lambda_function" "analytics" {
-  function_name = "${var.project_name}-analytics"
-  role          = aws_iam_role.analytics_exec.arn
-  package_type  = "Image"
-  image_uri     = local.image_uri
-  timeout       = var.timeout
-  memory_size   = var.memory_size
+  function_name    = "${var.project_name}-analytics"
+  role             = aws_iam_role.analytics_exec.arn
+  handler          = "handler.handler"
+  runtime          = "python3.12"
+  timeout          = var.timeout
+  memory_size      = var.memory_size
+  filename         = data.archive_file.analytics.output_path
+  source_code_hash = data.archive_file.analytics.output_base64sha256
 
   # Curated inputs are downloaded to /tmp on demand; population alone is ~1.8GB.
   ephemeral_storage {
@@ -138,8 +128,6 @@ resource "aws_lambda_function" "analytics" {
       ANALYTICS_TABLE_NAME = var.dynamodb_table_name
     }
   }
-
-  depends_on = [null_resource.build_image]
 
   tags = {
     Project     = var.project_name

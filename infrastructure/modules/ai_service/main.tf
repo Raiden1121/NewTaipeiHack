@@ -19,22 +19,30 @@
 # the zip (ai-service/package.json sets that, but esbuild's bundle
 # doesn't otherwise know to bring it along).
 #
-# Every `terraform apply` reinstalls ai-service's deps and rebuilds, same
-# as the frontend build below in the root module -- keeps this in sync
-# with whatever is currently in ai-service/src without a separate release
-# step, which fits a hackathon's pace but is worth revisiting later.
+# Every `terraform apply` rebuilds the bundle, same as the frontend build in
+# the root module -- keeps this in sync with whatever is currently in
+# ai-service/src without a separate release step, which fits a hackathon's
+# pace but is worth revisiting later. Dependencies come from the repo-root
+# `npm install` (workspaces), not from here; see the provisioner below.
 
 resource "null_resource" "build_ai_service" {
   triggers = {
     always_run = timestamp()
   }
 
+  # One command per provisioner. A multi-line `command` runs through
+  # `cmd /C` on Windows, which does not treat the newline as a separator: only
+  # the first line executed, the bundle was never written, and cmd still
+  # returned 0 so this resource reported success while archive_file failed on
+  # the missing file.
+  #
+  # No `npm ci` here: ai-service is an npm workspace, so installing from this
+  # directory rewrites the repo-root node_modules that frontend/ shares, which
+  # left the frontend build without react/tailwind on the next apply. The root
+  # install already provides these deps, and esbuild is fetched by `npx --yes`.
   provisioner "local-exec" {
     working_dir = "${path.module}/../../../ai-service"
-    command = <<-EOT
-      npm ci
-      npx --yes esbuild@0.24.2 src/handlers/lambda.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist-lambda/index.mjs
-    EOT
+    command     = "npx --yes esbuild@0.24.2 src/handlers/lambda.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist-lambda/index.mjs"
   }
 }
 

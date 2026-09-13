@@ -17,8 +17,8 @@ variable "bedrock_model_id" {
     Switching to Opus is fine as long as nothing downstream of this Lambda imposes
     a ~30s timeout on its caller (e.g. an API Gateway HTTP API integration would).
   EOT
-  type    = string
-  default = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+  type        = string
+  default     = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 }
 
 variable "timeout" {

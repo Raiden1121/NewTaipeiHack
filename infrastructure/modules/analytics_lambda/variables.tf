@@ -8,21 +8,6 @@ variable "environment" {
   type        = string
 }
 
-variable "aws_region" {
-  description = "Region used for the ECR login during the image build."
-  type        = string
-}
-
-variable "repo_root" {
-  description = "Repo root, used as the Docker build context (the image needs this module's handler plus data-pipeline/)."
-  type        = string
-}
-
-variable "pipeline_dir" {
-  description = "Path to data-pipeline/, whose src/ and config/ are baked into the image."
-  type        = string
-}
-
 variable "transformed_bucket_name" {
   description = "Bucket holding curated/ and quality/, read by the analytics."
   type        = string

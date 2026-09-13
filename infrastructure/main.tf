@@ -40,6 +40,12 @@ module "ai_service" {
   bedrock_model_id         = var.bedrock_model_id
   tavily_api_key           = var.tavily_api_key
   backend_lambda_role_name = module.api.lambda_role_name
+
+  # frontend/ and ai-service/ are npm workspaces sharing one node_modules at
+  # the repo root, so this module's `npm ci` wipes and reinstalls the very tree
+  # `npm run build` is reading. Run in parallel they race: npm ci hits EPERM on
+  # the in-use esbuild binary and vite loses modules mid-wipe. Serialize them.
+  depends_on = [null_resource.build_frontend]
 }
 
 module "transformed_data" {
@@ -54,9 +60,6 @@ module "analytics_lambda" {
 
   project_name            = var.project_name
   environment             = var.environment
-  aws_region              = var.aws_region
-  repo_root               = "${path.module}/.."
-  pipeline_dir            = "${path.module}/../data-pipeline"
   transformed_bucket_name = module.transformed_data.bucket_name
   transformed_bucket_arn  = module.transformed_data.bucket_arn
   dynamodb_table_name     = module.analytics_table.table_name

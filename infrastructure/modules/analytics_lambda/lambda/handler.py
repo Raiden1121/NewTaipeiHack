@@ -47,7 +47,9 @@ from source_registry import SourceRegistry
 from dynamodb_projection import MANIFEST_KEY, build_items, to_dynamodb_types
 
 DATA_ROOT = Path("/tmp/data")
-CONFIG_DIR = Path(__file__).resolve().parent / "config"
+# The package mirrors the repo layout (see build.py) so that config paths
+# pointing outside config/ -- districts.json's boundary_file -- still resolve.
+CONFIG_DIR = Path(__file__).resolve().parent / "data-pipeline" / "config"
 ANNUAL_WINDOW_YEARS = 5
 
 _s3 = boto3.client("s3")
