@@ -104,7 +104,7 @@ new NodejsFunction(this, 'AiServiceFn', {
 
 最小權限是 `bedrock:InvokeModel`。但**跨區推論的 inference profile 有個陷阱**：
 
-我們現在用的是 `us.anthropic.claude-opus-4-6-v1` —— `us.` 前綴代表這是
+我們用的是 `us.anthropic.claude-sonnet-4-6` —— `us.` 前綴代表這是
 **cross-Region inference profile**，不是單一 region 的 foundation model。
 這種情況下權限要同時給：
 
@@ -113,17 +113,19 @@ new NodejsFunction(this, 'AiServiceFn', {
 
 只給第一個會得到 `AccessDeniedException`，而錯誤訊息不會告訴你少了第二個。
 
-```ts
-fn.addToRolePolicy(new PolicyStatement({
-  actions: ['bedrock:InvokeModel'],
-  resources: [
-    // 1. inference profile
-    `arn:aws:bedrock:${region}:${account}:inference-profile/us.anthropic.claude-opus-4-6-v1`,
-    // 2. profile 會路由到的每個 region 的 foundation model
-    //    （用 * 涵蓋 region 是務實做法；要收緊就把實際 region 列出來）
-    'arn:aws:bedrock:*::foundation-model/anthropic.claude-opus-4-6-v1',
-  ],
-}));
+Terraform 已經這樣寫了（`infrastructure/modules/ai_service/main.tf` 的
+`aws_iam_role_policy.bedrock_invoke`）：
+
+```hcl
+Action = ["bedrock:InvokeModel"]
+Resource = [
+  # 1. inference profile
+  "arn:aws:bedrock:${region}:${account}:inference-profile/${var.bedrock_model_id}",
+  # 2. profile 會路由到的每個 region 的 foundation model。
+  #    範圍收在 anthropic.* —— 夠寬鬆到換 Anthropic 模型不用改 IAM，
+  #    又不是整個 Bedrock 的空白授權。
+  "arn:aws:bedrock:*::foundation-model/anthropic.*",
+]
 ```
 
 另外**要先在 Bedrock 主控台的 Model access 開通該模型**。

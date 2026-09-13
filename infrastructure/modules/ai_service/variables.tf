@@ -11,18 +11,44 @@ variable "environment" {
 variable "bedrock_model_id" {
   description = <<-EOT
     Bedrock model or cross-Region inference profile ID (see ai-service/.env.example
-    for how to look up what your account can actually use). Defaults to Claude
-    Haiku 4.5 because it's the only model that reliably finishes an AI Service
-    request in ~10-15s; Opus/Sonnet run 30-75s (ai-service/DEPLOYMENT.md section 5).
-    Switching to Opus is fine as long as nothing downstream of this Lambda imposes
-    a ~30s timeout on its caller (e.g. an API Gateway HTTP API integration would).
+    for how to look up what your account can actually use).
+
+    Defaults to Claude Sonnet 4.6 -- the same string ai-service has been validated
+    against locally (the repo root .env's MODEL_NAMME).
+
+    An earlier version of this default was Haiku 4.5, on the reasoning that it was
+    the only model finishing in ~10-15s while Sonnet/Opus ran 30-75s. That reasoning
+    no longer holds: explain / policyCopilot are now served from precomputed results
+    (3-5ms) instead of being computed per request, and Q&A caps its `answer` at 400
+    characters, which brought every Q&A scenario to 10-30s on Sonnet. Measurements
+    are in ai-service/ai-service.md's latency section.
+
+    Sonnet is kept because it does two things Haiku is measurably worse at:
+    correcting a false premise in the user's question, and noticing that two metrics
+    contradict each other. That self-checking is the core of not producing
+    confidently wrong answers.
+
+    Haiku stays the fallback if latency headroom is ever needed -- but re-run
+    `npm run dev:reasoning-check` after switching, because that check (does it admit
+    it cannot answer?) is exactly what small models tend to lose.
   EOT
-  type        = string
-  default     = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+  type    = string
+  default = "us.anthropic.claude-sonnet-4-6"
 }
 
 variable "timeout" {
-  description = "Lambda timeout in seconds. 120 covers Opus's observed 74s worst case plus one semantic-validation retry (BEDROCK_MAX_ATTEMPTS default 2). Drop to 60 if bedrock_model_id is a Haiku model."
+  description = <<-EOT
+    Lambda timeout in seconds.
+
+    Q&A on Sonnet is 10-30s, but this needs headroom for two other paths: a
+    precompute cache miss recomputes explain / policyCopilot live (44-62s observed),
+    and BEDROCK_MAX_ATTEMPTS defaults to 2, so a semantic-validation failure costs a
+    second full generation. 120 covers both.
+
+    Do not drop this to 60 without checking that AI_PRECOMPUTE_DIR is set and
+    `npm run dev:precompute-check` passes -- otherwise a cache miss on a dashboard
+    card will hit the timeout instead of just being slow.
+  EOT
   type        = number
   default     = 120
 }

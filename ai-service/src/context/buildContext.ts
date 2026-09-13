@@ -5,6 +5,7 @@ import type { WebSearchScope, WebSearchSettings } from '../types/webFinding.js';
 import { AnalyticsSnapshotEvidenceRepository } from './analyticsSnapshotRepository.js';
 import { CompositeEvidenceRepository } from './compositeRepository.js';
 import { CuratedFileEvidenceRepository } from './curatedFileRepository.js';
+import { DynamoEvidenceRepository } from './dynamoRepository.js';
 import {
   DEFAULT_LIMIT_PER_DATASET,
   type EvidenceQuery,
@@ -20,6 +21,8 @@ export * from './analyticsRecord.js';
 export * from './analyticsSnapshotRepository.js';
 export * from './compositeRepository.js';
 export * from './comparisonMetrics.js';
+export * from './dynamoRepository.js';
+export * from './metricDefinitions.js';
 
 /**
  * data-pipeline 本機輸出目錄的預設位置：`<repo>/data-pipeline/data`。
@@ -51,9 +54,18 @@ export function defaultDataPipelineDataDir(): string {
  * 機器上答得完整、在 AWS 上答得殘缺。本機預設就跟線上一致比較安全。
  *
  * `AI_EVIDENCE_SOURCE` 可以切換：
- * - `analytics`（預設）：只讀 analytics 快照
+ * - `analytics`（預設）：只讀本機的 analytics 快照檔
+ * - `dynamo`：讀 DynamoDB 的 analytics 表（**正式路徑**，需要 `ANALYTICS_TABLE_NAME`）
  * - `curated`：只讀 curated（想檢查 pipeline 的原始輸出時用）
  * - `composite`：兩個都讀（curated 在前）
+ *
+ * `dynamo` 與 `analytics` 產出**完全相同的 metricId 與 evidenceId** ——
+ * 前者讀表、後者讀檔，但攤平邏輯是同一份。所以切換來源不會讓預先算的
+ * fingerprint 失效，也不會讓 prompt 長得不一樣。
+ *
+ * 預設仍然是 `analytics` 而不是 `dynamo`：表可能還沒被 data-pipeline 寫入
+ * （schema 文件說 manifest 不存在時所有端點都回 503），而本機快照一定在。
+ * 部署時應該明確設 `AI_EVIDENCE_SOURCE=dynamo`。
  *
  * `AI_ANALYTICS_SNAPSHOT_ID` 可以指定讀哪個快照，省略時用 `published/current.json`。
  * `AI_DATA_DIR` 可覆寫資料目錄，測試與批次腳本會用到。
@@ -77,6 +89,21 @@ export function createEvidenceRepositoryFromEnv(
   const snapshotId = env.AI_ANALYTICS_SNAPSHOT_ID;
   const mode = env.AI_EVIDENCE_SOURCE?.trim().toLowerCase();
 
+  if (mode === 'dynamo' || mode === 'dynamodb') {
+    const tableName = env.ANALYTICS_TABLE_NAME?.trim();
+    if (tableName === undefined || tableName === '') {
+      throw new Error(
+        'AI_EVIDENCE_SOURCE=dynamo 但沒有設 ANALYTICS_TABLE_NAME。' +
+          '表名是 Terraform 的 module.analytics_table 輸出（`{project_name}-analytics`）。',
+      );
+    }
+    return new DynamoEvidenceRepository({
+      tableName,
+      ...(env.BEDROCK_REGION ?? env.AWS_REGION ?? env.AWS_DEFAULT_REGION
+        ? { region: (env.BEDROCK_REGION ?? env.AWS_REGION ?? env.AWS_DEFAULT_REGION)! }
+        : {}),
+    });
+  }
   if (mode === 'curated') {
     return new CuratedFileEvidenceRepository(dataDir);
   }
