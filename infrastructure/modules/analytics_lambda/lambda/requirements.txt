@@ -1,8 +1,9 @@
-# Only what the analytics import graph actually reaches at runtime.
-# data-pipeline/requirements.txt also lists jieba, pypdf and pyshp; none of
-# them load here -- jieba is imported lazily inside a function this Lambda
-# never calls, and pypdf/pyshp are only used by collectors/. Verified by
-# importing handler.py and inspecting sys.modules.
+# Binary (wheel) dependencies the analytics import graph reaches at runtime,
+# fetched for the Lambda platform by build.py.
+# jieba is also required -- youth_participation tokenizes keywords with it --
+# but ships only as an sdist, so it lives in requirements-sdist.txt.
+# pypdf and pyshp from data-pipeline/requirements.txt are only used by
+# collectors/ and are not packaged.
 #
 # Keep the version ranges in step with data-pipeline/requirements.txt.
 shapely>=2.0,<3

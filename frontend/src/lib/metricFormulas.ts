@@ -12,7 +12,7 @@ export const YOUTH_BOROUGH_CHIEF_RATIO_FORMULA =
   "青年參政指數 = (18–35 歲里長當選人數 ÷ 全區里長總席次) × 100%";
 
 export const YRR_FORMULA =
-  "YRR (Youth Rep. Ratio) = (青年當選人數 ÷ 總當選席次) ÷ (青年選舉人數 ÷ 總選舉人數)";
+  "YRR (Youth Rep. Ratio) = (18–35 歲里長當選人數 ÷ 里長總席次) ÷ (18–35 歲人口 ÷ 總人口)（民國 111 年屆；缺選舉人年齡結構，以人口占比代替選舉人占比）";
 
 export const FERTILITY_RATE_FORMULA =
   "育齡青年生育率 (‰) = (新北市 18–35 歲女性當年度生育嬰兒總數 ÷ 新北市 18–35 歲女性總人數) × 1000‰";

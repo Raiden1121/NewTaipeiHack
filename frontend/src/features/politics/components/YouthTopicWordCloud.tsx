@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useYouthKeywordFrequency } from "@/lib/api/queries";
-import type { YouthKeywordFrequencyKeyword } from "@/lib/api/types";
-import { cn } from "@/lib/utils";
+import type { YouthKeywordFrequencyAnalysis } from "@/lib/api/types";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -83,7 +82,7 @@ function estimateTextBox(term: string, fontSize: number) {
 }
 
 // 依重要程度由大到小，沿螺旋外擴尋找不與既有詞碰撞的位置（AABB 碰撞偵測）。
-function layoutWordCloud(keywords: YouthKeywordFrequencyKeyword[]): {
+function layoutWordCloud(topics: { label: string; weight: number }[]): {
   placed: PlacedWord[];
   bounds: ViewBoxBounds;
 } {
@@ -155,32 +154,28 @@ function layoutWordCloud(keywords: YouthKeywordFrequencyKeyword[]): {
   };
 }
 
-// 已知資料源的中文名稱；未來若 pipeline 加入新資料源，未對應到的 key 直接顯示原始字串。
-const SOURCE_LABELS: Record<string, string> = {
-  join_proposals: "公共政策網路參與平台提案",
-  youth_council_minutes: "青年諮詢會議紀錄",
-};
-
-function formatSourcePeriods(sourcePeriods: Record<string, string[]>): string {
-  return Object.entries(sourcePeriods)
-    .map(([source, years]) => {
-      const label = SOURCE_LABELS[source] ?? source;
-      if (years.length === 0) return `${label}：無資料`;
-      const first = years[0];
-      const last = years[years.length - 1];
-      return first === last ? `${label} ${first} 年` : `${label} ${first}–${last} 年`;
-    })
-    .join("、");
+// source_periods 是 dataset -> 民國年清單；文字雲是全期間合併，只顯示涵蓋的年度範圍。
+function coveredYearRange(sourcePeriods: YouthKeywordFrequencyAnalysis["source_periods"] | undefined): string | null {
+  const years = Object.values(sourcePeriods ?? {})
+    .flat()
+    .map(Number)
+    .filter(Number.isFinite);
+  if (years.length === 0) return null;
+  const min = Math.min(...years);
+  const max = Math.max(...years);
+  return min === max ? `${min}` : `${min}–${max}`;
 }
 
 export default function YouthTopicWordCloud() {
   const { data: analysis, isLoading, isError, error, refetch } = useYouthKeywordFrequency();
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const layout = useMemo(
-    () => (analysis && analysis.keywords.length > 0 ? layoutWordCloud(analysis.keywords) : null),
-    [analysis],
-  );
+  const layout = useMemo(() => {
+    const keywords = analysis?.keywords ?? [];
+    return keywords.length > 0
+      ? layoutWordCloud(keywords.map((keyword) => ({ label: keyword.term, weight: keyword.weight })))
+      : null;
+  }, [analysis]);
+  const yearRange = coveredYearRange(analysis?.source_periods);
 
   const hoveredWord =
     layout && hoveredIndex !== null ? layout.placed[hoveredIndex] : null;
@@ -297,9 +292,9 @@ export default function YouthTopicWordCloud() {
               </svg>
             </div>
             <p className="text-[11px] text-slate-400">
-              資料涵蓋期間：
-              {analysis ? formatSourcePeriods(analysis.source_periods) : ""}
-              ；滑鼠移至字詞可查看出現次數。
+              {yearRange
+                ? `資料為民國 ${yearRange} 年所有可用提案與會議紀錄合併的議題關鍵字重要程度。`
+                : "資料為所有可用提案與會議紀錄合併的議題關鍵字重要程度。"}
             </p>
           </>
         )}

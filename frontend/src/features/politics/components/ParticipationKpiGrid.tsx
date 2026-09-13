@@ -35,6 +35,12 @@ export default function ParticipationKpiGrid() {
     ? selectedDistrict.youthBoroughChiefRatioPercent
     : (overview?.elections?.borough_chief_v1_citywide?.ratio_percent ?? null);
 
+  // YRR 同樣固定民國 111 年屆：選取行政區用 districts[].yrr，未選取用全市加總後重算的純量
+  // （不是 29 區平均），皆由 backend 投影好，前端不自行計算，見 api_contract.md §6.2。
+  const yrr = selectedDistrict
+    ? (selectedDistrict.yrr ?? null)
+    : (overview?.elections?.borough_chief_v1_citywide?.yrr ?? null);
+
   const kpis = [
     {
       id: "service-coverage",
@@ -56,8 +62,8 @@ export default function ParticipationKpiGrid() {
       id: "yrr",
       icon: Gauge,
       label: "YRR (Youth Rep. Ratio)",
-      caption: "席次與青年人口占比之比值",
-      value: "資料待補",
+      caption: "青年里長席次占比與青年人口占比之比值（民國 111 年屆）",
+      value: yrr === null ? "資料待補" : yrr.toFixed(2),
       formula: YRR_FORMULA,
     },
   ];
@@ -103,8 +109,8 @@ export default function ParticipationKpiGrid() {
         })}
       </div>
       <p className="text-[11px] text-slate-400">
-        青年里長占比僅民國 111 年屆有完整資料；YRR 缺選舉人年齡結構資料源，待補，見
-        api_contract.md §6.2。
+        青年里長占比與 YRR 僅民國 111 年屆有完整資料；YRR 缺選舉人年齡結構資料源，分母以 18–35
+        歲人口占比代替選舉人占比（代理值），見 api_contract.md §6.2。
       </p>
     </div>
   );

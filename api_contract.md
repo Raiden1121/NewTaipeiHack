@@ -123,7 +123,7 @@ response 不得包含 `raw_record`、`raw_records`、本地路徑或 stack trace
 | 形狀 | 意思 | 範例 |
 |---|---|---|
 | **純量（Scalar）** | 就是現在這一刻的一個數字／字串，前端直接顯示，不需要自己挑 | `districts[].opportunityIndex`、`districts[].youthBoroughChiefRatioPercent` |
-| **時間序列（Series）** | 一個陣列，每個元素是一年／一屆，**前端要嘛整包拿去畫趨勢圖，要嘛不應該只挑一個元素當「現在」的值**——如果需要「現在」的純量，那應該是 Backend 另外送一個 Scalar 欄位，不是叫前端自己篩 | `annual.population.years[]`（5 個元素，110–114，畫趨勢折線圖用）、`annual.fertility.years[]`（同上）、`policy.budgetTrend[]`（5 個元素，折線圖用） |
+| **時間序列（Series）** | 一個陣列，每個元素是一年／一屆，**前端要嘛整包拿去畫趨勢圖，要嘛不應該只挑一個元素當「現在」的值**——如果需要「現在」的純量，那應該是 Backend 另外送一個 Scalar 欄位，不是叫前端自己篩 | `annual.population.years[]`（5 個元素，110–114，畫趨勢折線圖用）、`annual.fertility.years[]`（同上）、`policy.budgetTrend[]`（來源第一個預算年度到最新預算年度，目前 112–116，折線圖用） |
 | **選擇性 Series（Historical detail）** | 陣列保留給「以後可能要做歷年比較」的功能，**目前沒有任何 UI 直接消費整包**，KPI 卡都是吃另外提供的 Scalar | `elections.borough_chief_v1[]`（3 屆 × 29 區＝87 筆，目前無元件直接用整包；KPI 卡吃 `districts[].youthBoroughChiefRatioPercent` 或 `elections.borough_chief_v1_citywide`）|
 
 **本次修正的具體案例**（都是「Series 有了，但沒人告訴前端該怎麼收斂成 Scalar」造成的）：
@@ -313,8 +313,8 @@ norm_inv(x) = 100 - norm(x)        ← housing 使用
 |---|---|---|
 | 青年總預算 `NT$ 3.24 億` | `data.policy.currentBudget` = `196153`（單位 `TWD_thousand`，即 1.96 億）| ✅ 有值；**單位是千元，前端需換算** |
 | 較前年 `+8.5%` | `data.policy.budgetYoY` = `23.639` | ✅ |
-| 預算執行率 `72%` | `data.policy.executionRate` = `null` | ❌ `executionFailure: "final_settlement_unavailable"` |
-| 近五年趨勢 | `data.policy.budgetTrend[]` | ⚠️ 110/111 為 `null`，112–114 有值（149029 / 158650 / 196153）|
+| 預算執行率 `72%` | `data.policy.executionRate` = `null` | ⚠️ 目前 `dev-full-youth-keyword-20260913` published snapshot 尚未納入後補的 114 年決算摘要；契約目標值為最新可得的 114 年 `93.20%`，在 snapshot 重建前仍保留 `null` |
+| 年度預算趨勢 | `data.policy.budgetTrend[]` | ✅ 從來源第一個預算年度延伸到最新預算文件年度，目前為 112–116（149029 / 158650 / 196153 / 213022 / 220101）。青年局 112 年才成立，官網預算列表只有 112 年起，110/111 不是缺漏資料，因此不輸出 `null` 點。115 為法定預算、116 為預算案，兩者都當一般值畫，來源記在 `document_status`。`currentBudget`／`budgetYoY`／`executionRate` 仍取 annual window（114），不受趨勢延伸影響 |
 
 > 🔴 **同一份 payload 有兩種預算形狀**：`policy.budgetTrend[]`（`value_thousand`）與 `annual.budget_trend[]`（`legal_budget_amount` + 12 個決算欄位）內容重疊。API 對外**只暴露 `policy.*`**，`annual.budget_trend` 視為 pipeline 內部中繼，不進契約。
 
