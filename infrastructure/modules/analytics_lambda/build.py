@@ -55,6 +55,18 @@ def build(out: Path) -> None:
         check=True,
     )
 
+    # Pure-Python packages published only as sdists (jieba has no wheel), which
+    # `--only-binary` above cannot install. Being pure Python, a wheel built on
+    # the build machine runs unchanged on the Lambda runtime.
+    subprocess.run(
+        [
+            sys.executable, "-m", "pip", "install", "--quiet", "--no-compile", "--no-deps",
+            "--target", str(out),
+            "-r", str(LAMBDA_DIR / "requirements-sdist.txt"),
+        ],
+        check=True,
+    )
+
     # handler.py and dynamodb_projection.py at the zip root, where the Lambda
     # runtime looks for the entrypoint.
     shutil.copytree(LAMBDA_DIR, out, dirs_exist_ok=True, ignore=IGNORE)

@@ -69,7 +69,7 @@ function BudgetTrendChart({ trend: rawTrend }: { trend: BudgetTrendPoint[] }) {
       preserveAspectRatio="none"
       className="block h-full w-full"
       role="img"
-      aria-label="年度總預算趨勢折線圖，112 至 116 年，115、116 年尚無資料"
+      aria-label="年度總預算趨勢折線圖"
     >
       <defs>
         <marker
@@ -263,7 +263,9 @@ export default function PolicySupportPanel() {
             <BudgetTrendChart trend={policy.budgetTrend} />
           </div>
           <p className="text-[11px] text-slate-400">
-            近 5 年年度總預算趨勢（億元）。
+            {policy.budgetTrend.length > 0 &&
+              `民國 ${policy.budgetTrend[0].year_roc}–${policy.budgetTrend[policy.budgetTrend.length - 1].year_roc} 年`}
+            年度總預算趨勢（億元）。
             {missingYears.length > 0 &&
               `民國 ${missingYears.join("、")} 年資料尚未發布，圖上未連線。`}
           </p>

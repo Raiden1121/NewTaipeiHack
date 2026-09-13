@@ -184,7 +184,10 @@ def generate_homepage_data(
         latest_election_year=max(config.election_years_roc),
     )
     kpi = _build_homepage_kpi(annual_population, annual_years, quality, national_population_records)
-    policy = _build_homepage_policy(budget_series["trend"])
+    policy = _build_homepage_policy(
+        budget_series["trend"],
+        _budget_trend_points(budget_records, first_year_roc=annual_years[0]),
+    )
 
     result = {
         "metric_id": "homepage",
@@ -347,21 +350,86 @@ def _national_youth_population(
     return candidates[max(candidates)] if candidates else None
 
 
-def _build_homepage_policy(trend: list[dict[str, Any]]) -> dict[str, Any]:
+_TREND_BUDGET_STATUSES = ("legal_budget", "proposed_budget")
+
+
+def _budget_trend_points(
+    budget_records: list[dict[str, Any]], *, first_year_roc: int
+) -> list[dict[str, Any]]:
+    """Yearly total budget from the first budget document year through the newest.
+
+    currentBudget and the execution rate stay on the annual window, but the trend
+    chart runs to the latest published budget year, so the current year's legal
+    budget and next year's proposed budget both appear as ordinary points. A
+    year's legal budget wins over its proposal; ``document_status`` records which.
+
+    The chart starts at the first year the source publishes (never before
+    ``first_year_roc``): the Youth Bureau's budget list begins at ROC 112 because
+    the bureau did not exist earlier, so 110/111 are not missing data points.
+    Gaps after the first published year stay as null points.
+    """
+
+    totals: dict[int, dict[str, Any]] = {}
+    for row in budget_records:
+        status = row.get("document_status")
+        if row.get("row_type") != "total" or status not in _TREND_BUDGET_STATUSES:
+            continue
+        if row.get("unit") not in (None, "TWD_thousand"):
+            continue
+        year_text = str(row.get("budget_year_roc") or "").rstrip("年")
+        amount = _number(row.get("budget_amount") if row.get("budget_amount") is not None else row.get("value"))
+        if not year_text.isdigit() or amount is None:
+            continue
+        year = int(year_text)
+        current = totals.get(year)
+        if current is None or _TREND_BUDGET_STATUSES.index(status) < _TREND_BUDGET_STATUSES.index(
+            current["document_status"]
+        ):
+            totals[year] = {"amount": amount, "document_status": status}
+
+    points: list[dict[str, Any]] = []
+    previous: float | None = None
+    published = [year for year in totals if year >= first_year_roc]
+    if not published:
+        return points
+    for year in range(min(published), max(published) + 1):
+        entry = totals.get(year)
+        amount = entry["amount"] if entry else None
+        points.append(
+            {
+                "year_roc": year,
+                "value_thousand": amount,
+                "budget_yoy_percent": _yoy(amount, previous),
+                "quality_status": "observed" if entry else "unavailable",
+                "document_status": entry["document_status"] if entry else None,
+            }
+        )
+        if amount is not None:
+            previous = amount
+    return points
+
+
+def _build_homepage_policy(
+    trend: list[dict[str, Any]], budget_trend: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
     budget_rows = [row for row in trend if row.get("legal_budget_amount") is not None]
     execution_rows = [row for row in trend if row.get("execution_rate") is not None]
     latest_budget = budget_rows[-1] if budget_rows else {}
     latest_execution = execution_rows[-1] if execution_rows else {}
     return {
-        "budgetTrend": [
-            {
-                "year_roc": row.get("year_roc"),
-                "value_thousand": row.get("legal_budget_amount"),
-                "budget_yoy_percent": row.get("budget_yoy_percent"),
-                "quality_status": row.get("quality_status"),
-            }
-            for row in trend
-        ],
+        "budgetTrend": (
+            budget_trend
+            if budget_trend is not None
+            else [
+                {
+                    "year_roc": row.get("year_roc"),
+                    "value_thousand": row.get("legal_budget_amount"),
+                    "budget_yoy_percent": row.get("budget_yoy_percent"),
+                    "quality_status": row.get("quality_status"),
+                }
+                for row in trend
+            ]
+        ),
         "currentBudget": latest_budget.get("legal_budget_amount"),
         "budgetYoY": latest_budget.get("budget_yoy_percent"),
         "executionRate": latest_execution.get("execution_rate"),

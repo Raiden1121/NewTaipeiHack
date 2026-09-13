@@ -12,7 +12,7 @@ from analytics.annual_metrics import (  # noqa: E402
     calculate_annual_population,
     calculate_budget_series,
 )
-from analytics.homepage import _build_homepage_policy  # noqa: E402
+from analytics.homepage import _budget_trend_points, _build_homepage_policy  # noqa: E402
 
 
 class TestHomepageAnnualMetrics(unittest.TestCase):
@@ -157,6 +157,64 @@ class TestHomepageAnnualMetrics(unittest.TestCase):
         self.assertEqual(policy["executionRate"], 93.2)
         self.assertEqual(policy["executionRateYearRoc"], 114)
         self.assertIsNone(policy["executionFailure"])
+
+    def test_budget_trend_runs_to_latest_budget_document_while_policy_scalars_stay_in_window(self):
+        def total(year, status, amount, unit="TWD_thousand"):
+            return {
+                "budget_year_roc": str(year),
+                "row_type": "total",
+                "document_status": status,
+                "budget_amount": amount,
+                "unit": unit,
+            }
+
+        records = [
+            total(112, "legal_budget", 149029),
+            total(113, "legal_budget", 158650),
+            total(114, "legal_budget", 196153),
+            total(115, "proposed_budget", 999999),
+            total(115, "legal_budget", 213022),
+            total(116, "proposed_budget", 220101),
+            total(114, "final_settlement", 196653000, unit="TWD"),
+            {"budget_year_roc": "116", "row_type": "detail", "document_status": "proposed_budget", "budget_amount": 1},
+        ]
+
+        trend = _budget_trend_points(records, first_year_roc=110)
+
+        # The source's first budget year is 112 (the bureau did not exist before),
+        # so 110/111 are not emitted as missing points.
+        self.assertEqual([row["year_roc"] for row in trend], [112, 113, 114, 115, 116])
+        self.assertEqual(
+            [row["value_thousand"] for row in trend],
+            [149029, 158650, 196153, 213022, 220101],
+        )
+        # A year's legal budget wins over its proposal; the proposal-only year stays a normal point.
+        self.assertEqual(trend[3]["document_status"], "legal_budget")
+        self.assertEqual(trend[4]["document_status"], "proposed_budget")
+        self.assertEqual(trend[4]["quality_status"], "observed")
+        self.assertIsNone(trend[0]["budget_yoy_percent"])
+        self.assertAlmostEqual(trend[4]["budget_yoy_percent"], (220101 - 213022) / 213022 * 100)
+
+        series = calculate_budget_series(records, records, annual_years_roc=[110, 111, 112, 113, 114])
+        policy = _build_homepage_policy(series["trend"], trend)
+
+        self.assertEqual(policy["budgetTrend"], trend)
+        self.assertEqual(policy["currentBudget"], 196153)
+
+    def test_budget_trend_keeps_gaps_after_the_first_published_year_and_respects_window_start(self):
+        records = [
+            {"budget_year_roc": "105", "row_type": "total", "document_status": "legal_budget", "budget_amount": 1, "unit": "TWD_thousand"},
+            {"budget_year_roc": "112", "row_type": "total", "document_status": "legal_budget", "budget_amount": 100, "unit": "TWD_thousand"},
+            {"budget_year_roc": "114", "row_type": "total", "document_status": "legal_budget", "budget_amount": 120, "unit": "TWD_thousand"},
+        ]
+
+        trend = _budget_trend_points(records, first_year_roc=110)
+
+        self.assertEqual([row["year_roc"] for row in trend], [112, 113, 114])
+        self.assertIsNone(trend[1]["value_thousand"])
+        self.assertEqual(trend[1]["quality_status"], "unavailable")
+        self.assertAlmostEqual(trend[2]["budget_yoy_percent"], 20.0)
+        self.assertEqual(_budget_trend_points([], first_year_roc=110), [])
 
 
 if __name__ == "__main__":
