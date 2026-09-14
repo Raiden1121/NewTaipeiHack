@@ -10,8 +10,6 @@
 
 ## Frontend Preview
 
-以下畫面於 2026-09-15 從當時的上雲版本擷取，為寬度 1440px 的完整長頁截圖。圖片已保存至 `docs/frontend/`，README 不依賴 AWS 環境即可檢視；點擊圖片可開啟原始尺寸。
-
 <table>
   <tr>
     <td align="center">
