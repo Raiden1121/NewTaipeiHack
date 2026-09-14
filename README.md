@@ -57,11 +57,8 @@
 
 ## System Architecture
 
-以下為目標架構；標示 [已部署] 的部分已用 Terraform 部署到 AWS，其餘仍在規劃：
-
 [![System Architecture](docs/architecture/system-architecture.visual-check.1440x900.light.png)](docs/architecture/system-architecture.html)
 
-互動式版本：[system-architecture.html](docs/architecture/system-architecture.html)；相關圖檔與驗證輸出見 [`docs/architecture/`](docs/architecture/)。
 
 ## Project Structure
 
@@ -134,7 +131,7 @@ AI 回覆應盡可能符合以下原則：
 - 資料不足時明確標示限制。
 - AI 建議屬於政策輔助資訊，不代表政府正式政策決定。
 
-`ai-service/` 已實作 Bedrock client、context/evidence 組裝與 Structured Output 驗證（見 `ai-service/ai-service.md`），但尚未部署成雲端 Lambda；RAG／Knowledge Base 仍未實作。
+`ai-service/` 已實作 Bedrock client、context/evidence 組裝與 Structured Output 驗證（見 `ai-service/ai-service.md`），
 
 ## Tech Stack
 
