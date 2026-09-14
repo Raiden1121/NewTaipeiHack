@@ -4,6 +4,7 @@ import { Bot, SendHorizontal, ShieldCheck, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { queryAi } from "@/lib/api/ai";
 
 type ChatRole = "user" | "assistant";
 
@@ -13,10 +14,6 @@ interface ChatMessage {
   content: string;
 }
 
-// AI 尚未串接，固定以此句回覆所有提問。
-const FIXED_REPLY = "我只是個語言模型，這件事我幫不上忙。";
-const REPLY_DELAY_MS = 700;
-
 const GREETING: ChatMessage = {
   id: "greeting",
   role: "assistant",
@@ -25,7 +22,7 @@ const GREETING: ChatMessage = {
 
 // 問題範例，點擊後填入輸入框；使用者送出第一則訊息後不再顯示。
 const EXAMPLE_PROMPTS = [
-  "問什麼新莊的宜居度比板橋還低？板橋房價不是比較貴",
+  "為什麼新莊的宜居度比板橋還低？板橋房價不是比較貴嗎？",
   "為什麼八里區的青年薪資分數這麼高？",
   "為什麼樹林區的青年機會指數能排進那麼高的名次？",
 ];
@@ -174,7 +171,6 @@ export default function PolicyDecisionAssistant() {
   const [trustedSourcesOnly, setTrustedSourcesOnly] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const timeoutRef = useRef<number | null>(null);
 
   const hasUserMessage = messages.some((message) => message.role === "user");
   const showExamples = !hasUserMessage && input.trim().length === 0;
@@ -186,20 +182,12 @@ export default function PolicyDecisionAssistant() {
     scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: "smooth" });
   }, [messages, isTyping]);
 
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current !== null) {
-        window.clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
   function handleExampleClick(prompt: string) {
     setInput(prompt);
     inputRef.current?.focus({ preventScroll: true });
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = input.trim();
     if (!trimmed || isTyping) return;
@@ -211,13 +199,31 @@ export default function PolicyDecisionAssistant() {
     setInput("");
     setIsTyping(true);
 
-    timeoutRef.current = window.setTimeout(() => {
+    try {
+      const response = await queryAi({
+        action: "qa",
+        question: trimmed,
+        focusArea: "policy",
+        webSearch: {
+          enabled: true,
+          scope: trustedSourcesOnly ? "trusted" : "all",
+          contextSize: "low",
+        },
+      });
+      const answer = response.output.answer?.trim() || "AI 目前沒有產生可顯示的回答。";
       setMessages((prev) => [
         ...prev,
-        { id: createMessageId(), role: "assistant", content: FIXED_REPLY },
+        { id: createMessageId(), role: "assistant", content: answer },
       ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "請稍後再試。";
+      setMessages((prev) => [
+        ...prev,
+        { id: createMessageId(), role: "assistant", content: `AI 回覆失敗：${message}` },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, REPLY_DELAY_MS);
+    }
   }
 
   return (

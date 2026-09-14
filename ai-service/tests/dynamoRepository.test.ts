@@ -61,6 +61,28 @@ const districtsItem = {
   districts: [district('65000010', '板橋區', 100, 44.01), district('65000020', '三重區', 74.84, 30)],
 };
 
+const populationTrendItem = {
+  pk: 'DASHBOARD',
+  sk: 'POPULATION_TREND',
+  years: [
+    {
+      year_roc: 110,
+      districts: [{ district_id: '65000010', district_name: '板橋區', youth_18_35_total: 119102 }],
+      city: { youth_18_35_total: 913345 },
+    },
+    {
+      year_roc: 113,
+      districts: [{ district_id: '65000010', district_name: '板橋區', youth_18_35_total: 110857 }],
+      city: { youth_18_35_total: 862933 },
+    },
+    {
+      year_roc: 114,
+      districts: [{ district_id: '65000010', district_name: '板橋區', youth_18_35_total: 107970 }],
+      city: { youth_18_35_total: 845938 },
+    },
+  ],
+};
+
 describe('DynamoEvidenceRepository', () => {
   it('把 DASHBOARD/DISTRICTS 攤平成 evidence，並保留 29 區可比的形狀', async () => {
     const { client } = fakeClient([manifest, districtsItem]);
@@ -175,6 +197,132 @@ describe('DynamoEvidenceRepository', () => {
     expect(bundle.truncated).toBe(true);
     expect(bundle.totalMatched).toBeGreaterThan(2);
   });
+
+  it('年度 evidence 預設只取最新期，指定 period 時不混入其他年度', async () => {
+    const { client } = fakeClient([manifest, districtsItem, populationTrendItem]);
+    const repo = new DynamoEvidenceRepository({ tableName: 'test-analytics', documentClient: client });
+    const query = {
+      districtNames: ['板橋區'],
+      metricIds: ['annual.population.youth_18_35_total'],
+    };
+
+    const latest = await repo.query(query);
+    expect(latest.evidence.map((item) => item.period)).toEqual(['114']);
+    expect(latest.notes.join('\n')).toContain('114');
+
+    const requested = await repo.query({ ...query, period: '113' });
+    expect(requested.evidence.map((item) => item.period)).toEqual(['113']);
+    expect(requested.notes.join('\n')).toContain('113');
+  });
+
+  it('讀取六類 analysis projection，並產生可回溯的 evidence', async () => {
+    const analysisItems = [
+      {
+        pk: 'ANALYSIS#employment-scatter',
+        sk: 'DATA',
+        analysis_id: 'employment-scatter',
+        geo_level: 'district',
+        plots: [
+          {
+            id: 'knowledge-wage',
+            title: '起薪與知識型職缺密度相關性',
+            x_label: '知識型職缺比例',
+            y_label: '估算起薪',
+            regression: { slope: 0.8, intercept: 28.7, r_squared: 0.05, sample_size: 29 },
+          },
+        ],
+        limitations: [],
+      },
+      {
+        pk: 'ANALYSIS#fertility-overlay',
+        sk: 'DATA',
+        analysis_id: 'fertility-overlay',
+        geo_level: 'district',
+        regression: { slope: 0.49, intercept: 8.5, r_squared: 0.12, sample_size: 29 },
+      },
+      {
+        pk: 'ANALYSIS#fertility-family-friendliness',
+        sk: 'DATA',
+        analysis_id: 'fertility-family-friendliness',
+        geo_level: 'district',
+        districts: [
+          { district_id: '65000010', district_name: '板橋區', fafi_score: 68.6, fafi_level: 'high' },
+        ],
+      },
+      {
+        pk: 'ANALYSIS#youth-keyword-frequency',
+        sk: 'DATA',
+        analysis_id: 'youth-keyword-frequency',
+        calculation_version: '7',
+        period_scope: 'all_available',
+        keywords: [{ term: '心理健康', weight: 5, term_frequency: 10 }],
+      },
+      {
+        pk: 'ANALYSIS#politics-resource-io',
+        sk: 'DATA',
+        analysis_id: 'politics-resource-io',
+        geo_level: 'county',
+        budget_by_department: [{ label: '綜合規劃業務', amount_thousand: 38960, share_percent: 24.42 }],
+      },
+      {
+        pk: 'ANALYSIS#policy-outcomes',
+        sk: 'DATA',
+        analysis_id: 'policy-outcomes',
+        geo_level: 'county',
+        wageTrend: [{ year_roc: 113, wage: 59.9, yoy: 4.54 }],
+        currentWageGrowth: 4.54,
+        currentPopGrowth: -2.55,
+        desiredDirection: { wageGrowth: 'up', populationChange: 'up' },
+      },
+    ];
+    const { client } = fakeClient([manifest, districtsItem, ...analysisItems]);
+    const repo = new DynamoEvidenceRepository({ tableName: 'test-analytics', documentClient: client });
+
+    const bundle = await repo.query({});
+    const datasets = new Set(bundle.evidence.map((item) => item.dataset));
+    for (const artifact of [
+      'employment',
+      'fertility',
+      'participation',
+      'policy_support',
+      'keyword_frequency',
+    ]) {
+      expect(datasets).toContain(`analytics_${artifact}`);
+    }
+
+    expect(bundle.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          dataset: 'analytics_employment',
+          metricId: 'scatter.knowledge_job_vs_estimated_wage.regression.slope',
+          evidenceId: expect.stringContaining('analytics_employment:snapshot:dev-test-20260913'),
+          sourcePath: 'dynamodb://test-analytics/ANALYSIS#employment-scatter/DATA',
+        }),
+        expect.objectContaining({
+          dataset: 'analytics_fertility',
+          metricId: 'scatter.regression.slope',
+        }),
+        expect.objectContaining({
+          dataset: 'analytics_fertility',
+          metricId: 'fafiScore',
+          districtName: '板橋區',
+        }),
+        expect.objectContaining({
+          dataset: 'analytics_keyword_frequency',
+          metricId: 'keywords.weight#心理健康',
+        }),
+        expect.objectContaining({
+          dataset: 'analytics_participation',
+          metricId: 'budget_allocation.items.amount_thousand#綜合規劃業務',
+        }),
+        expect.objectContaining({
+          dataset: 'analytics_policy_support',
+          metricId: 'policyOutcomes.wageTrend.wage',
+          period: '113',
+        }),
+      ]),
+    );
+  });
 });
 
 describe('selectPlans（依主題決定讀哪些 item）', () => {
@@ -182,10 +330,27 @@ describe('selectPlans（依主題決定讀哪些 item）', () => {
     expect(selectPlans({}).length).toBeGreaterThan(3);
   });
 
-  it('employment 不會去讀生育趨勢', () => {
-    const keys = selectPlans({ focusArea: 'employment' }).map((plan) => plan.key.sk);
-    expect(keys).toContain('DISTRICTS');
-    expect(keys).not.toContain('FERTILITY_TREND');
+  it('全讀時包含六類 analysis projection item', () => {
+    const keys = selectPlans({}).map((plan) => `${plan.key.pk}/${plan.key.sk}`);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        'ANALYSIS#employment-scatter/DATA',
+        'ANALYSIS#fertility-overlay/DATA',
+        'ANALYSIS#fertility-family-friendliness/DATA',
+        'ANALYSIS#youth-keyword-frequency/DATA',
+        'ANALYSIS#politics-resource-io/DATA',
+        'ANALYSIS#policy-outcomes/DATA',
+      ]),
+    );
+  });
+
+  it('focus-area selection 以 dashboard_overview 為共同背景，analysis 依主題選取', () => {
+    const keys = selectPlans({ focusArea: 'employment' }).map((plan) => `${plan.key.pk}/${plan.key.sk}`);
+    expect(keys).toContain('DASHBOARD/DISTRICTS');
+    expect(keys).toContain('DASHBOARD/FERTILITY_TREND');
+    expect(keys).toContain('ANALYSIS#employment-scatter/DATA');
+    expect(keys).toContain('ANALYSIS#policy-outcomes/DATA');
+    expect(keys).not.toContain('ANALYSIS#fertility-overlay/DATA');
   });
 
   it('fertility 會讀生育趨勢', () => {

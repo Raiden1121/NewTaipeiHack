@@ -4,6 +4,14 @@
 
 `api_contract.md` 負責的是 Read API（統計數字）；AI 回答不在那份契約裡（見該檔 §8.2）。這份就是補上那個洞。
 
+> **契約狀態（2026-09-13）：** 公開同步查詢已改為既有 Python API Lambda 的
+> `POST /api/v1/ai/query`；API 只接受 `action`、`question`、`focusDistrict`、
+> `focusArea`、`period`、`webSearch`，不接受 `context`、`evidence` 或 `webFindings`。
+> AI Service 線上自行從 DynamoDB 讀 evidence，帶 `context` 的形狀只供本機與測試。
+> 本文件以下的 `/api/v1/assistant` 與 backend 組 `context` 內容是舊版頁面整合草稿，
+> 不可作為目前公開 endpoint 的實作依據；目前契約請以 `shared/src/aiContract.ts`、
+> `backend/backend.md` 與 `ai-service/DEPLOYMENT.md` §1.5 為準。
+
 > 本文件**不重新發明 ai-service 的形狀**。`AiRequestSchema` / `AiSuccessResponse` / `StructuredOutput` 已由程式碼定死，以下一律照抄並標明出處檔案。新定義的只有 Backend 對前端的那一層。
 
 ---

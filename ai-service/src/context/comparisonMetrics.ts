@@ -133,7 +133,15 @@ export const COMPARISON_METRIC_RULES: readonly ComparisonRule[] = [
   },
   {
     keywords: ['房價', '買房', '購屋', '房地產'],
-    metricIds: ['house_price_median', 'rent_wage_ratio', 'yoiComponents.housing'],
+    // 薪資中位數是房價是否形成居住負擔的必要比較脈絡。
+    // 放在跨區 metricIds 而不是只放 focusMetricIds，才能保證沒有單一
+    // focusDistrict 時，新莊／板橋這類被問題點名的行政區仍有可引用的值。
+    metricIds: [
+      'house_price_median',
+      'rent_wage_ratio',
+      'yoiComponents.housing',
+      'salary_median',
+    ],
     focusMetricIds: [
       'house_price_median_wan',
       'salary_median',
@@ -201,7 +209,18 @@ export const COMPARISON_METRIC_RULES: readonly ComparisonRule[] = [
     ],
   },
   {
-    keywords: ['人口', '青年人數', '幾個青年', '青年數', '青年占比', '青年比例', '年輕'],
+    keywords: [
+      '人口',
+      '青年人數',
+      '幾個青年',
+      '多少青年',
+      '青年有幾人',
+      '青年人口數',
+      '青年數',
+      '青年占比',
+      '青年比例',
+      '年輕',
+    ],
     // youth_ratio（青年占總人口比）與 youth_yoy（青年人口年增率）都是 29 區都有值
     // 而且很常被問排名的指標（「哪一區最年輕」「哪一區青年流失最快」）。
     metricIds: ['youth_18_35_total', 'youth_ratio', 'youth_yoy'],

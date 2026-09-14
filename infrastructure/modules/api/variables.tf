@@ -17,3 +17,8 @@ variable "dynamodb_table_arn" {
   description = "Analytics DynamoDB table ARN the API Lambda is allowed to read from."
   type        = string
 }
+
+variable "ai_service_function_name" {
+  description = "Fixed name of the private AI Service Lambda invoked synchronously by POST /api/v1/ai/query."
+  type        = string
+}

@@ -1,5 +1,5 @@
-# One Lambda serves all 5 read endpoints from api_contract.md (health,
-# catalog, dashboard/overview, districts/{id}, analyses/{id}) — routing is
+# One Lambda serves all read endpoints from api_contract.md plus the synchronous
+# AI query route — routing is
 # done inside handler.py, so API Gateway just proxies everything to it.
 # handler.py reads pre-computed analytics from the DynamoDB table below;
 # whatever loads data-pipeline's published snapshot into that table is a
@@ -34,8 +34,8 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# Read-only — handler.py doesn't call DynamoDB yet, this just means no infra
-# change is needed when it does. See infrastructure/dynamodb_schema.md.
+# Read-only access to the projected analytics table. The same Lambda also
+# invokes the private AI Service, whose role has the reciprocal read grant.
 resource "aws_iam_role_policy" "dynamodb_read" {
   name = "${var.project_name}-api-dynamodb-read"
   role = aws_iam_role.lambda_exec.id
@@ -51,17 +51,20 @@ resource "aws_iam_role_policy" "dynamodb_read" {
 }
 
 resource "aws_lambda_function" "api" {
-  function_name    = "${var.project_name}-api"
-  role             = aws_iam_role.lambda_exec.arn
-  handler          = "handler.handler"
-  runtime          = "python3.12"
-  timeout          = 10
+  function_name = "${var.project_name}-api"
+  role          = aws_iam_role.lambda_exec.arn
+  handler       = "handler.handler"
+  runtime       = "python3.12"
+  # API Gateway HTTP API has a 30-second ceiling; leave a small response
+  # mapping margin for the synchronous AI invocation.
+  timeout          = 28
   filename         = data.archive_file.lambda.output_path
   source_code_hash = data.archive_file.lambda.output_base64sha256
 
   environment {
     variables = {
-      ANALYTICS_TABLE_NAME = var.dynamodb_table_name
+      ANALYTICS_TABLE_NAME     = var.dynamodb_table_name
+      AI_SERVICE_FUNCTION_NAME = var.ai_service_function_name
     }
   }
 
@@ -77,7 +80,7 @@ resource "aws_apigatewayv2_api" "api" {
 
   cors_configuration {
     allow_origins = ["*"]
-    allow_methods = ["GET", "OPTIONS"]
+    allow_methods = ["GET", "POST", "OPTIONS"]
     allow_headers = ["*"]
   }
 

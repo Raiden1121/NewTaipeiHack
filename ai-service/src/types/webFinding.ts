@@ -63,7 +63,8 @@ export type WebSearchScope = z.infer<typeof WebSearchScopeSchema>;
 export const TRUSTED_SOURCE_DOMAINS: readonly string[] = ['gov.tw', 'edu.tw'];
 
 /**
- * 前端那顆開關對應的設定。
+ * AI Service 的共用搜尋設定 schema。直接注入 context 時 `enabled` 預設為 false；
+ * 公開 top-level query 的預設由 `buildAiContext` 套用為 enabled/all/low。
  */
 export const WebSearchSettingsSchema = z.object({
   enabled: z.boolean().default(false),

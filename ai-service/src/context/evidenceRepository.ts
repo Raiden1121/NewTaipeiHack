@@ -7,12 +7,9 @@ import type { AiEvidence, GeoLevel, YouthEligibility } from '../types/aiEvidence
  * `Deterministic Analytics → DynamoDB / AI Context → AI Service`，
  * 也就是**正式路徑是讀 DynamoDB，不是讀本機 curated 檔案**。
  *
- * 但 DynamoDB table 還不存在（data-pipeline 的 analytics 正在做），如果現在直接寫死
- * DynamoDB，整個 ai-service 就會被別人的進度卡住，Bedrock 也沒辦法先驗。
- *
- * 所以這裡把「怎麼拿 evidence」抽掉，留兩個實作：
+ * 所以這裡把「怎麼拿 evidence」抽掉，保留本機與正式兩條實作：
  * - `CuratedFileEvidenceRepository`：讀 data-pipeline 本機輸出。今天就能跑真實資料。
- * - `DynamoEvidenceRepository`：讀 AI Context table。等 table 存在才能驗。
+ * - `DynamoEvidenceRepository`：正式 Lambda 從 analytics table self-fetch。
  *
  * 換來源時 handler / prompt / Bedrock 那幾層完全不用動，因為 `AiEvidence` 不變：
  * analytics 算完的複合指標仍然是「某區 / 某期間 / 某指標 / 某數值 / 某單位」。
@@ -82,6 +79,70 @@ export interface EvidenceBundle {
   truncated: boolean;
   /** 必須寫進輸出 limitations 的既知限制（來源、截斷、資料品質旗標…） */
   notes: string[];
+}
+
+export interface PeriodFilterResult {
+  evidence: AiEvidence[];
+  /** 每個 analytics dataset 選到的年度期間。 */
+  selectedPeriods: Record<string, string>;
+}
+
+/**
+ * 對 analytics evidence 套用期間政策：
+ * - 明確指定 period 時，年度／月份資料只保留該 period。
+ * - 沒指定時，各 dataset 的年度資料只保留最大的 ROC 年。
+ * - snapshot 指標代表目前 published snapshot，兩種情況都保留。
+ */
+export function filterEvidenceByPeriod(
+  evidence: readonly AiEvidence[],
+  requestedPeriod?: string,
+): PeriodFilterResult {
+  const latestByDataset = new Map<string, string>();
+  for (const item of evidence) {
+    if (item.periodType !== 'year' || !/^\d{3}$/.test(item.period)) {
+      continue;
+    }
+    const current = latestByDataset.get(item.dataset);
+    if (current === undefined || item.period > current) {
+      latestByDataset.set(item.dataset, item.period);
+    }
+  }
+
+  const selectedPeriods: Record<string, string> = {};
+  for (const [dataset, latest] of latestByDataset) {
+    selectedPeriods[dataset] = requestedPeriod ?? latest;
+  }
+
+  return {
+    evidence: evidence.filter((item) => {
+      if (item.periodType === 'snapshot') {
+        return true;
+      }
+      if (item.periodType === 'year') {
+        return item.period === (requestedPeriod ?? latestByDataset.get(item.dataset));
+      }
+      return requestedPeriod === undefined || item.period === requestedPeriod;
+    }),
+    selectedPeriods,
+  };
+}
+
+export function describePeriodSelection(
+  selectedPeriods: Record<string, string>,
+  requestedPeriod?: string,
+): string | null {
+  const entries = Object.entries(selectedPeriods).sort(([left], [right]) => left.localeCompare(right));
+  if (requestedPeriod !== undefined) {
+    return `本次使用指定期間 ${requestedPeriod}；snapshot 指標仍保留。`;
+  }
+  if (entries.length === 0) {
+    return null;
+  }
+  return (
+    `未指定期間，年度 evidence 使用各資料集最新可用期：${entries
+      .map(([dataset, period]) => `${dataset}=${period}`)
+      .join('、')}；snapshot 指標仍保留。`
+  );
 }
 
 /**

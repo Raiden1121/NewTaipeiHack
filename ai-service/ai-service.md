@@ -16,6 +16,39 @@ AI Service 專門處理 Amazon Bedrock 與 AI 回覆，將已整理的統計資�
 
 （RAG 尚未實作。）
 
+## 公開查詢入口
+
+正式入口由既有 Python API Lambda 提供，AI Service Lambda 不直接暴露 HTTP endpoint：
+
+```http
+POST /api/v1/ai/query
+Content-Type: application/json
+```
+
+Request 只接受公開查詢欄位：
+
+```json
+{
+  "action": "qa",
+  "question": "板橋區有多少青年？",
+  "focusDistrict": "板橋區",
+  "focusArea": "population",
+  "period": "114",
+  "webSearch": {"enabled": true, "scope": "all", "contextSize": "low"}
+}
+```
+
+`action` 僅允許 `explain`、`policyCopilot`、`qa`；`question` 最多 400 字，`qa` 必填。
+`period` 可為三碼 ROC 年或五碼 ROC 月，request 欄位優先，否則解析問題中的三碼
+ROC 年；沒有指定時，各 analytics dataset 使用最新可用年度，snapshot evidence 保留。
+`webSearch` 預設為 `enabled=true`、`scope=all`、`contextSize=low`；`trusted` 只搜
+`gov.tw` 與 `edu.tw`。
+
+公開 request 不接受 `context`、`evidence` 或 `webFindings`。AI Service 內部仍可注入
+`context`，但只供本機與測試。成功回應包含 `action`、`generatedBy`、`cache`、`output`
+與 `sources`；API 邊界將 request validation、AI runtime error、timeout、server
+configuration missing 映射為 400、502、504、503。
+
 ## Boundaries
 
 LLM 不負責計算 YoY、Opportunity Index、Resource Gap 或 Retention Risk。重要數字應來自
@@ -67,12 +100,9 @@ evidence/context，不可自行捏造；資料不足時必須標示限制。AI �
 
 ## 上網搜尋（可開關）
 
-前端有一顆「開啟上網搜尋」按鈕，對應 `context.webSearch.enabled`，**預設關閉**。
-關閉是預設值而不是選項，因為上網會犧牲可追溯性與可重現性，必須由使用者明確開啟。
-
-### ⚠️ 預設開啟
-
-網路搜尋現在是**預設開啟**的（`buildAiContext` 的 `webSearch.enabled` 預設 `true`）。
+公開 request 的 `webSearch` 對應 `context.webSearch`；網路搜尋現在是**預設開啟**的
+（`buildAiContext` 的 `webSearch.enabled` 預設 `true`），預設範圍為全網 `all`，
+上下文量為 `low`。
 
 原本預設關閉，理由是「犧牲可追溯性的行為必須由使用者明確開啟」。那個顧慮沒有消失，
 但它是由別的機制處理的，而不是靠「預設不要用」：`webReferences` 與 `basis` 分開、
@@ -236,8 +266,10 @@ snippet 是從網路抓來的**不可信輸入**，網頁上可能寫著「忽�
 
 ### 輸入
 
-`{ action, context }`，schema 見 `src/handlers/lambda.ts` 的 `AiRequestSchema`。
-`action` 是 `explain` / `policyCopilot` / `qa`。
+公開入口是既有 Python API Lambda 的 `POST /api/v1/ai/query`，request 只含
+`{ action, question?, focusDistrict?, focusArea?, period?, webSearch? }`。
+AI Service 的 `AiRequestSchema` 另外保留 `{ action, context }` 形狀，僅供本機與測試
+注入 evidence；`action` 是 `explain` / `policyCopilot` / `qa`。
 
 `context.evidence` 的每一筆是 `AiEvidence`（`src/types/aiEvidence.ts`），
 欄位是 data-pipeline curated contract 的 1:1 camelCase 版本。
@@ -380,7 +412,8 @@ Q&A 的輸出格式規格裡沒有規定。原本三個功能共用一份 schema
 ## 資料範圍
 
 evidence 來源抽在 `EvidenceRepository` 介面後面（`src/context/evidenceRepository.ts`），
-目前有兩個實作，**預設兩個都讀**（`CompositeEvidenceRepository`）：
+目前依執行環境選擇 evidence source：本機可以讀 analytics snapshot／curated，
+正式 Lambda 使用 DynamoDB；必要時才用 `composite` 同時讀兩者：
 
 | | `CuratedFileEvidenceRepository` | `AnalyticsSnapshotEvidenceRepository` |
 |---|---|---|
@@ -395,20 +428,20 @@ evidence 來源抽在 `EvidenceRepository` 介面後面（`src/context/evidenceR
 職缺數」，於是要嘛不敢下判斷、要嘛偷偷自己算；只有 analytics，模型看得到「機會指數
 45.3 分」卻拿不到任何可以點進去查證的來源網址。
 
-`AI_EVIDENCE_SOURCE` 有四種值：`analytics`（預設，讀本機快照檔）、
+`AI_EVIDENCE_SOURCE` 有四種值：`analytics`（本機預設，讀本機快照檔）、
 **`dynamo`（正式路徑，讀 DynamoDB）**、`curated`、`composite`。
 
-### DynamoDB（已實作，但不在 lambda 的 request 路徑上）
+### DynamoDB（正式 Lambda request 路徑）
 
-⚠️ **`handlers/lambda.ts` 不會自己查表。** 它的 evidence 只從 request body 進來
-（沒有呼叫 `buildAiContext()`）。所以 `AI_EVIDENCE_SOURCE=dynamo` 目前只有
-**`npm run precompute` 與 dev 腳本**會走到。線上的 evidence 由呼叫端（Backend）
-決定，那段程式碼還沒寫。
+線上路徑是 `API Gateway → Python API Lambda → AI Service Lambda`。AI Service
+在沒有 `context` 時依 `AI_EVIDENCE_SOURCE=dynamo` 自己查表；公開 API 不接受
+`context`、`evidence` 或 `webFindings`。`context` injection 只供本機與測試。
 
 `Deterministic Analytics → DynamoDB / AI Context → AI Service`。
-`DynamoEvidenceRepository`（`src/context/dynamoRepository.ts`）一次
-`BatchGetItem` 讀最多 8 筆 item。實測 1,167 ms、83 筆 evidence
-（板橋區 / employment）。
+`DynamoEvidenceRepository`（`src/context/dynamoRepository.ts`）用一次
+`BatchGetItem` 讀 manifest、dashboard 與六類 `ANALYSIS#*` projection item，並
+重用 `flattenAnalyticsArtifact()`，讓本機 snapshot 與 Dynamo reader 的 metricId、
+evidenceId、dedupe 與 limitation 規則一致。
 
 **兩種來源產出完全相同的 metricId 與 evidenceId。** 作法是把 DynamoDB 的 item
 **包回快照的巢狀形狀**再餵給同一個 `flattenAnalyticsArtifact`：
@@ -426,16 +459,10 @@ evidence 來源抽在 `EvidenceRepository` 介面後面（`src/context/evidenceR
 
 驗證用 `npm run dev:dynamo-check`，它會把兩種來源的 metricId 逐一比對。
 
-**目前的落差**（`ANALYSIS#*` 那 6 筆還沒接，隊友在補）：
-
-| 主題 | DynamoDB | 本機快照 | 只在本機 |
-|---|---|---|---|
-| employment | 53 種 | 68 種 | 17（scatter 迴歸、policyOutcomes、`knowledge_job_ratio`、`estimated_wage`）|
-| fertility | 54 種 | 95 種 | 48（`citySummary.*`、`daycareCoverage`、`fafi*`）|
-
-反過來 DynamoDB 有兩個本機沒有的：`youthBoroughChiefRatioPercent`、`yrr` ——
-那是 projection 把 111 年的青年里長資料投影成逐區純量，本機要自己從
-`elections.v1_borough_chief.years[]` 挖。
+目前六類 `ANALYSIS#*` projection 已接入 reader；缺少 `META/MANIFEST` 或單一 item
+時仍會寫入 limitation，不會用零值填補。projection writer 的資料形狀與 reader wrapper
+由 `infrastructure/modules/analytics_lambda/lambda/dynamodb_projection.py` 與
+`src/context/dynamoRepository.ts` 的測試共同驗證。
 
 ### analytics published snapshot 怎麼讀
 
@@ -593,8 +620,9 @@ markdown code fence 或多寫一句開場白。
 
 ## 部署
 
-見 `ai-service/DEPLOYMENT.md`。摘要：一個 Lambda + Bedrock 權限，
-**不需要**打包 curated 資料（evidence 從 request body 進來）。
+見 `ai-service/DEPLOYMENT.md`。摘要：一個 Lambda + Bedrock 權限，由既有
+Python API Lambda 透過 `POST /api/v1/ai/query` 同步呼叫；正式 evidence 由 AI
+Service 自行從 DynamoDB 讀取，因此**不需要**打包 curated 資料。
 
 三個最容易踩到的：Lambda timeout 預設 3 秒但實測需要 10–41 秒（取決於模型）；
 跨區 inference profile 的 IAM 要同時給 profile 與背後 foundation model 的權限；
@@ -630,10 +658,10 @@ npm run dev:precompute-check                   # 驗證線上請求會命中
 
 ### 快取鍵是「輸入內容的指紋」，不是 `行政區:主題:快照id`
 
-因為 lambda **收到的是 backend 已經組好的 context**（evidence 直接在 request body
-裡），請求裡沒有快照 id。要用快照 id 當鍵就得要求 backend 多傳一個欄位 ——
-那是跨隊的契約改動，而且擋不住真正危險的情況：backend 送來的 evidence 子集跟預先
-算當時不一樣時，快照 id 仍然相同，於是會回一份「用別的資料算出來的答案」。
+本機與測試可以注入 context；正式查詢則是 AI Service 自己讀 DynamoDB。請求可以由
+快照 evidence 產生 fingerprint，但不能把公開 request 的 evidence 當成可接受的輸入。
+若要用快照 id 當鍵，仍須確認 request 期間、選取的 evidence 與預先算結果一致，否則
+快取必須 miss，避免回傳用不同資料產生的答案。
 
 指紋 = sha256(`action` ＋ `focusDistrict` ＋ `focusArea` ＋ 排序後的
 `evidence{evidenceId, value, unit}` ＋ 排序後的 `knownLimitations` ＋
@@ -979,10 +1007,10 @@ input token 砍掉將近一半，延遲只降 3–26%（而且 n=1，坪林那�
 
 ## ⚠️ 尚未處理
 
-- **`src/handlers/lambda.ts` 沒有任何 authentication / authorization。**
-  黑客松內部呼叫可以接受，但掛成公開的 Function URL 或 API Gateway endpoint
-  等於把 Bedrock 帳單開放給任何人（每次請求都會送出完整 prompt）。
-  上線前必須加 API key、IAM 或 Cognito 授權，要跟 backend 一起決定。
+- **公開 API 路徑尚未配置 authentication / rate limit。** AI Service Lambda 本身沒有
+  公開 URL，只接受 API Lambda role 的 `lambda:InvokeFunction`；若把
+  `POST /api/v1/ai/query` 對外提供，仍應在 API Gateway／API Lambda 補 API key、IAM
+  或 Cognito 授權，避免任何人消耗 Bedrock 預算。
 - **預先算的命中率取決於 backend 怎麼組 context。** 目前只驗過「ai-service 自己用
   `buildAiContext` 組」的情況會命中。backend 若用不同的 evidence 筆數上限或不同的
   `focusArea`，指紋就不同 → 每次 miss → 即時算 50 秒 → 被 API Gateway 切斷。
@@ -997,14 +1025,12 @@ input token 砍掉將近一半，延遲只降 3–26%（而且 n=1，坪林那�
   fallback 成名稱規則，再不行就保守標 `context_only`（不可當青年專屬數據解讀）。
   pipeline 新增指標時，指標會自動被納入 evidence，但**單位會是 null** ——
   這不會壞掉，只是模型少了單位資訊。要精確就得補這張表。
-- **DynamoDB 的 `ANALYSIS#*` 那 6 筆還沒接**（隊友在補）。employment 主題少 17 種
-  指標、fertility 少 48 種，清單見上面「DynamoDB」那節。employment 類的問題可以
-  直接用 `dynamo`，生育／家庭友善會明顯變弱。
 - **`yoiComponents.*` 五個子分數只對焦點行政區取。** 所以問「這區的就業子分數排第幾」
   時模型會誠實說無法確認 —— 那是刻意的取捨（5 個 × 29 區 = 145 筆 evidence），
   不是 bug。真的需要就把它們移進 `metricIds` 並重量延遲。
 - RAG。
-- `shared/` 的型別提案還沒同步 `computation` 與 `analytics_metric` 這兩個新增內容。
+- `shared/` 的型別已同步公開 `AiQueryRequest` 與內部 context 形狀；若新增 evidence
+  欄位，仍需同步 `shared/src/aiContract.ts` 與 AI Service 的 zod schema。
 - **搜尋 query 在問句已經提到城市時不會補行政區錨點。** `buildSearchQuery()` 為了避免
   關鍵字被稀釋，會跳過問句裡已出現的詞。實測「為何八里的薪資中位數在**新北市**排第
   六高？」因此完全沒補脈絡，搜回來的是講雲林與台中的社群貼文；同一句話手動補上

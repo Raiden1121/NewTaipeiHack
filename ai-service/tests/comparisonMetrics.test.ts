@@ -12,8 +12,9 @@ import {
   inferComparisonMetrics,
   inferFocusMetrics,
 } from '../src/context/buildContext.js';
+import type { EvidenceBundle, EvidenceQuery } from '../src/context/evidenceRepository.js';
 import { buildSearchQuery } from '../src/handlers/runFeature.js';
-import { makeRequestContext } from './helpers.js';
+import { makeEvidence, makeRequestContext } from './helpers.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixtureDataDir = path.join(here, 'fixtures', 'data-pipeline-data');
@@ -84,6 +85,14 @@ describe('inferComparisonMetrics', () => {
     expect(metrics).toContain('yoiComponents.housing');
   });
 
+  it('房價與宜居度比較會帶出薪資中位數作為負擔脈絡', () => {
+    const metrics = inferComparisonMetrics('為什麼新莊的宜居度比板橋還低？板橋房價不是比較貴嗎？');
+
+    // 薪資中位數若只放在焦點指標，沒有 focusDistrict 時可能被每個 dataset 的
+    // 取樣上限截掉，模型就會產生無法追溯的薪資 evidenceId。
+    expect(metrics).toContain('salary_median');
+  });
+
   it('「薪資分數」要把分數本身納入跨區（實測漏過）', () => {
     const metrics = inferComparisonMetrics('為什麼八里區的青年薪資分數這麼高？');
 
@@ -111,6 +120,10 @@ describe('inferComparisonMetrics', () => {
     expect(inferComparisonMetrics(null)).toEqual([]);
     expect(inferComparisonMetrics(undefined)).toEqual([]);
     expect(inferComparisonMetrics('   ')).toEqual([]);
+  });
+
+  it('自然語言「哪一區有多少青年」仍會帶出青年人口跨區指標', () => {
+    expect(inferComparisonMetrics('哪一區有多少青年？')).toContain('youth_18_35_total');
   });
 
   it('結果不重複（多條規則命中同一個指標時）', () => {
@@ -148,6 +161,104 @@ describe('buildAiContext 的跨區比較資料', () => {
     expect(districts).toContain('板橋區');
     // 這是重點：另一區的值也在，否則無法比較
     expect(districts).toContain('三重區');
+  });
+
+  it('房價與宜居度問題保留新莊與板橋的薪資 evidence', async () => {
+    const districtNames = ['板橋區', '三重區', '新莊區'];
+    const analyticsEvidence = (districtName: string, metricId: string, suffix: string) =>
+      makeEvidence({
+        evidenceId: `analytics_dashboard_overview:snapshot:test:${districtName}:${metricId}:${suffix}`,
+        dataset: 'analytics_dashboard_overview',
+        source: 'analytics_snapshot',
+        sourceRecordId: `test:${districtName}:${metricId}:${suffix}`,
+        sourceKind: 'analytics',
+        districtName,
+        period: 'snapshot:test',
+        periodType: 'snapshot',
+        metricId,
+        metricSource: 'analytics_metric',
+        value: 50,
+        unit: 'score',
+      });
+    const limitedRepository = {
+      description: 'limited-analytics-fixture',
+      async query(query: EvidenceQuery): Promise<EvidenceBundle> {
+        // 模擬正式資料：焦點查詢每個 dataset 只取前 30 筆，薪資剛好沒有新莊；
+        // 跨區查詢則回傳完整的比較指標。
+        const isComparisonQuery = query.limitPerDataset === 400;
+        const wantsSalary = query.metricIds?.includes('salary_median') ?? false;
+        const evidence = isComparisonQuery
+          ? (wantsSalary
+              ? districtNames.map((district) => analyticsEvidence(district, 'salary_median', 'comparison'))
+              : [])
+          : Array.from({ length: 30 }, (_, index) =>
+              analyticsEvidence(index % 2 === 0 ? '板橋區' : '三重區', 'salary_median', `primary-${index}`),
+            );
+        return { evidence, totalMatched: evidence.length, truncated: false, notes: [] };
+      },
+    };
+
+    const context = await buildAiContext(limitedRepository, {
+      focusArea: 'policy',
+      question: '為什麼新莊的宜居度比板橋還低？板橋房價不是比較貴嗎？',
+    });
+
+    const salaryDistricts = new Set(
+      context.evidence
+        .filter((item) => item.metricId === 'salary_median')
+        .map((item) => item.districtName),
+    );
+
+    expect(salaryDistricts).toContain('新莊區');
+    expect(salaryDistricts).toContain('板橋區');
+  });
+
+  it('未指定焦點區時仍取得問題點名兩區的完整子分數', async () => {
+    const districts = ['三重區', '中和區', '永和區', '板橋區', '新莊區'];
+    const metrics = [
+      'youth_18_35_total', 'salary_median', 'house_price_median', 'rent_wage_ratio',
+      'opportunityIndex', 'yoiRaw', 'yoiComponents.job', 'yoiComponents.salary',
+      'yoiComponents.talent', 'yoiComponents.housing', 'retentionRiskLevel',
+      'people_total', 'house_price_median_wan', 'price_per_ping', 'total_price',
+      'yoiComponents.transport',
+    ];
+    const allEvidence = districts.flatMap((districtName) =>
+      metrics.map((metricId) => makeEvidence({
+        evidenceId: `analytics_dashboard_overview:snapshot:test:${districtName}:${metricId}`,
+        dataset: 'analytics_dashboard_overview',
+        districtName,
+        period: 'snapshot:test',
+        periodType: 'snapshot',
+        metricId,
+        metricSource: 'analytics_metric',
+        value: 50,
+        unit: 'score',
+      })),
+    );
+    const repositoryWithOrderedDistricts = {
+      description: 'ordered-district-fixture',
+      async query(query: EvidenceQuery): Promise<EvidenceBundle> {
+        const matched = allEvidence.filter((item) =>
+          (query.districtNames === undefined || query.districtNames.includes(item.districtName ?? '')) &&
+          (query.metricIds === undefined || query.metricIds.includes(item.metricId)),
+        );
+        const evidence = matched.slice(0, query.limitPerDataset ?? 200);
+        return { evidence, totalMatched: matched.length, truncated: evidence.length < matched.length, notes: [] };
+      },
+    };
+
+    const context = await buildAiContext(repositoryWithOrderedDistricts, {
+      focusArea: 'policy',
+      question: '為什麼新莊的宜居度比板橋還低？板橋房價不是比較貴嗎？',
+    });
+    for (const districtName of ['新莊區', '板橋區']) {
+      expect(context.evidence.some((item) =>
+        item.districtName === districtName && item.metricId === 'yoiComponents.transport',
+      )).toBe(true);
+      expect(context.evidence.some((item) =>
+        item.districtName === districtName && item.metricId === 'yoiComponents.job',
+      )).toBe(true);
+    }
   });
 
   it('沒有 question 時不撈跨區資料（explain / policy 不需要）', async () => {
@@ -216,6 +327,15 @@ describe('buildAiContext 的跨區比較資料', () => {
 
     const ids = context.evidence.map((item) => item.evidenceId);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('人口查詢的自然語言焦點', () => {
+  it('「板橋區有多少青年」會收斂到人口指標', () => {
+    const focus = inferFocusMetrics('板橋區有多少青年？');
+
+    expect(focus).toContain('youth_18_35_total');
+    expect(focus).toContain('annual.population.youth_18_35_total');
   });
 });
 

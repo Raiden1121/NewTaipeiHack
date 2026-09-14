@@ -28,7 +28,7 @@
  *
  * ## 一次 BatchGetItem
  *
- * 需要的 item 最多 8 筆，遠低於 BatchGetItem 的 100 筆上限，所以一次往返就夠。
+ * 需要的 item 目前最多 13 筆，遠低於 BatchGetItem 的 100 筆上限，所以一次往返就夠。
  * 不用 Query 也不用 Scan（表沒有 GSI，schema 也刻意設計成只需要 key 查詢）。
  */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -37,6 +37,8 @@ import type { AiEvidence } from '../types/aiEvidence.js';
 import {
   DEFAULT_LIMIT_PER_DATASET,
   applyEvidenceFilters,
+  describePeriodSelection,
+  filterEvidenceByPeriod,
   type EvidenceBundle,
   type EvidenceQuery,
   type EvidenceRepository,
@@ -102,29 +104,107 @@ const ITEM_PLANS: readonly ItemPlan[] = [
   },
   {
     key: { pk: 'DASHBOARD', sk: 'FERTILITY_TREND' },
-    artifactKey: 'fertility',
+    artifactKey: 'dashboard_overview',
     wrap: (item) => ({ annual: { fertility: { years: item.years } } }),
-    focusAreas: ['fertility', 'resources', 'policy'],
   },
   {
     key: { pk: 'DASHBOARD', sk: 'SERVICE_COVERAGE' },
-    artifactKey: 'participation',
+    artifactKey: 'dashboard_overview',
     wrap: (item) => ({ service_coverage: stripKeys(item) }),
-    focusAreas: ['resources', 'participation', 'policy'],
   },
   {
     key: { pk: 'DASHBOARD', sk: 'POLICY' },
-    artifactKey: 'policy_support',
+    artifactKey: 'dashboard_overview',
     wrap: (item) => ({ policy: stripKeys(item) }),
-    focusAreas: ['policy', 'resources', 'participation', 'employment'],
   },
   {
     key: { pk: 'DASHBOARD', sk: 'ELECTIONS' },
-    artifactKey: 'participation',
+    artifactKey: 'dashboard_overview',
     wrap: (item) => ({ elections: stripKeys(item) }),
-    focusAreas: ['participation', 'resources', 'policy'],
+  },
+  {
+    key: { pk: 'ANALYSIS#employment-scatter', sk: 'DATA' },
+    artifactKey: 'employment',
+    wrap: wrapEmploymentScatter,
+    focusAreas: ['employment', 'jobs', 'talent', 'housing', 'transport', 'retention'],
+  },
+  {
+    key: { pk: 'ANALYSIS#fertility-overlay', sk: 'DATA' },
+    artifactKey: 'fertility',
+    wrap: (item) => ({ scatter: stripKeys(item) }),
+    focusAreas: ['fertility'],
+  },
+  {
+    key: { pk: 'ANALYSIS#fertility-family-friendliness', sk: 'DATA' },
+    artifactKey: 'fertility',
+    wrap: wrapFertilityFamilyFriendliness,
+    focusAreas: ['fertility'],
+  },
+  {
+    key: { pk: 'ANALYSIS#youth-keyword-frequency', sk: 'DATA' },
+    artifactKey: 'keyword_frequency',
+    wrap: (item) => stripKeys(item),
+    focusAreas: ['resources', 'participation'],
+  },
+  {
+    key: { pk: 'ANALYSIS#politics-resource-io', sk: 'DATA' },
+    artifactKey: 'participation',
+    wrap: wrapPoliticsResourceIo,
+    focusAreas: ['resources', 'participation', 'policy'],
+  },
+  {
+    key: { pk: 'ANALYSIS#policy-outcomes', sk: 'DATA' },
+    artifactKey: 'policy_support',
+    wrap: (item) => ({ policyOutcomes: stripKeys(item) }),
+    focusAreas: ['employment', 'population', 'retention', 'policy'],
   },
 ];
+
+const SCATTER_SOURCE_KEY_BY_PLOT_ID: Readonly<Record<string, string>> = {
+  'knowledge-wage': 'knowledge_job_vs_estimated_wage',
+  'wage-housing': 'monthly_wage_vs_house_price',
+};
+
+function wrapEmploymentScatter(item: Record<string, unknown>): unknown {
+  const scatter: Record<string, unknown> = {};
+  for (const plot of asRecordArray(item.plots)) {
+    const id = asString(plot.id);
+    const sourceKey = id === null ? undefined : SCATTER_SOURCE_KEY_BY_PLOT_ID[id];
+    if (sourceKey === undefined) {
+      continue;
+    }
+    const { id: _id, ...payload } = plot;
+    scatter[sourceKey] = payload;
+  }
+  return {
+    scatter,
+    // projection 的 limitations 是 pipeline 對此 analysis 的品質說明，轉成
+    // flattenAnalyticsArtifact 已知的 note 欄位，避免靜默丟失。
+    warnings: item.limitations,
+  };
+}
+
+function wrapFertilityFamilyFriendliness(item: Record<string, unknown>): unknown {
+  return {
+    // published fertility.json 的 fafi 分數同時出現在 districts[]；projection
+    // 已把它整理成同樣可直接篩選的列表，因此不要包回 fafi.districts（那是
+    // flattenAnalyticsArtifact 明確排除的重複形狀）。
+    districts: asRecordArray(item.districts).map((row) => ({
+      district_id: row.district_id,
+      district_name: row.district_name,
+      fafiScore: row.fafi_score,
+      fafiLevel: row.fafi_level,
+    })),
+  };
+}
+
+function wrapPoliticsResourceIo(item: Record<string, unknown>): unknown {
+  return {
+    // 保留 published participation 的「預算項目」語意，並使用 projection 已轉成
+    // 千元的欄位，不把 amount_thousand 誤當成原始 TWD amount。
+    budget_allocation: { items: item.budget_by_department },
+  };
+}
 
 /** 去掉 key 屬性，其餘照原樣。item 是 `{pk, sk, ...內容}` 的形狀。 */
 function stripKeys(item: Record<string, unknown>): Record<string, unknown> {
@@ -196,7 +276,7 @@ export class DynamoEvidenceRepository implements EvidenceRepository {
         snapshotId,
         generatedAt,
         upstreamDatasets: asStringArray(manifest.source_datasets),
-        availableArtifactKeys: plans.map((candidate) => candidate.artifactKey),
+        availableArtifactKeys: uniqueArtifactKeys(plans),
       });
       collected.push(...result.evidence);
       for (const note of result.notes) {
@@ -226,7 +306,12 @@ export class DynamoEvidenceRepository implements EvidenceRepository {
 
     // 篩選重用快照那邊同一個函式 —— 自己寫一份的話行為會慢慢分岔，
     // 而分岔的症狀是「同一個查詢在兩種來源下拿到不同的 evidence」。
-    const filtered = applyEvidenceFilters(deduped, query);
+    const periodFiltered = filterEvidenceByPeriod(deduped, query.period);
+    const periodNote = describePeriodSelection(periodFiltered.selectedPeriods, query.period);
+    if (periodNote !== null) {
+      notes.add(periodNote);
+    }
+    const filtered = applyEvidenceFilters(periodFiltered.evidence, query);
     const limit = query.limitPerDataset ?? DEFAULT_LIMIT_PER_DATASET;
     const truncated = filtered.length > limit;
 
@@ -289,10 +374,23 @@ export function selectPlans(query: EvidenceQuery): ItemPlan[] {
   );
 }
 
+function uniqueArtifactKeys(plans: readonly ItemPlan[]): string[] {
+  return [...new Set(plans.map((plan) => plan.artifactKey))];
+}
+
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function asRecordArray(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is Record<string, unknown> =>
+          item !== null && typeof item === 'object' && !Array.isArray(item),
+      )
+    : [];
 }

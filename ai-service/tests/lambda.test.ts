@@ -1,6 +1,20 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { AI_ACTIONS, AiRequestSchema, handler } from '../src/handlers/lambda.js';
+import {
+  AI_ACTIONS,
+  AiRequestSchema,
+  handler,
+  resolveRequestContext,
+  resetEvidenceRepositoryCache,
+} from '../src/handlers/lambda.js';
 import type { AiEvidence } from '../src/types/aiEvidence.js';
+
+const fixtureDataDir = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'fixtures',
+  'data-pipeline-data',
+);
 
 const evidence: AiEvidence = {
   evidenceId: 'population:11507:1:youth_18_35_total',
@@ -42,6 +56,19 @@ function requestBody(action: string, overrides: Record<string, unknown> = {}) {
 }
 
 describe('handler 成功路徑', () => {
+  it('純問候不呼叫資料或模型即可回覆，且不捏造引用', async () => {
+    const response = await handler({
+      body: JSON.stringify({ action: 'qa', question: '你好', focusArea: 'policy' }),
+    });
+    const payload = JSON.parse(response.body);
+
+    expect(response.statusCode).toBe(200);
+    expect(payload.generatedBy).toBe('deterministic(greeting)');
+    expect(payload.output.answer).toContain('你好');
+    expect(payload.output.basis).toEqual([]);
+    expect(payload.sources).toEqual([]);
+  });
+
   it('回 200，envelope 帶 action / generatedBy / output', async () => {
     const response = await handler({ body: requestBody('explain') });
     const payload = JSON.parse(response.body);
@@ -105,13 +132,13 @@ describe('handler 成功路徑', () => {
 });
 
 describe('handler 錯誤處理', () => {
-  it('request 格式錯誤回 400，並列出逐欄位問題', async () => {
-    const response = await handler({ body: JSON.stringify({ action: 'explain' }) });
+  it('qa request 缺少 question 時回 400，並列出逐欄位問題', async () => {
+    const response = await handler({ body: JSON.stringify({ action: 'qa' }) });
     const payload = JSON.parse(response.body);
 
     expect(response.statusCode).toBe(400);
     expect(payload.issues.length).toBeGreaterThan(0);
-    expect(payload.issues[0].path).toContain('context');
+    expect(payload.issues[0].path).toContain('question');
   });
 
   it('未知 action 回 400', async () => {
@@ -167,6 +194,99 @@ describe('handler 錯誤處理', () => {
     expect(response.statusCode).toBe(502);
     expect(JSON.parse(response.body).error).toContain('context.question');
   });
+
+  it('self-fetch request 沒有 evidence source 時回 503 設定錯誤', async () => {
+    const previous = process.env.AI_EVIDENCE_SOURCE;
+    delete process.env.AI_EVIDENCE_SOURCE;
+    resetEvidenceRepositoryCache();
+    try {
+      const response = await handler({
+        body: JSON.stringify({ action: 'qa', question: '板橋區有多少青年？' }),
+      });
+      const payload = JSON.parse(response.body);
+
+      expect(response.statusCode).toBe(503);
+      expect(payload.code).toBe('AI_CONFIGURATION_MISSING');
+      expect(payload.error).toContain('AI_EVIDENCE_SOURCE');
+    } finally {
+      if (previous === undefined) {
+        delete process.env.AI_EVIDENCE_SOURCE;
+      } else {
+        process.env.AI_EVIDENCE_SOURCE = previous;
+      }
+      resetEvidenceRepositoryCache();
+    }
+  });
+
+  it('沒有 context 時會依 AI_EVIDENCE_SOURCE self-fetch context', async () => {
+    resetEvidenceRepositoryCache();
+    const request = AiRequestSchema.parse({
+      action: 'qa',
+      question: '板橋區有多少青年？',
+      focusDistrict: '板橋區',
+      focusArea: 'population',
+      webSearch: { enabled: false },
+    });
+
+    try {
+      const context = await resolveRequestContext(request, {
+        AI_EVIDENCE_SOURCE: 'analytics',
+        AI_DATA_DIR: fixtureDataDir,
+        AI_ANALYTICS_SNAPSHOT_ID: 'test-snapshot',
+      });
+
+      expect(context.evidence.length).toBeGreaterThan(0);
+      expect(
+        context.evidence.some(
+          (item) =>
+            item.metricId === 'annual.population.youth_18_35_total' &&
+            item.period === '114' &&
+            item.districtName === '板橋區',
+        ),
+      ).toBe(true);
+    } finally {
+      resetEvidenceRepositoryCache();
+    }
+  });
+
+  it('公開 query 在本機 mock self-fetch 時回 200，且 basis 只引用實際 evidence', async () => {
+    const previous = {
+      source: process.env.AI_EVIDENCE_SOURCE,
+      dataDir: process.env.AI_DATA_DIR,
+      snapshotId: process.env.AI_ANALYTICS_SNAPSHOT_ID,
+    };
+    process.env.AI_EVIDENCE_SOURCE = 'analytics';
+    process.env.AI_DATA_DIR = fixtureDataDir;
+    process.env.AI_ANALYTICS_SNAPSHOT_ID = 'test-snapshot';
+    resetEvidenceRepositoryCache();
+
+    try {
+      const response = await handler({
+        body: JSON.stringify({
+          action: 'qa',
+          question: '板橋區有多少青年？',
+          focusDistrict: '板橋區',
+          focusArea: 'population',
+          webSearch: { enabled: false },
+        }),
+      });
+      const payload = JSON.parse(response.body);
+
+      expect(response.statusCode).toBe(200);
+      expect(payload.generatedBy).toBe('mock(no network)');
+      expect(payload.output.answer).toContain('[mock]');
+      expect(payload.output.basis.length).toBeGreaterThan(0);
+      expect(payload.sources.length).toBeGreaterThan(0);
+    } finally {
+      if (previous.source === undefined) delete process.env.AI_EVIDENCE_SOURCE;
+      else process.env.AI_EVIDENCE_SOURCE = previous.source;
+      if (previous.dataDir === undefined) delete process.env.AI_DATA_DIR;
+      else process.env.AI_DATA_DIR = previous.dataDir;
+      if (previous.snapshotId === undefined) delete process.env.AI_ANALYTICS_SNAPSHOT_ID;
+      else process.env.AI_ANALYTICS_SNAPSHOT_ID = previous.snapshotId;
+      resetEvidenceRepositoryCache();
+    }
+  });
 });
 
 describe('AiRequestSchema（給 backend / frontend 對齊的契約）', () => {
@@ -181,5 +301,20 @@ describe('AiRequestSchema（給 backend / frontend 對齊的契約）', () => {
 
   it('action 只接受三個合法值', () => {
     expect(AI_ACTIONS).toEqual(['explain', 'policyCopilot', 'qa']);
+  });
+
+  it('top-level query request 支援期間與 web search 設定', () => {
+    const parsed = AiRequestSchema.parse({
+      action: 'qa',
+      question: '板橋區有多少青年？',
+      focusDistrict: '板橋區',
+      focusArea: 'population',
+      period: '114',
+      webSearch: { enabled: true, scope: 'all', contextSize: 'low' },
+    });
+
+    expect(parsed.period).toBe('114');
+    expect(parsed.focusDistrict).toBe('板橋區');
+    expect(parsed.webSearch?.scope).toBe('all');
   });
 });

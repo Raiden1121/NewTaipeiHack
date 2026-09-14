@@ -32,8 +32,8 @@ variable "bedrock_model_id" {
     `npm run dev:reasoning-check` after switching, because that check (does it admit
     it cannot answer?) is exactly what small models tend to lose.
   EOT
-  type    = string
-  default = "us.anthropic.claude-sonnet-4-6"
+  type        = string
+  default     = "us.anthropic.claude-sonnet-4-6"
 }
 
 variable "timeout" {
@@ -93,26 +93,35 @@ variable "analytics_table_name" {
     snapshot files, which do not exist in Lambda (no filesystem, and the 450MB
     data directory is deliberately not packaged).
 
-    NOTE: the request handler does not read this table today. `lambda.ts` takes
-    evidence from the request body and never calls buildAiContext(), so these
-    settings currently affect only `npm run precompute` and the dev scripts.
-    They are wired up now so that (a) the batch job has what it needs and (b)
-    whoever makes the handler self-serve does not have to touch Terraform.
-    Deciding who reads DynamoDB -- backend before the call, or ai-service
-    itself -- is still open; see infrastructure.md's Responsibilities.
+    The deployed request handler uses this table for Lambda self-fetch. Local
+    snapshot files and context injection remain available only to local tools
+    and tests. The API Lambda passes only the public query contract and never
+    supplies evidence itself.
   EOT
   type        = string
   default     = ""
 }
 
 variable "analytics_table_arn" {
-  description = "ARN of the analytics DynamoDB table (module.analytics_table.table_arn), used to scope the read-only IAM grant. Leave empty to skip granting -- only useful if analytics_table_name is also empty."
+  description = "ARN of the analytics DynamoDB table (module.analytics_table.table_arn), used to scope the read-only IAM grant when analytics_table_read_enabled is true."
   type        = string
   default     = ""
 }
 
+variable "analytics_table_read_enabled" {
+  description = "Whether to create the read-only IAM grant for the analytics table. This is a plan-time flag because analytics_table_arn can be unknown until the table is created."
+  type        = bool
+  default     = false
+}
+
 variable "backend_lambda_role_name" {
-  description = "IAM role name of the backend API Lambda (module.api's aws_iam_role.lambda_exec name, exposed as module.api.lambda_role_name), granted lambda:InvokeFunction on this AI Service Lambda so backend can call it directly once it implements that call. Leave empty to skip granting -- nothing invokes this Lambda yet (see infrastructure.md)."
+  description = "IAM role name of the existing API Lambda (module.api's aws_iam_role.lambda_exec name, exposed as module.api.lambda_role_name), granted lambda:InvokeFunction on this private AI Service when backend_lambda_invoke_enabled is true."
   type        = string
   default     = ""
+}
+
+variable "backend_lambda_invoke_enabled" {
+  description = "Whether to create the lambda:InvokeFunction grant for the API Lambda. This is a plan-time flag because backend_lambda_role_name can be unknown until the API role is created."
+  type        = bool
+  default     = false
 }

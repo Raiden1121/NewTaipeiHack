@@ -12,6 +12,7 @@ import type { AiFeatureResult } from './runFeature.js';
 import { explainData } from './explainData.js';
 import { policyCopilot } from './policyCopilot.js';
 import { dataQa } from './dataQa.js';
+import { buildGreetingOutput, isSimpleGreeting } from './greeting.js';
 import {
   dispatchWithPrecompute,
   type PrecomputeCacheStatus,
@@ -25,6 +26,17 @@ import { createPrecomputedStoreFromEnv } from '../precompute/store.js';
 export const AI_ACTIONS = ['explain', 'policyCopilot', 'qa'] as const;
 export const AiActionSchema = z.enum(AI_ACTIONS);
 export type AiAction = z.infer<typeof AiActionSchema>;
+const ROC_PERIOD_PATTERN = /^\d{3}(?:0[1-9]|1[0-2])?$/;
+
+/** 不是 request 格式錯誤，而是線上 Lambda 沒有配置正式 evidence 來源。 */
+export class AiConfigurationError extends Error {
+  readonly code = 'AI_CONFIGURATION_MISSING';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'AiConfigurationError';
+  }
+}
 
 /**
  * 自撈路徑的搜尋設定覆寫。
@@ -76,7 +88,9 @@ export const AiRequestSchema = z.object({
    */
   focusDistrict: z.string().nullish(),
   focusArea: z.string().nullish(),
-  question: z.string().nullish(),
+  question: z.string().max(400).nullish(),
+  /** ROC 年（114）或 ROC 月（11507）；未傳時由 query builder 選最新可用期。 */
+  period: z.string().regex(ROC_PERIOD_PATTERN).nullish(),
   /**
    * 省略時**不傳給 `buildAiContext`**，讓它用自己的預設（搜尋開啟）。
    *
@@ -85,6 +99,20 @@ export const AiRequestSchema = z.object({
    * `AiRequestContextSchema` 的預設（`false`），指紋就會跟預先算的結果永遠不同。
    */
   webSearch: WebSearchOverrideSchema.optional(),
+}).superRefine((request, context) => {
+  // context injection is kept for internal tests; public self-fetch requests must
+  // provide the question required by the qa prompt.
+  if (
+    request.action === 'qa' &&
+    request.context === undefined &&
+    (request.question === undefined || request.question === null || request.question.trim() === '')
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['question'],
+      message: 'qa request 必須提供 question',
+    });
+  }
 });
 export type AiRequest = z.infer<typeof AiRequestSchema>;
 
@@ -124,6 +152,7 @@ export interface AiSuccessResponse {
 
 export interface AiErrorResponse {
   error: string;
+  code?: string;
   /** zod 驗證失敗時的逐欄位訊息，方便呼叫端定位問題。 */
   issues?: { path: string; message: string }[];
 }
@@ -160,6 +189,16 @@ interface LambdaResponse {
 export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
   try {
     const request = AiRequestSchema.parse(parseBody(event.body, event.isBase64Encoded));
+    if (request.action === 'qa' && request.context === undefined && isSimpleGreeting(request.question)) {
+      return jsonResponse(200, {
+        action: 'qa',
+        generatedBy: 'deterministic(greeting)',
+        cache: 'bypass',
+        precomputedAt: null,
+        output: buildGreetingOutput(),
+        sources: [],
+      } satisfies AiSuccessResponse);
+    }
     const context = await resolveRequestContext(request);
     const client = createBedrockClientFromEnv();
     const webSearch = createWebSearchProviderFromEnv();
@@ -187,6 +226,12 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
           path: issue.path.join('.') || '(root)',
           message: issue.message,
         })),
+      } satisfies AiErrorResponse);
+    }
+    if (error instanceof AiConfigurationError) {
+      return jsonResponse(503, {
+        code: error.code,
+        error: error.message,
       } satisfies AiErrorResponse);
     }
     // 格式沒問題但執行失敗（Bedrock 不可用、驗證重試用盡、引用了不存在的
@@ -246,18 +291,23 @@ export async function resolveRequestContext(
 
   const source = selfFetchSource(env);
   if (source === null) {
-    throw new Error(
+    throw new AiConfigurationError(
       '請求沒有帶 context.evidence，而這個服務沒有被設定成自己去撈 evidence。' +
         '兩種修法選一個：呼叫端送完整的 `context`（含 evidence），' +
         '或在伺服器端設 AI_EVIDENCE_SOURCE（線上應為 `dynamo`，並一併設 ANALYTICS_TABLE_NAME）。',
     );
   }
 
-  cachedRepository ??= createEvidenceRepositoryFromEnv(env);
+  try {
+    cachedRepository ??= createEvidenceRepositoryFromEnv(env);
+  } catch (error) {
+    throw new AiConfigurationError(error instanceof Error ? error.message : String(error));
+  }
   return buildAiContext(cachedRepository, {
     focusDistrict: request.focusDistrict ?? null,
     focusArea: request.focusArea ?? null,
     question: request.question ?? null,
+    period: request.period ?? undefined,
     // 沒傳就不要傳 —— 讓 buildAiContext 用它自己的預設（搜尋開啟），
     // 那才跟 runBatch 一致。傳 `undefined` 進去也會被 `webSearch?.enabled ?? true`
     // 當成沒傳，但明確不放這個 key 讀起來不會讓人以為有覆寫。

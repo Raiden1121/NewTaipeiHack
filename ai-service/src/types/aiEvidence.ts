@@ -225,7 +225,7 @@ export const AiContextSchema = AiContextBaseSchema.superRefine((context, ctx) =>
 export type AiContext = z.infer<typeof AiContextSchema>;
 
 /**
- * 對外（backend / frontend）的請求形狀。
+ * AI Service 內部／測試用的 context injection 形狀，不是 API Gateway 公開 request。
  *
  * 跟 `AiContextSchema` 的差別：**這裡兩邊都可以是空的**。
  * 「這一區這個主題沒有資料」是要誠實回答的正常狀態，不是 400 錯誤。
@@ -233,9 +233,10 @@ export type AiContext = z.infer<typeof AiContextSchema>;
  */
 export const AiRequestContextSchema = AiContextBaseSchema.extend({
   /**
-   * 前端那顆「開啟上網搜尋」按鈕的狀態。
+   * 內部 context injection 的「開啟上網搜尋」設定。
    *
-   * 呼叫端送 `{ enabled: true }` 時 AI Service 才會去搜尋；預設關閉。
+   * 直接傳 context 時省略代表關閉；公開 top-level query 省略時由
+   * `buildAiContext` 套用 `enabled=true`、`scope=all`、`contextSize=low`。
    * 搜尋結果會變成 `webFindings`，所以呼叫端**不需要**自己填 `webFindings` ——
    * 那個欄位是給 AI Service 內部與測試用的。
    */

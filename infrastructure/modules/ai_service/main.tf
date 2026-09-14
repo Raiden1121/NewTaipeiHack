@@ -8,8 +8,9 @@
 # purely through IAM: same-account callers don't need a resource-based
 # policy (aws_lambda_permission) at all, just `lambda:InvokeFunction` on
 # their own identity policy, which is what `backend_lambda_role_name`
-# below grants. This also sidesteps API Gateway's 29/30s hard timeout
-# ceiling, which Opus (33-75s observed) and even Sonnet blow through.
+# below grants. The public API boundary owns the 28-second synchronous budget;
+# this private Lambda remains independently configurable for direct diagnostic
+# invokes and does not expose its own HTTP endpoint.
 #
 # Packaging uses esbuild rather than `npm run build` (tsc): tsc only
 # transpiles TypeScript, it doesn't bundle node_modules, and the Lambda
@@ -42,7 +43,7 @@ resource "null_resource" "build_ai_service" {
   # install already provides these deps, and esbuild is fetched by `npx --yes`.
   provisioner "local-exec" {
     working_dir = "${path.module}/../../../ai-service"
-    command     = "npx --yes esbuild@0.24.2 src/handlers/lambda.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist-lambda/index.mjs"
+    command = "npx --yes esbuild@0.24.2 src/handlers/lambda.ts --bundle --platform=node --target=node22 --format=esm --main-fields=module,main --outfile=dist-lambda/index.mjs"
   }
 }
 
@@ -119,10 +120,17 @@ resource "aws_iam_role_policy" "bedrock_invoke" {
 # is a plain key lookup (infrastructure/dynamodb_schema.md), and granting Scan
 # on a table that will grow is how a cheap request turns into an expensive one.
 resource "aws_iam_role_policy" "analytics_table_read" {
-  count = var.analytics_table_arn != "" ? 1 : 0
+  count = var.analytics_table_read_enabled ? 1 : 0
 
   name = "${var.project_name}-ai-service-analytics-read"
   role = aws_iam_role.ai_service_exec.id
+
+  lifecycle {
+    precondition {
+      condition     = var.analytics_table_arn != ""
+      error_message = "analytics_table_arn must be set when analytics_table_read_enabled is true."
+    }
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -147,13 +155,11 @@ resource "aws_lambda_function" "ai_service" {
   environment {
     variables = merge(
       { BEDROCK_MODEL_ID = var.bedrock_model_id },
-      # Evidence source. ai-service defaults to reading data-pipeline's published
-      # snapshot files, which do not exist in Lambda -- there is no filesystem to
-      # read and the 450MB data directory is deliberately not packaged.
+      # Evidence source. The deployed handler reads the published projection from
+      # DynamoDB; local snapshot files are only for local development/tests and
+      # are deliberately not packaged into Lambda.
       #
-      # These two are set together because neither is useful alone. They do NOT
-      # affect the request path today: lambda.ts takes evidence from the request
-      # body and never calls buildAiContext(). See variables.tf.
+      # These two are set together because neither is useful alone.
       var.analytics_table_name != ""
       ? { ANALYTICS_TABLE_NAME = var.analytics_table_name, AI_EVIDENCE_SOURCE = "dynamo" }
       : {},
@@ -172,14 +178,20 @@ resource "aws_lambda_function" "ai_service" {
 
 # Same-account IAM callers don't need a Lambda resource-based policy --
 # their own identity policy having lambda:InvokeFunction on this ARN is
-# enough. Attaching it directly to backend's existing execution role means
-# backend needs zero infra changes on their end when they actually wire up
-# the call; until then this grant is simply unused.
+# enough. Attach it directly to the existing API Lambda execution role: the
+# `POST /api/v1/ai/query` route uses this grant for its synchronous invoke.
 resource "aws_iam_role_policy" "allow_backend_invoke" {
-  count = var.backend_lambda_role_name != "" ? 1 : 0
+  count = var.backend_lambda_invoke_enabled ? 1 : 0
 
   name = "${var.project_name}-ai-service-invoke"
   role = var.backend_lambda_role_name
+
+  lifecycle {
+    precondition {
+      condition     = var.backend_lambda_role_name != ""
+      error_message = "backend_lambda_role_name must be set when backend_lambda_invoke_enabled is true."
+    }
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"

@@ -1,8 +1,8 @@
 /**
- * AI Service 的對外 contract —— **這是提案，不是既定事實。**
+ * AI Service 的跨模組 contract。
  *
- * 由 ai-service 先寫出來，因為那邊進度最快，等其他模組定案只會變成回頭改。
- * 有意見直接改這個檔案並通知 ai-service，不要各自在自己的模組裡另立一套欄位名。
+ * 公開查詢使用 `AiQueryRequest`；帶 `context` 的 `AiRequest` 是 AI Service
+ * 內部／測試形狀，不是 API Gateway 的公開 request。
  *
  * 權威實作在 `ai-service/src/types/`（那邊是 zod schema，會實際驗證）。
  * 這裡是純 TypeScript 型別，刻意不依賴任何套件，讓 frontend / backend 都能直接引用。
@@ -41,7 +41,7 @@ export type AgeScope =
  */
 export type MetricSource = 'metric_id' | 'record_field';
 
-/** 來源類型。`web` 目前沒有產生者（RAG 未實作），型別先留著。 */
+/** 來源類型。網路搜尋引用使用獨立的 `WebFinding`，不混入 `AiEvidence`。 */
 export type SourceKind = 'dataset' | 'document' | 'web';
 
 export interface AiEvidence {
@@ -97,19 +97,33 @@ export interface AiEvidence {
 
 export type AiAction = 'explain' | 'policyCopilot' | 'qa';
 
+/** 公開 Backend → AI Service 的查詢 request；不包含 evidence/context。 */
+export interface AiQueryRequest {
+  action: AiAction;
+  question?: string | null;
+  focusDistrict?: string | null;
+  focusArea?: string | null;
+  /** ROC 年（114）或 ROC 月（11507）。 */
+  period?: string | null;
+  webSearch?: Partial<WebSearchSettings>;
+}
+
 /**
- * 前端「開啟上網搜尋」按鈕對應的設定。
+ * 前端／公開 query「開啟上網搜尋」按鈕對應的設定。
  *
- * 預設關閉。上網搜尋會犧牲可追溯性與可重現性，所以必須是使用者明確打開的行為。
+ * 公開 query 預設開啟、範圍為全網；上網搜尋仍會犧牲部分可追溯性，回應會把
+ * web references 與 data evidence 分開標示。
  *
- * ⚠️ **目前後端還沒有真的會去搜尋的實作**（Bedrock 原生 Web Search 只支援
- * OpenAI GPT 模型，本專案不使用）。送 `enabled: true` 不會壞，會拿到
- * 「已開啟上網搜尋，但沒有找到相關的網路資料」這樣的誠實說明。
+ * AI Service 會依此設定使用既有 web-search provider；公開 query 預設開啟全網搜尋。
+ * 找不到結果或 provider 失敗時，回應會保留 limitation，而不把網路內容混入
+ * data evidence。
  * 前端可以照這個 contract 先把按鈕做好。
  */
 export interface WebSearchSettings {
   enabled: boolean;
-  /** 搜尋回傳的上下文量。low≈5 筆、medium≈11 筆、high≈25 筆。預設 low（延遲考量）。 */
+  /** 全網或只搜 gov.tw / edu.tw。公開 query 預設 all。 */
+  scope?: 'all' | 'trusted';
+  /** 搜尋回傳的上下文量。low≈5 筆、medium≈11 筆、high≈25 筆。預設 low。 */
   contextSize?: 'low' | 'medium' | 'high';
 }
 
@@ -124,13 +138,15 @@ export interface WebFinding {
 }
 
 export interface AiRequestContext {
+  /** 僅供 AI Service 內部 context injection、本機工具與測試；不屬於公開 API。 */
   /** Data Explanation 情境可為 null；`qa` 必填。 */
   question: string | null;
   focusDistrict: string | null;
   /** 例如 `employment`、`housing`、`population`、`resources`。 */
   focusArea: string | null;
   /**
-   * 前端那顆按鈕的狀態。省略時視為關閉。
+   * 內部 context injection 的搜尋設定。直接傳 context 時省略代表關閉；
+   * 公開 query 省略時由 `buildAiContext` 套用 enabled/all/low 預設。
    *
    * 搜尋由 AI Service 執行，前端**不需要**自己送 `webFindings`。
    */
@@ -152,10 +168,13 @@ export interface AiRequestContext {
   knownLimitations?: string[];
 }
 
-export interface AiRequest {
-  action: AiAction;
+/** AI Service handler 的內部／測試 request；公開 API 不接受這個 context 欄位。 */
+export interface AiServiceInternalRequest extends AiQueryRequest {
   context: AiRequestContext;
 }
+
+/** @deprecated 請在跨模組公開 API 使用 AiQueryRequest；此 alias 僅保留內部相容性。 */
+export type AiRequest = AiServiceInternalRequest;
 
 // ---------------------------------------------------------------------------
 // Response
@@ -316,6 +335,7 @@ export type AiCacheStatus = 'hit' | 'miss' | 'disabled' | 'bypass';
 
 export interface AiErrorResponse {
   error: string;
+  code?: string;
   /** request 格式錯誤（HTTP 400）時的逐欄位訊息。 */
   issues?: { path: string; message: string }[];
 }
@@ -323,8 +343,10 @@ export interface AiErrorResponse {
 /**
  * HTTP 狀態碼約定：
  * - `200`：成功。**包含「資料不足」** —— 那是正常結果，不是錯誤。
- * - `400`：request 不符合 `AiRequest`，`issues` 會列出逐欄位問題。
+ * - `400`：公開 `AiQueryRequest` 不符合格式，`issues` 會列出逐欄位問題。
  * - `502`：格式沒問題但執行失敗（Bedrock 不可用、模型輸出反覆不合 schema、
  *   引用了不存在的 evidenceId）。呼叫端可以重試。
+ * - `503`：AI Service 沒有設定正式 evidence source。
+ * - `504`：同步 invoke 超時。
  */
 export type AiResponse = AiSuccessResponse | AiErrorResponse;

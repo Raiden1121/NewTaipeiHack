@@ -10,6 +10,8 @@ import { readAnalyticsSnapshot, type AnalyticsArtifactRef } from './analyticsSna
 import {
   DEFAULT_LIMIT_PER_DATASET,
   applyEvidenceFilters,
+  describePeriodSelection,
+  filterEvidenceByPeriod,
   type EvidenceBundle,
   type EvidenceQuery,
   type EvidenceRepository,
@@ -93,7 +95,12 @@ export class AnalyticsSnapshotEvidenceRepository implements EvidenceRepository {
       });
       notes.push(...flattened.notes);
 
-      const matched = applyEvidenceFilters(flattened.evidence, query);
+      const periodFiltered = filterEvidenceByPeriod(flattened.evidence, query.period);
+      const periodNote = describePeriodSelection(periodFiltered.selectedPeriods, query.period);
+      if (periodNote !== null) {
+        notes.push(`${analyticsDatasetName(artifact.key)}：${periodNote}`);
+      }
+      const matched = applyEvidenceFilters(periodFiltered.evidence, query);
       totalMatched += matched.length;
 
       if (matched.length === 0) {

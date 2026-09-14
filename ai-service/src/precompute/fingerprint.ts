@@ -3,11 +3,9 @@
  *
  * ## 為什麼不是 `action:行政區:主題:快照id`
  *
- * 因為這個服務的 lambda **收到的是 backend 已經組好的 context**（evidence 直接
- * 在 request body 裡），請求裡沒有快照 id 這個欄位。要用快照 id 當鍵，就得要求
- * backend 多傳一個欄位 —— 那是跨隊的契約改動，而且擋不住真正危險的情況：
- * backend 送來的 evidence 子集跟預先算當時不一樣時，快照 id 仍然相同，
- * 於是會回一份「用別的資料算出來的答案」。
+ * 本機與測試可以把 context 直接注入 handler；正式查詢則由 AI Service self-fetch
+ * DynamoDB evidence。指紋仍然以實際使用的 evidence 值與限制為準，不能把公開 request
+ * 的 evidence 當成輸入。若快照或期間選擇不同，指紋必須 miss，避免回傳用別的資料算出的答案。
  *
  * 指紋把輸入本身納入雜湊，所以只有輸入完全一致才會命中。代價是命中率取決於
  * 呼叫端有沒有用同樣的方式組 context；沒命中就退回即時計算（正確但慢），

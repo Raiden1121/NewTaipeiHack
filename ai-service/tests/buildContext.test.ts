@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  AnalyticsSnapshotEvidenceRepository,
   CuratedFileEvidenceRepository,
   buildAiContext,
   buildEvidenceForDataset,
@@ -235,5 +236,67 @@ describe('buildAiContext', () => {
         .filter((item) => item.geoLevel === 'district')
         .every((item) => item.districtName === '板橋區'),
     ).toBe(true);
+  });
+});
+
+describe('buildAiContext 的年度期間', () => {
+  const repository = new AnalyticsSnapshotEvidenceRepository(fixtureDataDir);
+
+  it('未指定期間時，年度人口 evidence 只保留最新可用年度並保留 snapshot 指標', async () => {
+    const context = await buildAiContext(repository, {
+      focusDistrict: '板橋區',
+      focusArea: 'population',
+      question: '板橋區有多少青年？',
+      webSearch: { enabled: false },
+    });
+
+    const annualYouth = context.evidence.filter(
+      (item) =>
+        item.metricId === 'annual.population.youth_18_35_total' &&
+        item.districtName === '板橋區',
+    );
+    expect(annualYouth.map((item) => item.period)).toEqual(['114']);
+    expect(
+      context.evidence.some(
+        (item) =>
+          item.metricId === 'youth_18_35_total' &&
+          item.period.startsWith('snapshot:') &&
+          item.districtName === '板橋區',
+      ),
+    ).toBe(true);
+    expect(context.knownLimitations.join('\n')).toContain('114');
+  });
+
+  it('request period 優先於問句中的年度，只保留指定年度的年度人口 evidence', async () => {
+    const context = await buildAiContext(repository, {
+      focusDistrict: '板橋區',
+      focusArea: 'population',
+      period: '113',
+      question: '板橋區 114 年有多少青年？',
+      webSearch: { enabled: false },
+    });
+
+    const annualYouth = context.evidence.filter(
+      (item) =>
+        item.metricId === 'annual.population.youth_18_35_total' &&
+        item.districtName === '板橋區',
+    );
+    expect(annualYouth.map((item) => item.period)).toEqual(['113']);
+  });
+
+  it('沒有 request period 時，會從問句解析 ROC 年', async () => {
+    const context = await buildAiContext(repository, {
+      focusDistrict: '板橋區',
+      focusArea: 'population',
+      question: '板橋區 113 年有多少青年？',
+      webSearch: { enabled: false },
+    });
+
+    const annualYouth = context.evidence.filter(
+      (item) =>
+        item.metricId === 'annual.population.youth_18_35_total' &&
+        item.districtName === '板橋區',
+    );
+    expect(annualYouth.map((item) => item.period)).toEqual(['113']);
   });
 });

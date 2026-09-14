@@ -9,14 +9,14 @@ Shared 用來保存 Frontend、Backend 與 AI Service 共用的 TypeScript data 
 | 檔案 | 狀態 | 內容 |
 |---|---|---|
 | `src/metrics.ts` | **已建立** | metric contract：`MetricValue`、`MetricStatus`、`YouthEligibility`、`PeriodType` |
-| `src/aiContract.ts` | **提案** | AI Service 的 request / response contract：`AiEvidence`、`StructuredOutput`、`SourceAttribution` |
+| `src/aiContract.ts` | **已建立** | AI Service 的公開 query 與內部 context request / response contract |
 | `src/aiContextTable.ts` | **提案** | DynamoDB「AI Context」表的 key schema 與 item 形狀 |
 
 其餘跨模組 DTO 仍依各 feature plan 擴充。
 
-`aiContract.ts` 與 `aiContextTable.ts` 是 **ai-service 主動提出的提案，還沒定案**。
-由 ai-service 先寫是因為那邊進度最快，等其他模組定案只會變成回頭改。
-有意見直接改檔案並通知 ai-service，不要各自在自己的模組裡另立一套欄位名。
+`aiContract.ts` 的公開 query contract 已與 Python API Lambda、AI Service handler 對齊；
+不要在 frontend 或 backend 另立一套欄位名。`aiContextTable.ts` 仍是資料表 schema
+參考，正式線上 evidence 由 AI Service 讀取 DynamoDB projection。
 
 `aiContract.ts` 的權威實作在 `ai-service/src/types/`（那邊是 zod schema，會實際驗證）。
 這裡是純 TypeScript 型別，刻意不依賴任何套件。兩邊不一致時以 ai-service 的 zod schema 為準。
@@ -57,6 +57,20 @@ snake_case ↔ camelCase 的轉換只發生在 `ai-service/src/context/` 一層�
 - `PolicyAdvice` 與 `AI Evidence`。
 
 Metric source 欄位統一為 `source`、`sourceName`、`sourceUrl` 與 `sourceRefs`。單一來源使用前三個欄位；多來源衍生指標使用 `source: null`、`sourceUrl: null` 與 `sourceRefs`，不由 Frontend 自行查表。
+
+## AI Query contract
+
+公開入口是既有 Python API Lambda 的 `POST /api/v1/ai/query`。`AiQueryRequest` 只包含：
+
+`action`（`explain`、`policyCopilot`、`qa`）、`question`、`focusDistrict`、`focusArea`、
+`period`（三碼 ROC 年或五碼 ROC 月）與 `webSearch`（`enabled`、`scope`、`contextSize`）。
+`qa` 必須有最多 400 字的 `question`；未指定期間時各年度 dataset 使用最新可用期，
+snapshot evidence 保留。web search 預設為 `enabled=true`、`scope=all`、`contextSize=low`，
+`trusted` 只允許 `gov.tw` 與 `edu.tw`。
+
+公開 request 不得帶 `context`、`evidence` 或 `webFindings`。`AiServiceInternalRequest`
+與 `AiRequestContext` 只供 AI Service 內部 context injection、本機工具與測試；線上 AI
+Service 依 `AI_EVIDENCE_SOURCE=dynamo` self-fetch DynamoDB evidence。
 
 共用格式應讓各模組對同一個欄位有一致理解，例如不要讓 Frontend 使用 `opportunityIndex`，Backend 卻回傳 `opportunity_score`。
 

@@ -12,7 +12,8 @@ api（Python Lambda + API Gateway）、analytics_table（DynamoDB）、raw_data�
 
 ## TL;DR
 
-一個 Lambda + Bedrock 權限。**不需要**掛任何儲存體、不需要 VPC、不需要把
+一個私有 AI Service Lambda + Bedrock 權限，由既有 Python API Lambda 同步呼叫。
+**不需要**掛任何儲存體、不需要 VPC、不需要把
 `data-pipeline/data/` 的 450 MB 資料包進去。
 
 | 項目 | 值 |
@@ -22,44 +23,40 @@ api（Python Lambda + API Gateway）、analytics_table（DynamoDB）、raw_data�
 | Timeout | **120 秒**（Q&A 實測 14–27 秒，但預先算 miss 時會即時算 50–58 秒；預設 3 秒一定失敗） |
 | Memory | 512 MB 起（純 I/O 等待，加記憶體不會變快） |
 | IAM | `bedrock:InvokeModel`（跨區推論要多加，見下方） |
-| 必要環境變數 | `BEDROCK_MODEL_ID`、`AI_PRECOMPUTE_DIR` |
-| 對外介面 | 尚未決定，**目前沒有 auth** |
+| 線上必要環境變數 | `BEDROCK_MODEL_ID`、`AI_EVIDENCE_SOURCE=dynamo`、`ANALYTICS_TABLE_NAME` |
+| 本機／預先計算 | `AI_PRECOMPUTE_DIR`（僅供 explain / policyCopilot 的快取） |
+| 對外介面 | `POST /api/v1/ai/query`（API Lambda 驗證後同步 invoke） |
 
 **模型：Sonnet 4-6**（`us.anthropic.claude-sonnet-4-6`）。不需要換 Haiku ——
 `explain` / `policyCopilot` 走預先算（線上 3–5 ms），Q&A 靠 `answer` 字數上限
 進到 14–27 秒。詳見下方「延遲」。
 
-`AI_PRECOMPUTE_DIR` 列為必要不是筆誤：沒設的話 `explain` / `policyCopilot`
-會即時算 50–58 秒，而 HTTP API 是 30 秒且不可調 —— 那兩個功能會**一定失敗**。
+`AI_PRECOMPUTE_DIR` 不是線上 evidence 的必要設定；沒設時 `explain` /
+`policyCopilot` 會即時計算，可能超過 API Gateway 的 30 秒上限。正式 evidence
+仍由 AI Service 透過 DynamoDB self-fetch，不依賴這個本機快取目錄。
 
-> ⚠️ **不要沿用 `infrastructure/modules/api`。** 那個 module 是 backend 的
-> 資料讀取 API：`runtime = "python3.12"`、`handler = "handler.handler"`、
-> `timeout = 10`，而且 CORS 只允許 `GET` / `OPTIONS`。
-> AI Service 是 Node.js、需要 `POST`、需要 120 秒 timeout ——
-> 三個條件都對不上，要另外開一個 Lambda。
+> ⚠️ `infrastructure/modules/api` 是公開 API 邊界，不是 AI Service 本身：它用
+> Python 3.12、timeout 28 秒並提供 `POST /api/v1/ai/query`；Node.js AI Lambda
+> 仍維持獨立的 120 秒 timeout，且只接受同帳號 API Lambda 的 IAM invoke。
 
 ---
 
 ## 0. evidence 從哪裡來
 
-⚠️ **先講一件容易誤會的事：`handler` 目前不會自己去查 DynamoDB。**
+正式線上路徑是：
+`API Gateway → Python API Lambda → AI Service Lambda → DynamoDB / Bedrock`。
 
-`src/handlers/lambda.ts` 的 evidence **只從 request body 進來**，
-它沒有呼叫 `buildAiContext()` 也沒有碰任何 repository。所以下面那些
-DynamoDB 的設定**在 request 路徑上不會被讀到** —— 它們是為了兩件事先準備好的：
-
-1. **`npm run precompute`**（批次預先算 explain / policyCopilot）會用 repository
-2. **未來 handler 若要自己查表**，設定與權限已經到位，不必再動 Terraform
-
-真正決定線上 evidence 的是**呼叫端**。架構圖上那是 Backend：
-`DynamoDB → Backend API Lambda → （組好 AiRequestContext）→ AI Service Lambda`。
-那段程式碼還沒寫（見 `infrastructure.md` 的 Responsibilities）。
+公開 request 只接受 `action`、`question`、`focusDistrict`、`focusArea`、`period` 與
+`webSearch`；**不接受 `context`、`evidence` 或 `webFindings`**。AI Service 在沒有
+`context` 時依 `AI_EVIDENCE_SOURCE=dynamo` 自己建立 context。`context` injection
+保留給本機與測試，不能當成公開 API 的資料來源。
 
 ### DynamoDB 這條路已經實作、也實測過了
 
 `DynamoEvidenceRepository`（`src/context/dynamoRepository.ts`）＋
 `AI_EVIDENCE_SOURCE=dynamo`。本機實測（`npm run dev:dynamo-check`）：
-一次 `BatchGetItem` 讀 8 筆 item、1,167 ms、83 筆 evidence（板橋區 / employment）。
+一次 `BatchGetItem` 讀 manifest、dashboard 與 analysis projection items；目前最多
+13 個 projection item，遠低於 DynamoDB `BatchGetItem` 的 100 筆上限。
 
 Terraform 已經把設定與權限接好（`module.ai_service` 收 `module.analytics_table`
 的 `table_name` 與 `table_arn`）：
@@ -72,9 +69,9 @@ ai-service 拿到寫入權限的話，prompt 層的 bug 就有可能污染 dashb
 也刻意不給 `Query` / `Scan`：表的 schema 設計成每個查詢都是 key 查詢
 （見 `infrastructure/dynamodb_schema.md`），給 Scan 是把便宜的請求變貴的方法。
 
-**目前的落差**：`ANALYSIS#*` 那 6 筆還沒接，所以 employment 主題比本機快照少
-17 種指標、fertility 少 48 種（`citySummary.*`、`daycareCoverage`、`fafi*` 都在
-那幾筆裡）。employment 類的問題可以直接用，生育／家庭友善會明顯變弱。
+六類 `ANALYSIS#*` projection 已由 `DynamoEvidenceRepository` 接回：employment
+scatter、fertility overlay、家庭友善、青年關鍵詞、資源投入與政策成果都會依
+focus area 選取，並透過同一個 `flattenAnalyticsArtifact()` 產生 metricId/evidenceId。
 
 ---
 
@@ -88,14 +85,41 @@ ai-service 拿到寫入權限的話，prompt 層的 bug 就有可能污染 dashb
 - 不用掛 EFS、不用 S3 讀取權限
 - 不用設 `AI_DATA_DIR`
 
-`handler` 的 evidence **只從 request body 進來**（呼叫端已經查好）。
-`AI_EVIDENCE_SOURCE=dynamo` 那條路目前只有 `npm run precompute` 與 dev 腳本會走，
-不在 request 路徑上 —— 見第 0 節。
+線上 handler 不讀 `data-pipeline/data/`；它依 `AI_EVIDENCE_SOURCE=dynamo` 從
+DynamoDB self-fetch。`context` injection 只在本機與測試保留，不能由公開 API 傳入。
 
 `CuratedFileEvidenceRepository` 與 `AnalyticsSnapshotEvidenceRepository`
-（會讀本機檔案的那兩個）只在本機開發腳本用到，**不在 Lambda 的執行路徑上** ——
-`AI_EVIDENCE_SOURCE` 的預設值是後者，所以部署時一定要覆寫成 `dynamo`
-（Terraform 已經幫你設了）。
+（會讀本機檔案的那兩個）只供本機開發與測試；部署時 Terraform 會設
+`AI_EVIDENCE_SOURCE=dynamo` 與 `ANALYTICS_TABLE_NAME`。
+
+## 1.5 公開 AI 查詢契約
+
+正式入口是既有 Python API Lambda 的：
+
+```http
+POST /api/v1/ai/query
+Content-Type: application/json
+```
+
+```json
+{
+  "action": "qa",
+  "question": "板橋區有多少青年？",
+  "focusDistrict": "板橋區",
+  "focusArea": "population",
+  "period": "114",
+  "webSearch": {"enabled": true, "scope": "all", "contextSize": "low"}
+}
+```
+
+`action` 只允許 `explain`、`policyCopilot`、`qa`；`question` 最多 400 字，且 `qa`
+必填。`period` 可為三碼 ROC 年或五碼 ROC 月，request 欄位優先，否則從問題解析
+「114 年」；沒有指定時，各年度資料集取最新可用期，snapshot 指標仍保留。
+
+web search 預設為 `enabled=true`、`scope=all`、`contextSize=low`；`trusted` 只允許
+`gov.tw` 與 `edu.tw`。API Lambda 只轉送公開欄位，以 `RequestResponse` invoke
+AI Service；validation、AI runtime error、timeout 與 server configuration missing
+分別映射為 400、502、504、503。
 
 ---
 
@@ -192,7 +216,7 @@ Resource = [
 | `AI_EVIDENCE_SOURCE` | ✅ | Lambda 要設 `dynamo`。預設是 `analytics`（讀本機快照檔），而 **Lambda 沒有檔案系統** |
 | `AI_PRECOMPUTE_DIR` | ⚠️ 強烈建議 | 預先算結果的位置。**沒設就是關閉** → `explain` / `policyCopilot` 會即時算 50–58 秒 → 被 HTTP API 的 30 秒切斷 |
 | `AI_PRECOMPUTE_WRITE_THROUGH` | ✖ | 設 `1` 讓 miss 之後把結果寫回快取。預設關閉（理由見下） |
-| `AI_DATA_DIR` | ✖ | 批次腳本讀 data-pipeline 資料的位置。**Lambda 不需要**（evidence 從 request body 進來） |
+| `AI_DATA_DIR` | ✖ | 本機／批次腳本讀 data-pipeline 資料的位置。**線上 Lambda 不需要**（evidence 從 DynamoDB self-fetch） |
 | `AI_DISTRICTS_FILE` | ✖ | 批次腳本的行政區清單位置，預設從 `AI_DATA_DIR` 推出 `../config/districts.json` |
 
 ### ⚠️ `AI_PRECOMPUTE_DIR` 沒設的後果
@@ -391,30 +415,18 @@ Sonnet 會主動更正使用者說錯的前提、會發現兩個指標互相矛�
 
 ## 6. ⚠️ 目前沒有 auth
 
-`src/handlers/lambda.ts` **沒有任何 authentication / authorization**。
-
-如果直接掛成公開的 Function URL 或 API Gateway endpoint，等於把 Bedrock 帳單
-開放給任何人呼叫 —— 每個請求都會送出完整 prompt（含 few-shot 與 evidence），
-而且是 Opus 級的價格。
-
-部署前要選一個：
-
-- **只給 Backend 呼叫**（推薦）：不要開公開 endpoint，用 IAM 授權讓 Backend Lambda
-  直接 `lambda:InvokeFunction`，或 Function URL 設 `AuthType: AWS_IAM`。
-  這樣 AI Service 完全不對外，最省事也最安全。
-- API Gateway + API key / Usage plan（有 rate limit，但 API key 算不上真的認證）
-- Cognito authorizer（如果前端本來就有登入）
-
-這件事要跟 backend 一起決定，我不會單方面加。
+AI Service Lambda 本身**沒有公開 URL，也沒有獨立 authentication / authorization**；
+它只授權既有 API Lambda role `lambda:InvokeFunction`。API Gateway 的公開路徑目前仍
+應在 API 邊界補 API key、IAM 或 Cognito，不能把 AI Lambda 直接暴露出去。
 
 ---
 
 ## 7. 部署後怎麼驗
 
 ```bash
-aws lambda invoke --function-name <name> \
+aws lambda invoke --function-name <ai-service-name> \
   --cli-binary-format raw-in-base64-out \
-  --payload '{"body":"{\"action\":\"explain\",\"context\":{\"question\":null,\"focusDistrict\":\"板橋區\",\"focusArea\":\"population\",\"evidence\":[],\"knownLimitations\":[]}}"}' \
+  --payload '{"body":"{\"action\":\"qa\",\"question\":\"板橋區有多少青年？\",\"webSearch\":{\"enabled\":false}}"}' \
   out.json && cat out.json
 ```
 

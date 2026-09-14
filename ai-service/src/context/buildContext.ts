@@ -11,6 +11,7 @@ import {
   type EvidenceQuery,
   type EvidenceRepository,
 } from './evidenceRepository.js';
+import { resolveQueryPeriod } from './periodPolicy.js';
 import { inferComparisonMetrics, inferFocusMetrics } from './comparisonMetrics.js';
 
 export * from './evidenceRepository.js';
@@ -79,8 +80,8 @@ export function defaultDataPipelineDataDir(): string {
  *    `youth_eligibility` / `age_scope` 欄位（實測 8 個 artifact 全部沒有），
  *    所以那張手寫的表是唯一來源。用 `npm run dev:metric-audit` 稽核覆蓋率。
  *
- * 等 DynamoDB table 存在時在這裡多一個 `DynamoEvidenceRepository` 分支即可，
- * handler / prompt / Bedrock 那幾層不用動（`AiEvidence` 不變）。
+ * `DynamoEvidenceRepository` 已在這裡接上；handler / prompt / Bedrock 那幾層不需要
+ * 知道 evidence 的傳輸方式（`AiEvidence` 不變）。
  */
 export function createEvidenceRepositoryFromEnv(
   env: NodeJS.ProcessEnv = process.env,
@@ -158,7 +159,7 @@ export interface BuildAiContextOptions extends EvidenceQuery {
  * 指標收斂生效時，每個 dataset 的取樣上限。
  *
  * 比預設的 200 小很多。理由：收斂之後彙總指標都在了，curated 逐筆記錄的作用是
- * 讓模型判斷「母體多大、資料品質有沒有問題」—— 30 筆就足以看出
+ * 讓模型判斷「母體多大、資料品質有沒有問題」—— 每個焦點行政區 30 筆足以看出
  * `query_district_mismatch_filtered` 這類旗標與薪資的分布形狀，
  * 200 筆只是多付 token（而 input 每 1K token 約 0.2 秒）。
  */
@@ -320,12 +321,29 @@ export async function buildAiContext(
   // focusArea 要傳給 repository，不能在這裡被丟掉：analytics repository 用它決定
   // 要讀哪幾個分析（見 ANALYTICS_ARTIFACTS_BY_FOCUS_AREA）。少了它，一個行政區
   // 的請求會把 7 個分析全讀進來（實測 477 筆 evidence）。
-  const query: EvidenceQuery = { ...rest, focusArea: focusArea ?? null };
+  const query: EvidenceQuery = {
+    ...rest,
+    period: resolveQueryPeriod(rest.period, question),
+    focusArea: focusArea ?? null,
+  };
 
-  // 使用者選了行政區時，把它當成預設的篩選條件，否則會把 29 區的資料全撈進來。
+  // 先取得跨區指標，再從實際存在的行政區名稱辨識問題點名的區。
+  // 這避免在 Lambda 中硬寫另一份 29 區清單，也讓「新莊比板橋」的主查詢
+  // 能同時取得兩區的完整子分數，而不是被未篩選資料的前 30 筆截掉。
+  const effectiveComparisonMetrics =
+    comparisonMetrics ?? (query.metricIds === undefined ? inferComparisonMetrics(question) : []);
+  const comparison = await queryComparisonEvidence(repository, query, effectiveComparisonMetrics);
+  const mentionedDistricts =
+    query.districtNames === undefined && query.districtIds === undefined && !focusDistrict
+      ? inferMentionedDistrictNames(question, comparison.evidence)
+      : [];
+
+  // 明確指定的行政區優先；沒有指定時，主查詢只取問題點名的區。
+  // 排名所需的全 29 區資料仍由獨立的 comparison 查詢提供。
   const districtScopedQuery: EvidenceQuery =
-    query.districtNames === undefined && query.districtIds === undefined && focusDistrict
-      ? { ...query, districtNames: [focusDistrict] }
+    query.districtNames === undefined && query.districtIds === undefined &&
+    (focusDistrict || mentionedDistricts.length > 0)
+      ? { ...query, districtNames: focusDistrict ? [focusDistrict] : mentionedDistricts }
       : query;
 
   // 依問題主題收斂焦點行政區的指標。
@@ -338,35 +356,25 @@ export async function buildAiContext(
   // 主題對不上就維持原本什麼都給的行為（見 `inferFocusMetrics`）。
   const focusMetrics = focusMetricIds ?? inferFocusMetrics(question);
   const applyFocusScope = query.metricIds === undefined && focusMetrics.length > 0;
+  const focusedLimitPerDataset = Math.min(
+    districtScopedQuery.limitPerDataset ?? DEFAULT_LIMIT_PER_DATASET,
+    FOCUSED_LIMIT_PER_DATASET * Math.max(
+      1,
+      districtScopedQuery.districtNames?.length ?? districtScopedQuery.districtIds?.length ?? 1,
+    ),
+  );
   const effectiveQuery: EvidenceQuery = applyFocusScope
     ? {
         ...districtScopedQuery,
         metricIds: focusMetrics,
         // 指標收斂之後，每個 dataset 仍然可能有大量逐筆記錄符合條件
         // （例如 200 筆職缺各有 salary_lower）。彙總指標已經在了，逐筆的作用是
-        // 讓模型判斷母體與資料品質，30 筆足夠 —— 200 筆只是多付 token。
-        limitPerDataset: Math.min(
-          districtScopedQuery.limitPerDataset ?? DEFAULT_LIMIT_PER_DATASET,
-          FOCUSED_LIMIT_PER_DATASET,
-        ),
+        // 讓模型判斷母體與資料品質，每個焦點區 30 筆足夠。
+        limitPerDataset: focusedLimitPerDataset,
       }
     : districtScopedQuery;
 
   const bundle = await repository.query(effectiveQuery);
-
-  // 跨區比較資料。跟主查詢分開跑，因為它要的正好是主查詢排除掉的東西：
-  // 其他 28 區的同一個指標。
-  //
-  // 沒有明確指定時，從使用者問題自動推導。這樣 backend 不需要知道這件事的存在，
-  // 而 explain / policy 因為 question 是 null，自然不會受影響。
-  // 要明確關掉就傳 `comparisonMetrics: []`。
-  //
-  // 呼叫端自己傳了 `metricIds` 時也不推導：那代表它要完全接管取用範圍，
-  // 這時候還自動加幾個它沒要求的跨區指標會很難預期。需要的話明確傳
-  // `comparisonMetrics` 就好。
-  const effectiveComparisonMetrics =
-    comparisonMetrics ?? (query.metricIds === undefined ? inferComparisonMetrics(question) : []);
-  const comparison = await queryComparisonEvidence(repository, query, effectiveComparisonMetrics);
 
   // 比較資料刻意放**最前面**。
   //
@@ -418,8 +426,8 @@ export async function buildAiContext(
       // 而使用者也無從知道「我問的面向被縮小了」。
       ...(applyFocusScope
         ? [
-            `本次依問題主題收斂了取用範圍：${focusDistrict ?? '焦點行政區'}只取與問題相關的指標` +
-              `（${focusMetrics.length} 個指標，每個資料集最多 ${FOCUSED_LIMIT_PER_DATASET} 筆）。` +
+            `本次依問題主題收斂了取用範圍：${districtScopedQuery.districtNames?.join('、') ?? focusDistrict ?? '主查詢'}只取與問題相關的指標` +
+              `（${focusMetrics.length} 個指標，每個資料集最多 ${focusedLimitPerDataset} 筆）。` +
               '其他面向的指標本次未納入，若問題涉及那些面向，本次回應無法涵蓋。',
           ]
         : []),
@@ -524,6 +532,24 @@ function dedupeByEvidenceId(evidence: readonly AiEvidence[]): AiEvidence[] {
     kept.push(item);
   }
   return kept;
+}
+
+function inferMentionedDistrictNames(
+  question: string | null | undefined,
+  comparisonEvidence: readonly AiEvidence[],
+): string[] {
+  if (!question) {
+    return [];
+  }
+  const available = new Set(
+    comparisonEvidence
+      .map((item) => item.districtName)
+      .filter((name): name is string => typeof name === 'string' && name.length > 0),
+  );
+  return [...available].filter((name) => {
+    const shortName = name.replace(/區$/u, '');
+    return question.includes(name) || (shortName.length >= 2 && question.includes(shortName));
+  });
 }
 
 function describeDropped(droppedBySource: Readonly<Record<string, number>>): string {
