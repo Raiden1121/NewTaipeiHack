@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "New Taipei Youth Opportunity Platform",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1280, 530],
+    "views": [
+      { "id": "serving-path", "label": "Dashboard read path", "focus": ["users", "frontend", "apigw", "api", "dynamo"], "note": "Browser loads the React SPA and reads precomputed analytics through the API Lambda." },
+      { "id": "ai-query", "label": "AI Policy Copilot", "focus": ["api", "ai", "dynamo", "bedrock", "tavily"], "note": "POST /api/v1/ai/query invokes the private AI Lambda, grounded on DynamoDB evidence." },
+      { "id": "data-refresh", "label": "Data refresh", "focus": ["opendata", "pipeline", "transformed", "analytics", "dynamo"], "note": "Collect and transform locally, upload curated data, then invoke the analytics Lambda." }
+    ]
+  },
+  "components": [
+    { "id": "opendata", "type": "external", "label": "Open Data", "sublabel": "TDX / NTPC / gov", "pos": [40, 60], "size": [150, 64] },
+    { "id": "pipeline", "type": "backend", "label": "data-pipeline", "sublabel": "Python ETL, local", "pos": [300, 60], "size": [150, 64], "tag": "runs locally" },
+    { "id": "transformed", "type": "database", "label": "S3 Transformed", "sublabel": "curated/ + quality/", "pos": [560, 60], "size": [150, 64] },
+    { "id": "analytics", "type": "backend", "label": "Analytics Lambda", "sublabel": "Python 3.12", "pos": [820, 60], "size": [150, 64], "tag": "manual invoke" },
+    { "id": "users", "type": "external", "label": "Users", "sublabel": "Browser", "pos": [40, 220], "size": [150, 64] },
+    { "id": "frontend", "type": "frontend", "label": "React Dashboard", "sublabel": "S3 + CloudFront", "brand": "react", "pos": [300, 220], "size": [150, 64], "tag": "+ /slides/" },
+    { "id": "apigw", "type": "cloud", "label": "API Gateway", "sublabel": "HTTP API", "pos": [560, 220], "size": [150, 64] },
+    { "id": "api", "type": "backend", "label": "API Lambda", "sublabel": "Python /api/v1/*", "pos": [820, 220], "size": [150, 64] },
+    { "id": "dynamo", "type": "database", "label": "DynamoDB", "sublabel": "analytics table", "pos": [1080, 220], "size": [150, 64] },
+    { "id": "tavily", "type": "external", "label": "Tavily", "sublabel": "web search", "pos": [40, 380], "size": [150, 64] },
+    { "id": "ai", "type": "backend", "label": "AI Service Lambda", "sublabel": "Node.js 22", "pos": [820, 380], "size": [150, 64], "tag": "no public URL" },
+    { "id": "bedrock", "type": "cloud", "label": "Amazon Bedrock", "sublabel": "Claude Sonnet", "pos": [1080, 380], "size": [150, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "AWS us-west-2 · data", "wraps": ["transformed", "analytics"] },
+    { "kind": "region", "label": "AWS us-west-2 · serving + AI", "wraps": ["frontend", "apigw", "api", "dynamo", "ai", "bedrock"] }
+  ],
+  "connections": [
+    { "id": "load-spa", "from": "users", "to": "frontend", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "fetch-api", "from": "frontend", "to": "apigw", "label": "fetch", "variant": "emphasis" },
+    { "id": "route", "from": "apigw", "to": "api", "variant": "emphasis" },
+    { "id": "read-analytics", "from": "api", "to": "dynamo", "label": "BatchGetItem", "variant": "emphasis" },
+    { "id": "invoke-ai", "from": "api", "to": "ai", "label": "IAM invoke", "variant": "security", "labelAt": [888, 310] },
+    { "id": "read-evidence", "from": "ai", "to": "dynamo", "label": "read evidence", "fromSide": "top", "toSide": "bottom" },
+    { "id": "invoke-model", "from": "ai", "to": "bedrock", "label": "InvokeModel" },
+    { "id": "web-search", "from": "ai", "to": "tavily", "label": "optional", "variant": "dashed" },
+    { "id": "collect", "from": "opendata", "to": "pipeline", "label": "collect" },
+    { "id": "upload", "from": "pipeline", "to": "transformed", "label": "upload", "variant": "dashed" },
+    { "id": "read-curated", "from": "transformed", "to": "analytics", "label": "on demand" },
+    { "id": "write-snapshot", "from": "analytics", "to": "dynamo", "label": "write snapshot", "fromSide": "right", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Serving", "items": ["React + Vite SPA on S3 + CloudFront", "Python Lambda reads precomputed metrics only"] },
+    { "dot": "violet", "title": "AI Copilot", "items": ["AI Lambda reachable only via API Lambda IAM invoke", "Grounded on DynamoDB evidence; Tavily optional"] },
+    { "dot": "amber", "title": "Not yet automated", "items": ["No EventBridge / Step Functions schedule", "Raw S3 bucket provisioned but unused"] }
+  ]
+}
