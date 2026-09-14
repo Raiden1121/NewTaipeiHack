@@ -6,14 +6,44 @@
 
 本專案聚焦新北市 29 個行政區與 18–35 歲青年，整合跨部會、新北市政府及青年局公開資料，觀察各區的青年發展機會、人口變化、留才風險與資源配置情形。
 
-目標不是只呈現統計數字，而是協助使用者理解青年需求與政府資源供給之間的關係，並以 AI 提供可追溯資料依據的政策分析輔助。
+目標不只呈現統計數字，而是協助使用者理解青年需求與政府資源供給之間的關係，並以 AI 提供可追溯資料依據的政策分析輔助。
 
-## Core Questions
+## Frontend Preview
 
-1. 哪些行政區具有較好的青年發展機會？
-2. 哪些行政區正在出現青年流失或留才風險訊號？
-3. 青年需求和現有政府資源之間是否存在配置落差？
-4. AI 如何協助使用者理解數據並取得政策決策參考？
+以下畫面於 2026-09-15 從當時的上雲版本擷取，為寬度 1440px 的完整長頁截圖。圖片已保存至 `docs/frontend/`，README 不依賴 AWS 環境即可檢視；點擊圖片可開啟原始尺寸。
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="docs/frontend/home.png"><img src="docs/frontend/home.png" alt="首頁完整頁面" width="760"></a><br>
+      <sub>首頁</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="docs/frontend/employment.png"><img src="docs/frontend/employment.png" alt="青年就業完整頁面" width="760"></a><br>
+      <sub>青年就業</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="docs/frontend/politics.png"><img src="docs/frontend/politics.png" alt="青年參政完整頁面" width="760"></a><br>
+      <sub>青年參政</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="docs/frontend/fertility.png"><img src="docs/frontend/fertility.png" alt="青年生育完整頁面" width="760"></a><br>
+      <sub>青年生育</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="docs/frontend/policy-support.png"><img src="docs/frontend/policy-support.png" alt="施政協助完整頁面" width="760"></a><br>
+      <sub>施政協助</sub>
+    </td>
+  </tr>
+</table>
 
 ## Key Features
 
@@ -31,25 +61,9 @@
 
 以下為目標架構；標示 [已部署] 的部分已用 Terraform 部署到 AWS，其餘仍在規劃：
 
-```text
-Open Data Sources
-       ↓
-Automated Data Pipeline (data-pipeline/, 尚未部署為雲端資源)
-       ↓
-S3 Raw / Transformed Data [已部署]
-       ↓
-Deterministic Analytics
-       ↓
-DynamoDB [已部署] (analytics table，目前是空的)
-       ↓
-API Gateway + Lambda [已部署] (Python) ─────→ React Dashboard [已部署] (S3 + CloudFront)
-       ↓                                                    ↓
-AI Context / Evidence                             AI Policy Copilot
-       ↓                                    (ai-service/ 已有實作，尚未部署)
-Amazon Bedrock
-```
+[![System Architecture](docs/architecture/system-architecture.visual-check.1440x900.light.png)](docs/architecture/system-architecture.html)
 
-前端（含 `slides/` 簡報頁）與 API/DynamoDB/S3 由 `infrastructure/` 下的 **Terraform** 管理與部署（`cd infrastructure && terraform apply`）；`infrastructure/cdk.json`、`bin/`、`lib/` 是未使用的舊 placeholder。資料更新流程（EventBridge Scheduler、Step Functions 串接資料處理工作）與 AI Service 的雲端部署仍在規劃中，尚未建立對應的 AWS 資源。
+互動式版本：[system-architecture.html](docs/architecture/system-architecture.html)；相關圖檔與驗證輸出見 [`docs/architecture/`](docs/architecture/)。
 
 ## Project Structure
 
@@ -59,17 +73,15 @@ newtaipei-youth/
 │   ├── public/         # 前端公開資產，目前包含新北市地圖資料
 │   ├── src/
 │   └── package.json
-├── slides/              # 簡報用靜態頁（PDF 檢視器），部署到同一個 CloudFront 的 /slides/ 路徑
 ├── backend/            # TypeScript + Node.js REST API 邊界（尚為 scaffold，未實作；
 │   ├── src/            # 正式環境的讀取 API 目前是 infrastructure/modules/api/ 的 Python Lambda）
 │   ├── tests/
 │   └── package.json
-├── ai-service/         # Amazon Bedrock／AI 回覆／RAG 邊界（已有 Bedrock client、context/evidence
-│   ├── src/            # 組裝與 Structured Output 驗證等實作，尚未部署為雲端資源）
+├── ai-service/         # Amazon Bedrock／AI 回覆
 │   ├── tests/
 │   └── package.json
-├── data-pipeline/      # Python ETL、資料分析與指標計算（已實作並可產生 published snapshot，
-│   ├── src/            # 尚未有自動排程或寫入 DynamoDB 的雲端資源）
+├── data-pipeline/      # Python ETL、資料分析與指標計算
+│   ├── src/
 │   ├── config/
 │   ├── data/           # collector/analytics 輸出與 published snapshot
 │   ├── tests/
@@ -90,8 +102,6 @@ newtaipei-youth/
 ├── README.md
 └── DESIGN_LANGUAGE.md
 ```
-
-`infrastructure/` 已用 Terraform 建立並部署實際 AWS 資源（S3 + CloudFront 前端與簡報頁、API Gateway + Python Lambda、DynamoDB、raw/transformed data 用的 S3 bucket），細節見 `infrastructure/infrastructure.md`。`ai-service/`、`data-pipeline/`、`shared/` 都已有實質程式碼，但尚未部署對應的 AWS 資源（Lambda、EventBridge 等）；`backend/` 則仍是空的 scaffold（只有 `.gitkeep`）——目前線上實際服務讀取請求的 API 是 `infrastructure/modules/api/lambda/handler.py`（Python），不是 `backend/` 這個 TypeScript 服務。
 
 ## Data Pipeline
 
@@ -130,16 +140,16 @@ AI 回覆應盡可能符合以下原則：
 
 ## Tech Stack
 
-| Layer | Technology | Status |
-| --- | --- | --- |
-| Frontend | React, Vite, D3 Geo, TopoJSON | 已部署（S3 + CloudFront） |
-| API | Python（`infrastructure/modules/api/lambda/handler.py`）+ Amazon API Gateway (HTTP API) | 已部署，讀取 DynamoDB（表目前是空的） |
-| Backend | TypeScript, Node.js（`backend/`） | Scaffold / planned，未實際使用——正式 API 由上面的 Python Lambda 提供 |
-| AI | Amazon Bedrock, RAG / Knowledge Base | 程式碼已實作（`ai-service/`），尚未部署雲端資源 |
-| Data | Python, Pandas / GeoPandas（`data-pipeline/`） | 已實作 ETL 與 analytics，尚未部署為雲端排程 |
-| Storage | Amazon S3（raw / transformed / frontend）, DynamoDB | 已部署 |
-| Workflow | EventBridge, Step Functions | Architecture / planned |
-| Infrastructure | **Terraform**（`infrastructure/`） | 使用中；`AWS CDK`（`cdk.json`/`bin`/`lib`）為未使用的舊 placeholder |
+| Layer          | Technology                                                                              | Status                                                               |
+| -------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Frontend       | React, Vite, D3 Geo, TopoJSON                                                           | 已部署（S3 + CloudFront）                                            |
+| API            | Python（`infrastructure/modules/api/lambda/handler.py`）+ Amazon API Gateway (HTTP API) | 已部署，讀取 DynamoDB（表目前是空的）                                |
+| Backend        | TypeScript, Node.js（`backend/`）                                                       | Scaffold / planned，未實際使用——正式 API 由上面的 Python Lambda 提供 |
+| AI             | Amazon Bedrock, RAG / Knowledge Base                                                    | 程式碼已實作（`ai-service/`），尚未部署雲端資源                      |
+| Data           | Python, Pandas / GeoPandas（`data-pipeline/`）                                          | 已實作 ETL 與 analytics，尚未部署為雲端排程                          |
+| Storage        | Amazon S3（raw / transformed / frontend）, DynamoDB                                     | 已部署                                                               |
+| Workflow       | EventBridge, Step Functions                                                             | Architecture / planned                                               |
+| Infrastructure | **Terraform**（`infrastructure/`）                                                      | 使用中；`AWS CDK`（`cdk.json`/`bin`/`lib`）為未使用的舊 placeholder  |
 
 ## Development Status
 
